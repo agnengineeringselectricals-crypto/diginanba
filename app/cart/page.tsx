@@ -1,0 +1,5 @@
+'use client';
+import Link from 'next/link';
+import {useEffect,useState} from 'react';
+type Item={slug:string;title:string;price:string;amountMinor:number;market:'US'|'UK'};
+export default function Cart(){const [items,setItems]=useState<Item[]>([]);useEffect(()=>{try{setItems(JSON.parse(localStorage.getItem('diginanba-cart')||'[]'))}catch{}},[]);const clear=()=>{localStorage.removeItem('diginanba-cart');setItems([])};return <main className="wrap cart-page"><div className="sectionhead"><div><div className="eyebrow">Your shopping cart</div><h1>Cart</h1></div><Link className="btn" href="/explore">Continue shopping</Link></div>{items.length===0?<div className="panel"><h2>Your cart is empty</h2><p className="muted">Add products from the marketplace as checkout is enabled.</p></div>:<><div className="panel">{items.map((x,i)=><div className="cart-row" key={x.slug+i}><div><b>{x.title}</b><div className="muted">{x.market} · {x.price}</div></div><span>{x.price}</span></div>)}<div className="cart-actions"><button className="btn" onClick={clear}>Clear cart</button><Link className="btn primary" href="/checkout">Proceed to checkout →</Link></div></div></>}</main>}
