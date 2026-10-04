@@ -1,4 +1,75 @@
 import Link from 'next/link';
-import {getProduct} from '@/lib/catalog';
-import type {Market} from '@/lib/market';
-export default async function ProductPage({params,searchParams}:{params:Promise<{slug:string}>;searchParams:Promise<{market?:string}>}){const {slug}=await params;const sp=await searchParams;const market=(sp.market==='UK'?'UK':'US') as Market;const p=await getProduct(slug,market);if(!p)return <main className="wrap"><div className="panel"><h1>Product not found</h1><Link className="btn" href="/explore">Back to explore</Link></div></main>;return <main className="wrap product-page"><Link href={`/explore?market=${market}`} className="muted">← Back to marketplace</Link><div className="product-hero"><div><span className="category">{p.category}</span><h1>{p.title}</h1><p className="lead">{p.description}</p><div className="buybox"><div><span className="muted">{market==='US'?'United States · USD':'United Kingdom · GBP'}</span><strong>{p.price}</strong></div><button className="btn primary" disabled>Add to cart — coming next</button></div></div><div className="preview-card"><div className="preview-icon">✦</div><h3>Digital download</h3><p className="muted">Instant access after successful checkout.</p><hr/><p>✓ Practical, ready-to-use resource</p><p>✓ Market-localized edition</p><p>✓ Secure digital delivery</p></div></div></main>}
+import { getProduct } from '@/lib/catalog';
+import type { Market } from '@/lib/market';
+import AddToCartButton from './AddToCartButton';
+
+export default async function ProductPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<{ market?: string }>;
+}) {
+  const { slug } = await params;
+  const sp = await searchParams;
+  const market = (sp.market === 'UK' ? 'UK' : 'US') as Market;
+  const p = await getProduct(slug, market);
+
+  if (!p) {
+    return (
+      <main className="wrap">
+        <div className="panel">
+          <h1>Product not found</h1>
+          <Link className="btn" href="/explore">
+            Back to explore
+          </Link>
+        </div>
+      </main>
+    );
+  }
+
+  return (
+    <main className="wrap product-page">
+      <Link href={`/explore?market=${market}`} className="muted">
+        ← Back to marketplace
+      </Link>
+
+      <div className="product-hero">
+        <div>
+          <span className="category">{p.category}</span>
+          <h1>{p.title}</h1>
+          <p className="lead">{p.description}</p>
+
+          <div className="buybox">
+            <div>
+              <span className="muted">
+                {market === 'US' ? 'United States · USD' : 'United Kingdom · GBP'}
+              </span>
+              <strong>{p.price}</strong>
+            </div>
+
+            <AddToCartButton
+              product={{
+                slug: p.slug,
+                title: p.title,
+                price: p.price,
+                amountMinor: p.amountMinor,
+                market,
+              }}
+            />
+          </div>
+        </div>
+
+        <div className="preview-card">
+          <div className="preview-icon">✦</div>
+          <h3>Digital download</h3>
+          <p className="muted">Instant access after successful checkout.</p>
+          <hr />
+          <p>✓ Practical, ready-to-use resource</p>
+          <p>✓ Market-localized edition</p>
+          <p>✓ Secure digital delivery</p>
+        </div>
+      </div>
+    </main>
+  );
+}
