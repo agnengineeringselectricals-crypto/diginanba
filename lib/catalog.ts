@@ -14,7 +14,16 @@ const fallback = [
   ['creator-content-calendar','Creator Content Calendar','A 90-day content planning system for consistent publishing.','Marketing & Sales',1299,999],
   ['project-cost-calculator','Project Cost Calculator','A spreadsheet toolkit for estimating project cost and margin.','Excel & Sheets',1499,1199],
   ['startup-operations-playbook','Startup Operations Playbook','Practical SOPs and checklists for an early-stage team.','Business & Entrepreneurship',1799,1399],
-  ['client-onboarding-system','Client Onboarding System','A reusable workflow for collecting requirements and starting projects.','Templates & Documents',1099,899]
+  ['client-onboarding-system','Client Onboarding System','A reusable workflow for collecting requirements and starting projects.','Templates & Documents',1099,899],
+  ['small-business-field-guide','Small Business Field Guide','A practical guide to launching and growing a small business.','Ebooks & Guides',899,699],
+  ['learning-roadmap','Learning Roadmap Workbook','A guided workbook for planning a new skill and tracking progress.','Education & Learning',799,599],
+  ['app-launch-starter-kit','App Launch Starter Kit','A project brief and launch checklist for your first software product.','Software / Code',1599,1299],
+  ['engineering-project-log','Engineering Project Log','A structured project log for technical and engineering work.','CAD & Engineering',1299,999],
+  ['content-creator-video-kit','Content Creator Video Kit','Shot lists, scripts and production notes for short-form video.','Video & Audio',1199,899],
+  ['photo-session-planner','Photo Session Planner','Plan photography sessions, shot lists and delivery timelines.','Photography',699,499],
+  ['printable-weekly-planner','Printable Weekly Planner','A clean printable planner for weekly priorities and routines.','Printables',499,399],
+  ['personal-goal-journal','Personal Goal Journal','A simple guided journal for personal goals and reflection.','Personal & Lifestyle',599,499],
+  ['social-media-design-kit','Social Media Design Kit','Editable design layouts for consistent social media publishing.','Design Assets',1099,899]
 ] as const;
 
 export async function getProducts(market: Market, q=''): Promise<CatalogProduct[]> {

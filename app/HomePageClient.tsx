@@ -133,6 +133,20 @@ export default function HomePageClient({ initialProducts }: Props) {
     setMarketOpen(false);
   }
 
+  function addProductToCart(product: CatalogProduct) {
+    try {
+      const saved = JSON.parse(localStorage.getItem('diginanba-cart') || '[]');
+      const items = Array.isArray(saved) ? saved.filter((item: { slug?: string }) => item.slug !== product.slug) : [];
+      localStorage.setItem('diginanba-cart', JSON.stringify([...items, {
+        slug: product.slug, title: product.title, price: product.price,
+        amountMinor: product.amountMinor, market,
+      }]));
+      setCartCount(items.length + 1);
+    } catch {
+      window.alert('Unable to add this product to the cart. Please try again.');
+    }
+  }
+
   return <>
     <header className="ref-header">
       <div className="ref-container ref-nav">
@@ -190,7 +204,7 @@ export default function HomePageClient({ initialProducts }: Props) {
         </div>
         {visibleProducts.length ? <div className="ref-products">{visibleProducts.map((product) => <article className="ref-product" key={product.id}>
           <Link className="ref-product-art" href={`/products/${product.slug}?market=${market}`} aria-label={`View ${product.title}`}>{categories.find(([, , dbName]) => dbName === product.category)?.[0] ?? '✦'}</Link>
-          <div className="ref-product-body"><span className="ref-tag">{product.category}</span><h3><Link href={`/products/${product.slug}?market=${market}`}>{product.title}</Link></h3><p>{product.description}</p><div className="ref-price-row"><span className="ref-price">{product.price}</span><Link className="ref-view-product" href={`/products/${product.slug}?market=${market}`}>View product</Link></div></div>
+          <div className="ref-product-body"><span className="ref-tag">{product.category}</span><h3><Link href={`/products/${product.slug}?market=${market}`}>{product.title}</Link></h3><p>{product.description}</p><div className="ref-price-row"><span className="ref-price">{product.price}</span><Link className="ref-view-product" href={`/products/${product.slug}?market=${market}`}>View product</Link></div><button className="ref-add-cart" onClick={() => addProductToCart(product)}>Add to cart</button></div>
         </article>)}</div> : <div className="ref-empty">No products found for this category or search. Try another search or category.</div>}
       </div></section>
 
