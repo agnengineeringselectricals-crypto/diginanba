@@ -434,3 +434,10 @@
   .ref-subcategory-menu-heading{align-items:flex-start;flex-direction:column}
   .ref-subcategory-grid{grid-template-columns:1fr}
 }
+
+/* Keep the selected market flag visibly attached to the language selector. */
+.ref-language-market{display:flex;flex:none;align-items:center;gap:2px;white-space:nowrap}
+.ref-market-flag{flex:0 0 32px;min-width:32px}
+@media(max-width:700px){
+  .ref-market-flag{flex-basis:30px;min-width:30px}
+}

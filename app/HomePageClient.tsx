@@ -250,8 +250,10 @@ export default function HomePageClient({ initialProducts, categories, needs, row
         <div className="ref-header-actions">
           <Link className="ref-header-account" href="/login">Sign in / Sign up</Link>
           <Link className="ref-header-cart" href="/cart" aria-label={`Cart, ${cartCount} items`}><span aria-hidden="true">🛒</span><strong>Cart</strong><span className="ref-count">{cartCount}</span></Link>
-          <label className="ref-language-control"><span className="sr-only">Language</span><select value={language} onChange={(event) => setSelectedLanguage(event.target.value)} aria-label="Choose language">{languagesByMarket[market].map((item) => <option value={item.code} key={item.code}>EN</option>)}</select></label>
-          <button className="ref-market-flag" onClick={() => setMarketOpen(true)} aria-label={`Selected market ${selectedMarket.label}; change country`} title={selectedMarket.label}><span role="img" aria-label={selectedMarket.label}>{selectedMarket.flag}</span></button>
+          <div className="ref-language-market">
+            <label className="ref-language-control"><span className="sr-only">Language</span><select value={language} onChange={(event) => setSelectedLanguage(event.target.value)} aria-label="Choose language">{languagesByMarket[market].map((item) => <option value={item.code} key={item.code}>EN</option>)}</select></label>
+            <button className="ref-market-flag" type="button" onClick={() => setMarketOpen(true)} aria-label={`Selected market ${selectedMarket.label}; change country`} title={selectedMarket.label}><span role="img" aria-label={selectedMarket.label}>{selectedMarket.flag}</span></button>
+          </div>
         </div>
       </div>
 
