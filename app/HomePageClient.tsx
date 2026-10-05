@@ -4,19 +4,20 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import type { CatalogProduct } from '@/lib/catalog';
 import type { Market } from '@/lib/market';
-import type { DiscoveryCategory, DiscoveryNeed } from '@/lib/discovery';
+import type { DiscoveryCategory, DiscoveryNeed, DiscoveryRow } from '@/lib/discovery';
 
 type Props = {
   initialProducts: CatalogProduct[];
   categories: DiscoveryCategory[];
   needs: DiscoveryNeed[];
+  rows: DiscoveryRow[];
 };
 
 function normalizeWord(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9]/g, '').replace(/(ing|ers|ies|ed|es|s)$/u, (suffix) => suffix === 'ies' ? 'y' : '');
 }
 
-export default function HomePageClient({ initialProducts, categories, needs }: Props) {
+export default function HomePageClient({ initialProducts, categories, needs, rows }: Props) {
   const [market, setMarket] = useState<Market>('US');
   const [products, setProducts] = useState(initialProducts);
   const [query, setQuery] = useState('');
@@ -79,6 +80,7 @@ export default function HomePageClient({ initialProducts, categories, needs }: P
     else if (tokens.length) filtered.sort((a, b) => b.score - a.score);
     return filtered.map(({ product }) => product);
   }, [categories, category, needFilter, products, query, sort]);
+  const hasActiveFilters = Boolean(query.trim() || category !== 'All' || needFilter.length);
 
   function chooseCategory(value: string) {
     setCategory(value);
@@ -125,6 +127,20 @@ export default function HomePageClient({ initialProducts, categories, needs }: P
     return categories.find((item) => item.matches.includes(product.category))?.icon ?? '✦';
   }
 
+  function belongsToRow(product: CatalogProduct, row: DiscoveryRow) {
+    return row.categories.some((name) => {
+      const configuredCategory = categories.find((item) => item.name === name || item.matches.includes(name));
+      return configuredCategory?.matches.includes(product.category) ?? name === product.category;
+    });
+  }
+
+  function renderProductCard(product: CatalogProduct, shelf = false) {
+    return <article className={`ref-product${shelf ? ' ref-shelf-card' : ''}`} key={`${shelf ? 'shelf-' : ''}${product.id}`}>
+      <Link className="ref-product-art" href={`/products/${product.slug}?market=${market}`} aria-label={`View ${product.title}`}>{productIcon(product)}</Link>
+      <div className="ref-product-body"><span className="ref-tag">{product.category}</span><h3><Link href={`/products/${product.slug}?market=${market}`}>{product.title}</Link></h3><p>{product.description}</p><div className="ref-price-row"><span className="ref-price">{product.price}</span><Link className="ref-view-product" href={`/products/${product.slug}?market=${market}`}>View product</Link></div><button className="ref-add-cart" onClick={() => addProductToCart(product)}>Add to cart</button></div>
+    </article>;
+  }
+
   return <>
     <header className="ref-header">
       <div className="ref-container ref-nav">
@@ -137,40 +153,55 @@ export default function HomePageClient({ initialProducts, categories, needs }: P
           <a href="#needs" onClick={() => setMobileNavOpen(false)}>What do you need?</a>
           <a className="ref-mobile-auth" href="/login">Log in</a>
           <a className="ref-mobile-auth" href="/signup">Create an account</a>
+          <a className="ref-mobile-auth" href="/account">Your account and orders</a>
         </nav>
         <div className="ref-actions">
           <button className="ref-market" onClick={() => setMarketOpen(true)} aria-label="Choose market and currency">{market === 'UK' ? '🇬🇧 GBP' : '🇺🇸 USD'}</button>
           <Link className="ref-ghost ref-login" href="/login">Log in</Link>
           <Link className="ref-primary ref-signup" href="/signup">Sign up</Link>
+          <Link className="ref-ghost ref-orders" href="/account">Orders</Link>
           <Link className="ref-ghost ref-cart" href="/cart" aria-label={`Cart, ${cartCount} items`}>🛒<span className="ref-count">{cartCount}</span></Link>
         </div>
       </div>
     </header>
 
+    <nav className="ref-marketplace-nav" aria-label="Browse product categories"><div className="ref-container ref-marketplace-nav-inner">
+      <button className={category === 'All' ? 'active' : ''} onClick={() => chooseCategory('All')}>All products</button>
+      {categories.map((item) => <button className={category === item.name ? 'active' : ''} key={item.name} onClick={() => chooseCategory(item.name)}>{item.name}</button>)}
+    </div></nav>
+
     <main id="home">
-      <section className="ref-hero"><div className="ref-container ref-hero-content">
-        <span className="ref-eyebrow">DIGITAL PRODUCTS FOR WORK, LEARNING &amp; LIFE</span>
-        <h1>Find the right digital product for what you want to do.</h1>
-        <p>Learn something new, solve a work challenge, or bring your next idea to life.</p>
-        <form className="ref-searchbox" onSubmit={runSearch} role="search">
-          <span aria-hidden="true">⌕</span>
-          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search courses, guides, templates, spreadsheets and more" aria-label="Search digital products" />
-          <button className="ref-primary" type="submit">Search</button>
-        </form>
+      <section className="ref-hero"><div className="ref-container ref-hero-layout">
+        <div className="ref-hero-content">
+          <span className="ref-eyebrow">DIGITAL PRODUCTS FOR WORK, LEARNING &amp; LIFE</span>
+          <h1>Find the right digital product for what you want to do.</h1>
+          <p>Learn something new, solve a work challenge, or bring your next idea to life.</p>
+          <form className="ref-searchbox" onSubmit={runSearch} role="search">
+            <span aria-hidden="true">⌕</span>
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search courses, guides, templates, spreadsheets and more" aria-label="Search digital products" />
+            <button className="ref-primary" type="submit">Search</button>
+          </form>
+        </div>
+        {initialProducts[0] && <aside className="ref-hero-spotlight" aria-label="A product to explore">
+          <div className="ref-spotlight-art">{productIcon(initialProducts[0])}</div>
+          <div className="ref-spotlight-content"><span className="ref-kicker">A PLACE TO START</span><span className="ref-tag">{initialProducts[0].category}</span><h2>{initialProducts[0].title}</h2><p>{initialProducts[0].description}</p><div><strong>{initialProducts[0].price}</strong><Link href={`/products/${initialProducts[0].slug}?market=${market}`}>View product →</Link></div></div>
+        </aside>}
       </div></section>
 
       <section id="explore" className="ref-section ref-explore"><div className="ref-container">
-        <div className="ref-section-head"><div><span className="ref-kicker">DISCOVER SOMETHING USEFUL</span><h2>Explore digital products</h2><p>Practical tools and resources for your next step.</p></div></div>
-        <div className="ref-toolbar">
-          <label className="ref-filter-label">Category<select value={category} onChange={(event) => { setCategory(event.target.value); setNeedFilter([]); setActiveNeed(''); }} aria-label="Filter by category"><option value="All">All categories</option>{categories.map((item) => <option value={item.name} key={item.name}>{item.name}</option>)}</select></label>
-          <label className="ref-filter-label">Sort by<select value={sort} onChange={(event) => setSort(event.target.value)} aria-label="Sort products"><option value="featured">Recommended</option><option value="low">Price: low to high</option><option value="high">Price: high to low</option></select></label>
-          {(activeNeed || category !== 'All' || query) && <button className="ref-clear-filters" onClick={() => { setQuery(''); setCategory('All'); setNeedFilter([]); setActiveNeed(''); }}>Clear filters</button>}
-        </div>
-        {activeNeed && <p className="ref-active-filter">Showing products to help you: <strong>{activeNeed}</strong></p>}
-        {visibleProducts.length ? <div className="ref-products">{visibleProducts.map((product) => <article className="ref-product" key={product.id}>
-          <Link className="ref-product-art" href={`/products/${product.slug}?market=${market}`} aria-label={`View ${product.title}`}>{productIcon(product)}</Link>
-          <div className="ref-product-body"><span className="ref-tag">{product.category}</span><h3><Link href={`/products/${product.slug}?market=${market}`}>{product.title}</Link></h3><p>{product.description}</p><div className="ref-price-row"><span className="ref-price">{product.price}</span><Link className="ref-view-product" href={`/products/${product.slug}?market=${market}`}>View product</Link></div><button className="ref-add-cart" onClick={() => addProductToCart(product)}>Add to cart</button></div>
-        </article>)}</div> : <div className="ref-empty"><h3>No products match that search yet.</h3><p>Try another phrase or browse all products.</p><button className="ref-view-product" onClick={() => { setQuery(''); setCategory('All'); setNeedFilter([]); setActiveNeed(''); }}>Show all products</button></div>}
+        {hasActiveFilters ? <>
+          <div className="ref-section-head"><div><span className="ref-kicker">PRODUCT RESULTS</span><h2>Explore digital products</h2></div><button className="ref-clear-filters" onClick={() => { setQuery(''); setCategory('All'); setNeedFilter([]); setActiveNeed(''); }}>Clear filters</button></div>
+          <div className="ref-toolbar"><label className="ref-filter-label">Category<select value={category} onChange={(event) => { setCategory(event.target.value); setNeedFilter([]); setActiveNeed(''); }} aria-label="Filter by category"><option value="All">All categories</option>{categories.map((item) => <option value={item.name} key={item.name}>{item.name}</option>)}</select></label><label className="ref-filter-label">Sort by<select value={sort} onChange={(event) => setSort(event.target.value)} aria-label="Sort products"><option value="featured">Recommended</option><option value="low">Price: low to high</option><option value="high">Price: high to low</option></select></label></div>
+          {activeNeed && <p className="ref-active-filter">Showing products to help you: <strong>{activeNeed}</strong></p>}
+          {visibleProducts.length ? <div className="ref-products">{visibleProducts.map((product) => renderProductCard(product))}</div> : <div className="ref-empty"><h3>No products match that search yet.</h3><p>Try another phrase or browse all products.</p><button className="ref-view-product" onClick={() => { setQuery(''); setCategory('All'); setNeedFilter([]); setActiveNeed(''); }}>Show all products</button></div>}
+        </> : <div className="ref-shelves">{rows.map((row) => {
+          const shelfProducts = products.filter((product) => belongsToRow(product, row));
+          if (!shelfProducts.length) return null;
+          return <section className="ref-shelf" key={row.key} aria-labelledby={`shelf-${row.key}`}>
+            <div className="ref-shelf-heading"><div><h2 id={`shelf-${row.key}`}>{row.title}</h2><p>{row.subtitle}</p></div><Link href="/explore">See all products →</Link></div>
+            <div className="ref-shelf-track">{shelfProducts.map((product) => renderProductCard(product, true))}</div>
+          </section>;
+        })}</div>}
       </div></section>
 
       <section id="needs" className="ref-section ref-needs-section"><div className="ref-container">

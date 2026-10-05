@@ -83,6 +83,24 @@ INSERT INTO marketplace_needs(key,label,icon,category_names,sort_order) VALUES
 ('build-app','Build an app','💻',ARRAY['Software / Code','CAD / Engineering'],10)
 ON CONFLICT (key) DO NOTHING;
 
+CREATE TABLE IF NOT EXISTS discovery_rows (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  key TEXT NOT NULL UNIQUE,
+  title TEXT NOT NULL,
+  subtitle TEXT NOT NULL DEFAULT '',
+  category_names TEXT[] NOT NULL DEFAULT '{}',
+  sort_order INT NOT NULL DEFAULT 0,
+  enabled BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+INSERT INTO discovery_rows(key,title,subtitle,category_names,sort_order) VALUES
+('work-smarter','Work smarter','Useful resources for business, planning and productivity.',ARRAY['Business & Entrepreneurship','Finance & Accounting','Excel & Sheets','Marketing & Sales','AI & Automation'],1),
+('learn-grow','Learn and grow','Build practical skills and take the next step in your career.',ARRAY['Ebooks & Guides','Education & Learning','Career & Professional','Software / Code','Business & Entrepreneurship'],2),
+('create-build','Create and build','Bring creative ideas and new projects to life.',ARRAY['Design Assets','Video / Audio','CAD / Engineering','Photography','Printables','Personal / Lifestyle','Templates & Documents','Marketing & Sales','Excel & Sheets'],3)
+ON CONFLICT (key) DO NOTHING;
+
 INSERT INTO products(category_id,slug,title,description,product_type,owner_type,status) VALUES
 ((SELECT id FROM categories WHERE slug='business-entrepreneurship'),'business-growth-planner','Business Growth Planner','A practical planning toolkit for small businesses.','template','platform','published'),
 ((SELECT id FROM categories WHERE slug='finance-accounting'),'invoice-cashflow-toolkit','Invoice & Cashflow Toolkit','Templates and spreadsheets for tracking business cash flow.','spreadsheet','platform','published'),

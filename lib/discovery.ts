@@ -2,6 +2,7 @@ import { db } from './db';
 
 export type DiscoveryCategory = { name: string; icon: string; matches: string[]; searchTerms: string[] };
 export type DiscoveryNeed = { label: string; icon: string; categories: string[] };
+export type DiscoveryRow = { key: string; title: string; subtitle: string; categories: string[] };
 
 const defaultCategories: DiscoveryCategory[] = [
   { icon: '📚', name: 'Ebooks & Guides', matches: ['Ebooks & Guides'], searchTerms: ['books', 'guide', 'reading'] },
@@ -35,14 +36,23 @@ const defaultNeeds: DiscoveryNeed[] = [
   { icon: '💻', label: 'Build an app', categories: ['Software / Code', 'CAD / Engineering'] },
 ];
 
+const defaultRows: DiscoveryRow[] = [
+  { key: 'work-smarter', title: 'Work smarter', subtitle: 'Useful resources for business, planning and productivity.', categories: ['Business & Entrepreneurship', 'Finance & Accounting', 'Excel & Sheets', 'Marketing & Sales', 'AI & Automation'] },
+  { key: 'learn-grow', title: 'Learn and grow', subtitle: 'Build practical skills and take the next step in your career.', categories: ['Ebooks & Guides', 'Education & Learning', 'Career & Professional', 'Software / Code', 'Business & Entrepreneurship'] },
+  { key: 'create-build', title: 'Create and build', subtitle: 'Bring creative ideas and new projects to life.', categories: ['Design Assets', 'Video / Audio', 'CAD / Engineering', 'Photography', 'Printables', 'Personal / Lifestyle', 'Templates & Documents', 'Marketing & Sales', 'Excel & Sheets'] },
+];
+
 export async function getHomepageDiscovery() {
   try {
-    const [categoryResult, needsResult] = await Promise.all([
+    const [categoryResult, needsResult, rowsResult] = await Promise.all([
       db.query<{ name: string; sort_order: number; search_terms: string[] }>(
         'SELECT name, sort_order, search_terms FROM categories WHERE enabled=true ORDER BY sort_order, name'
       ),
       db.query<{ label: string; icon: string; category_names: string[] }>(
         'SELECT label, icon, category_names FROM marketplace_needs WHERE enabled=true ORDER BY sort_order, label'
+      ),
+      db.query<{ key: string; title: string; subtitle: string; category_names: string[] }>(
+        'SELECT key, title, subtitle, category_names FROM discovery_rows WHERE enabled=true ORDER BY sort_order, title'
       ),
     ]);
 
@@ -61,9 +71,14 @@ export async function getHomepageDiscovery() {
       ? [...defaultCategories, ...customCategories.filter((item) => !defaultCategories.some((base) => base.matches.includes(item.name)))]
       : customCategories;
     const needs = needsResult.rows.map((row) => ({ label: row.label, icon: row.icon, categories: row.category_names }));
+    const rows = rowsResult.rows.map((row) => ({ key: row.key, title: row.title, subtitle: row.subtitle, categories: row.category_names }));
 
-    return { categories: categoryResult.rows.length ? categories : defaultCategories, needs: needsResult.rows.length || categoryResult.rows.length ? needs : defaultNeeds };
+    return {
+      categories: categoryResult.rows.length ? categories : defaultCategories,
+      needs: needsResult.rows.length || categoryResult.rows.length ? needs : defaultNeeds,
+      rows: rowsResult.rows.length || categoryResult.rows.length ? rows : defaultRows,
+    };
   } catch {
-    return { categories: defaultCategories, needs: defaultNeeds };
+    return { categories: defaultCategories, needs: defaultNeeds, rows: defaultRows };
   }
 }
