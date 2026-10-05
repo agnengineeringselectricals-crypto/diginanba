@@ -58,10 +58,47 @@ Vercel can connect this Next.js project to GitHub so pushes can generate preview
 
 Before production payments, configure a payment provider, merchant/KYC settings, tax rules, webhook signing, and Vercel environment variables. Vercel recommends keeping secrets server-side and scoping environment variables by Production/Preview/Development; changes to environment variables require a redeploy.
 
-## Autonomous Factory — Stages 1–5 foundation
+## Autonomous Factory — integrated Stages 1–6 foundation
 
-`db/schema.sql` contains the private product-factory and marketing/growth records, the zero-cost financial policy, provider cost catalog, durable agent job queue, approvals, and aggregated feedback signals. Apply it to an existing database before using `/admin/factory`.
+The Factory is a private, admin-triggered backend workflow. It is not a public marketplace feature and does not make DigiNanba officially live.
 
-The private factory dashboard is restricted to the existing `Super Admin`, `Operations Admin`, and `AI Factory Manager` roles; read-only analysts may view it. Its authenticated API supports idempotent admin-triggered runs. Free deterministic modules can inspect published catalog coverage, score opportunities, create structured product briefs and private Markdown worksheet drafts, validate asset bytes/checksums, prepare taxonomy/search metadata, run quality checks, and draft organic-first marketing strategy/content. Every stage writes database-backed jobs and audit events. Operator-submitted research references are stored as references only; the system does not scrape/fetch them.
+### Capability status
 
-The Stage 1 policy constrains autonomous spending to ₹0. Paid and unknown-cost resources fail closed. There are no AI keys, payment secrets, external marketing accounts, or activated schedules. Localization, traffic analytics, external research acquisition, external campaign execution, and public publication wait for an authorized provider or human review. Generated products remain private drafts; publishing also requires a reviewed market edition/price and working fulfillment. No autonomous agent is operational outside explicitly triggered, free internal work. Existing authentication, marketplace, cart, checkout, payment foundation, taxonomy, and public homepage are unchanged.
+- **IMPLEMENTED:** private role-gated dashboard and API, durable job/event records, idempotency, provenance, bounded retries, provider registry, migration runner, approval records, and audit-visible errors.
+- **EXECUTABLE_FREE:** internal published-catalog gap scan; deterministic opportunity scoring; structured product brief; real private Markdown draft stored as UTF-8 `bytea` with SHA-256, MIME, safe filename, version, byte size, and provenance; byte/encoding/content validation; catalog metadata; quality gate; private organic-first strategy, campaign and SEO-content drafts. The workflow runs only after an authorized admin request, at most 12 jobs per request, and can be continued from the dashboard.
+- **PROVIDER_REQUIRED:** external research acquisition, localization/translation, analytics signals, and formats other than deterministic Markdown (including PDF, DOCX and XLSX). Unsupported provider capabilities fail as `provider_required`; no fake assets or results are returned.
+- **APPROVAL_REQUIRED:** publishing policy creates an approval record. Passing generation or QA is insufficient; public publication requires an authorized human decision plus an approved, priced market edition. No publishing executor or approval-to-publish endpoint is enabled.
+- **BLOCKED:** paid or unknown-cost work, unconfigured external communications, and paid advertising. No external account or marketing action is activated.
+
+Catalog-gap results are internal inventory observations, not demand evidence. They retain `LOW` confidence and may create private review drafts, but do not claim customer demand. Operator-submitted references are stored with attribution but are not fetched or independently verified. The score is a deterministic heuristic, not proof of demand, revenue, or conversion.
+
+### Zero-cost and safety policy
+
+Autonomous spend is **₹0**. The financial-policy schema rejects nonzero spend limits and paid actions; unknown costs fail closed. The local deterministic provider uses no external service or credential. Marketing is organic-first and private: no paid advertising, spam, unsolicited bulk messages, fake accounts/engagement, review manipulation, CAPTCHA/rate-limit bypass, or platform-security bypass. External publication remains inactive. Factory-created products stay `draft`; database guards require an approved, priced, published market edition before they can become public. No API keys, paid services, payment secrets, or external marketing accounts are added by this feature.
+
+### Admin access and how to run it
+
+`Super Admin`, `Operations Admin`, and `AI Factory Manager` can manage the Factory. `Read-Only Analyst` can view it. Customers, creators, sellers, and other roles cannot view or manage it unless separately granted one of those explicit admin roles. Both the page and every API action enforce role checks server-side.
+
+After the database migrations below are applied, an authorized admin signs in and opens `/admin/factory`. Use **Scan catalog coverage** for a private internal inventory run, or submit an opportunity with three distinct HTTPS source hosts whose summaries the operator has reviewed. The app does not retrieve those sources. Each request is bounded; use **Continue queued run** for any remaining jobs. Failed, blocked, provider-required and approval-required states remain visible in the dashboard and event log.
+
+### Database readiness and migrations
+
+There is no automatic production schema application. `db/schema.sql` is the complete idempotent bootstrap for a new database. Existing app databases need the core DigiNanba tables (`users`, `roles`, `markets`, `categories`, `subcategories`, `products`, and `product_editions`) before the Factory migrations. The checked-in migration path applies the private Stage 1–5 foundation and Stage 6 hardening in numbered, transactional, SHA-256-verified steps under a PostgreSQL advisory lock:
+
+```powershell
+$env:DATABASE_URL = '<connection string for the intended DigiNanba database>'
+npm run db:migrate
+```
+
+Review and back up the target database before running the command. The runner is manual; it is not called by the app, build, or Vercel. `db/migrations/001_factory_stages_1_5.sql` and `db/migrations/002_factory_stage6_hardening.sql` are additive and do not drop/replace application tables. The Stage 6 migration disables any existing schedules and adds a publication gate. It has not been applied to production as part of this code change.
+
+Schedules remain disabled by default. There is no background worker or cron. A manager may manually request due-schedule processing; each request is capped at five schedules and each run at 12 jobs. Only internal deterministic inventory research is eligible; unsupported schedules are blocked. Do not enable schedules until a separately reviewed worker and operational rate limits exist.
+
+### Validation and deployment notes
+
+Run `npm run test` for unit tests plus the PostgreSQL integration test. The integration test runs only when `FACTORY_TEST_DATABASE_URL` points to a dedicated migrated database whose name includes `test`, `testing`, or `integration`; without it, that test is explicitly skipped. The test refuses to run against a database without such a name. TypeScript is checked with `npx tsc --noEmit`. Next.js 16 removed `next lint`; the repo's lint command remains unsupported because installing the official ESLint CLI and matching Next.js config requires npm registry access, which was unavailable in this environment. The appropriate migration is `eslint .` with `eslint-config-next/core-web-vitals` in `eslint.config.mjs`; it is not claimed as installed or verified.
+
+Windows may compile the application and then fail when Next.js starts its TypeScript worker with `spawn EPERM`. Run `npx tsc --noEmit` separately to distinguish a Windows process-spawn restriction from TypeScript errors. This feature does not use a Windows-only build workaround. Verify Vercel build/deployment status against the exact pushed commit instead of inferring it from the local Windows build. Vercel's deployment behavior, domain, and launch settings are unchanged here.
+
+The public homepage, customer catalog, authentication, cart, checkout, orders, and payment foundation are unchanged.

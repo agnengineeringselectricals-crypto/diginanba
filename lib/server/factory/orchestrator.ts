@@ -1,14 +1,15 @@
 import 'server-only';
 import { createHash, randomUUID } from 'node:crypto';
 import type { PoolClient } from 'pg';
-import { db } from '@/lib/db';
-import { assessOperation, type CostClass, type OperationAssessment } from './policy';
-import { canRetryJob, makeIdempotencyKey, normalizePublicSourceUrl, providerGate, publishingPolicy, retryDelaySeconds, scheduleIntervalMs, type ResearchOpportunity, type buildProductBrief } from './domain';
-import { factoryAgents } from './agents';
-import { providers } from './provider-registry';
+import { db } from '../../db';
+import { assessOperation, type CostClass, type OperationAssessment } from './policy.ts';
+import { canRetryJob, classifyExecutionError, makeIdempotencyKey, normalizePublicSourceUrl, providerGate, publishingPolicy, retryDelaySeconds, scheduleIntervalMs, type ResearchOpportunity, type buildProductBrief } from './domain.ts';
+import { factoryAgents } from './agents.ts';
+import { providers } from './provider-registry.ts';
 
 const LOCAL_PROVIDER = 'diginanba-local-deterministic';
-const MAX_JOBS_PER_REQUEST = 100;
+const MAX_JOBS_PER_REQUEST = 12;
+const MAX_SCHEDULES_PER_REQUEST = 5;
 
 type AgentJob = {
   id: string; agent_run_id: string; parent_job_id: string | null; job_type: string; status: string;
@@ -29,15 +30,15 @@ async function enqueueChild(client: PoolClient, runId: string, child: ChildJob) 
   const status = child.terminal ?? 'queued';
   const output = child.terminal ? { status: child.terminal, reason: child.reason } : null;
   const result = await client.query<{ id: string }>(
-    `INSERT INTO agent_jobs(agent_run_id,parent_job_id,job_type,status,cost_class,input_json,output_json,idempotency_key)
-     VALUES($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT(idempotency_key) DO NOTHING RETURNING id`,
-    [runId,child.parentId,child.type,status,child.costClass ?? 'FREE',child.input,output,safeIdempotencyKey(`${runId}:${child.type}:${child.key}`)],
+    `INSERT INTO agent_jobs(agent_run_id,parent_job_id,job_type,status,cost_class,input_json,output_json,idempotency_key,completed_at,error_code,error_message)
+     VALUES($1,$2,$3,$4,$5,$6,$7,$8,CASE WHEN $4 IN ('blocked','provider_required','approval_required','cancelled','completed','failed') THEN now() ELSE NULL END,$9,$10) ON CONFLICT(idempotency_key) DO NOTHING RETURNING id`,
+    [runId,child.parentId,child.type,status,child.costClass ?? 'FREE',child.input,output,safeIdempotencyKey(`${runId}:${child.type}:${child.key}`),child.terminal?`POLICY_${child.terminal.toUpperCase()}`:null,child.terminal?child.reason??`${child.type} is not executable under current configuration.`:null],
   );
   if (result.rowCount && child.terminal) await addEvent(client,runId,`${child.type}_${child.terminal}`,child.reason ?? `${child.type} cannot execute under current policy.`,{jobId:result.rows[0].id,reason:child.reason},'warning');
   return result.rows[0]?.id ?? null;
 }
 
-export async function createResearchRun(userId: string, idempotencyKey: string) {
+export async function createResearchRun(userId: string, idempotencyKey: string, scope:{marketCode?:string;categorySlug?:string} = {}) {
   const client = await db.connect();
   const key = safeIdempotencyKey(`manual-market-research:${idempotencyKey}`);
   try {
@@ -50,12 +51,12 @@ export async function createResearchRun(userId: string, idempotencyKey: string) 
     const run = await client.query<{ id: string }>(
       `INSERT INTO agent_runs(agent_type,status,input_json,provenance_json,started_at)
        VALUES('market_research','running',$1,$2,now()) RETURNING id`,
-      [{ requestedBy: userId, scope: 'enabled markets and catalog coverage only', provider: LOCAL_PROVIDER },{version:1,provider:LOCAL_PROVIDER,method:'deterministic_internal_catalog_inventory',requestedBy:userId,requestedAt:new Date().toISOString()}],
+      [{ requestedBy: userId, scope: 'enabled markets and catalog coverage only', marketCode:scope.marketCode, categorySlug:scope.categorySlug, provider: LOCAL_PROVIDER },{version:1,provider:LOCAL_PROVIDER,method:'deterministic_internal_catalog_inventory',requestedBy:userId,requestedAt:new Date().toISOString()}],
     );
     await client.query(
       `INSERT INTO agent_jobs(agent_run_id,job_type,status,cost_class,input_json,idempotency_key)
        VALUES($1,'market_research','queued','FREE',$2,$3)`,
-      [run.rows[0].id,{providerKey:LOCAL_PROVIDER},key],
+      [run.rows[0].id,{providerKey:LOCAL_PROVIDER,marketCode:scope.marketCode,categorySlug:scope.categorySlug},key],
     );
     await addEvent(client,run.rows[0].id,'run_queued','Private deterministic catalog-coverage research run queued.',{requestedBy:userId});
     await client.query('COMMIT');
@@ -100,14 +101,21 @@ export async function createOpportunityScoringRun(userId:string,idempotencyKey:s
     const opportunity=await client.query<{id:string}>(
       `INSERT INTO research_opportunities(market_code,title,problem_statement,evidence_json,status,source_summary,locale,source_references_json,provenance_json,opportunity_key,category_id,subcategory_id)
        VALUES($1,$2,$3,$4,'new',$5,$6,$7,$8,$9,$10,$11) RETURNING id`,
-      [input.marketCode,input.title,input.problemStatement,evidence,input.sourceSummary,market.rows[0].locale,sourceReferences,{agent:'operator_evidence_intake',requested_by:userId,method:'admin_submitted_public_source_references'},key,categoryId,subcategoryId],
+      [input.marketCode,input.title,input.problemStatement,JSON.stringify(evidence),input.sourceSummary,market.rows[0].locale,JSON.stringify(sourceReferences),{agent:'operator_evidence_intake',requested_by:userId,method:'admin_submitted_public_source_references'},key,categoryId,subcategoryId],
     );
     const run=await client.query<{id:string}>(`INSERT INTO agent_runs(agent_type,status,input_json,provenance_json,started_at) VALUES('opportunity_scoring','running',$1,$2,now()) RETURNING id`,[{requestedBy:userId,opportunityId:opportunity.rows[0].id,provider:LOCAL_PROVIDER},{version:1,provider:LOCAL_PROVIDER,method:'deterministic_evidence_scoring',requestedBy:userId,requestedAt:new Date().toISOString()}]);
     await client.query(`INSERT INTO agent_jobs(agent_run_id,job_type,status,cost_class,input_json,idempotency_key) VALUES($1,'opportunity_scoring','queued','FREE',$2,$3)`,[run.rows[0].id,{opportunityId:opportunity.rows[0].id,providerKey:LOCAL_PROVIDER},key]);
     await addEvent(client,run.rows[0].id,'evidence_intake','Operator-submitted public source references were recorded for deterministic scoring.',{opportunityId:opportunity.rows[0].id,referenceCount:sourceReferences.length});
     await client.query('COMMIT');
     return run.rows[0].id;
-  }catch(error){await client.query('ROLLBACK');throw error;}
+  }catch(error){
+    await client.query('ROLLBACK');
+    if((error as {code?:string})?.code==='23505'){
+      const prior=await db.query<{agent_run_id:string}>('SELECT agent_run_id FROM agent_jobs WHERE idempotency_key=$1',[key]);
+      if(prior.rowCount) return prior.rows[0].agent_run_id;
+    }
+    throw error;
+  }
   finally{client.release();}
 }
 
@@ -161,7 +169,7 @@ async function claimNextJob(runId: string): Promise<AgentJob | null> {
     await client.query('BEGIN');
     const stale=await client.query<{id:string;retry_count:number;max_retries:number}>(
       `UPDATE agent_jobs SET status=CASE WHEN retry_count<=max_retries THEN 'retry_wait' ELSE 'failed' END,
-       available_at=now(),locked_at=NULL,error_code='STALE_EXECUTION',error_message='A previous worker stopped before committing its result.',updated_at=now()
+       available_at=now(),locked_at=NULL,error_code='STALE_EXECUTION',error_message='A previous worker stopped before committing its result.',completed_at=CASE WHEN retry_count<=max_retries THEN NULL ELSE now() END,updated_at=now()
        WHERE agent_run_id=$1 AND status='running' AND locked_at<now()-interval '5 minutes' RETURNING id,retry_count,max_retries`,[runId],
     );
     for(const item of stale.rows) await addEvent(client,runId,'stale_job_recovered','Stale agent job was safely returned to retry or marked failed.',item,'warning');
@@ -172,7 +180,7 @@ async function claimNextJob(runId: string): Promise<AgentJob | null> {
           AND (j.parent_job_id IS NULL OR EXISTS(SELECT 1 FROM agent_jobs parent WHERE parent.id=j.parent_job_id AND parent.status='completed'))
         ORDER BY j.created_at,j.id FOR UPDATE SKIP LOCKED LIMIT 1
        )
-       UPDATE agent_jobs j SET status='running',retry_count=j.retry_count+1,started_at=COALESCE(j.started_at,now()),locked_at=now(),updated_at=now()
+       UPDATE agent_jobs j SET status='running',retry_count=j.retry_count+1,started_at=COALESCE(j.started_at,now()),locked_at=now(),completed_at=NULL,error_code=NULL,error_message=NULL,updated_at=now()
        FROM candidate WHERE j.id=candidate.id RETURNING j.*`,[runId],
     );
     await client.query('COMMIT');
@@ -181,18 +189,23 @@ async function claimNextJob(runId: string): Promise<AgentJob | null> {
   finally { client.release(); }
 }
 
-async function finishJob(job: AgentJob, status: string, output: unknown, children: ChildJob[] = [], error?: { code: string; message: string; retryable: boolean }) {
+async function finishJob(job: AgentJob, status: string, output: unknown, children: ChildJob[] = [], error?: { code: string; message: string; retryable: boolean }, terminalStatus?:string) {
   const client = await db.connect();
   try {
     await client.query('BEGIN');
     const retry = error ? canRetryJob('running',job.retry_count,job.max_retries,error.retryable) : false;
-    const nextStatus = retry ? 'retry_wait' : error ? 'failed' : status;
+    const nextStatus = terminalStatus ?? (retry ? 'retry_wait' : error ? 'failed' : status);
     const retryAt = retry ? new Date(Date.now()+retryDelaySeconds(job.retry_count)*1000) : null;
     await client.query(
       `UPDATE agent_jobs SET status=$2,output_json=$3,error_code=$4,error_message=$5,available_at=COALESCE($6,available_at),completed_at=CASE WHEN $2 IN ('completed','failed','blocked','provider_required','approval_required','cancelled') THEN now() ELSE completed_at END,locked_at=NULL,updated_at=now() WHERE id=$1`,
       [job.id,nextStatus,output ?? null,error?.code ?? null,error?.message ?? null,retryAt],
     );
-    await addEvent(client,job.agent_run_id,retry?'job_retry_scheduled':`${job.job_type}_${nextStatus}`,error?.message ?? `${job.job_type} ${nextStatus}.`,{jobId:job.id,output},error?'warning':'info');
+    if(job.input_json.productJobId&&['product_generation','asset_validation'].includes(job.job_type)&&['failed','blocked','provider_required','approval_required'].includes(nextStatus)){
+      const productJobStatus=nextStatus==='approval_required'?'awaiting_review':nextStatus;
+      await client.query(`UPDATE product_jobs SET status=$2,error_message=$3,updated_at=now() WHERE id=$1 AND status IN ('queued','running')`,[job.input_json.productJobId,productJobStatus,error?.message??(output as {reason?:string}|null)?.reason??'Factory product stage did not complete.']);
+    }
+    const eventLevel=retry?'warning':nextStatus==='failed'?'error':error?'warning':'info';
+    await addEvent(client,job.agent_run_id,retry?'job_retry_scheduled':`${job.job_type}_${nextStatus}`,error?.message ?? `${job.job_type} ${nextStatus}.`,{jobId:job.id,output},eventLevel);
     for (const child of children) await enqueueChild(client,job.agent_run_id,child);
     await client.query('COMMIT');
     return nextStatus;
@@ -201,20 +214,22 @@ async function finishJob(job: AgentJob, status: string, output: unknown, childre
 }
 
 async function failPolicy(job: AgentJob, assessment: OperationAssessment) {
-  await finishJob(job,assessment.status==='approval_required'?'approval_required':'blocked',{reason:assessment.reason});
+  const status=assessment.status==='approval_required'?'approval_required':'blocked';
+  await finishJob(job,status,{reason:assessment.reason},[],{code:`POLICY_${status.toUpperCase()}`,message:assessment.reason,retryable:false},status);
 }
 
-async function findCatalogGaps(client: PoolClient, runId: string, jobId: string, marketCode?: string) {
+async function findCatalogGaps(client: PoolClient, runId: string, jobId: string, marketCode?: string, categorySlug?:string) {
   const { rows } = await client.query<any>(
     `SELECT m.code market_code,m.locale,c.id category_id,c.slug category_slug,c.name category_name,
             s.id subcategory_id,s.slug subcategory_slug,s.name subcategory_name
      FROM markets m CROSS JOIN categories c LEFT JOIN LATERAL (SELECT id,slug,name FROM subcategories WHERE category_id=c.id AND enabled=true ORDER BY sort_order,id LIMIT 1) s ON true
      WHERE m.enabled=true AND c.enabled=true AND ($1::text IS NULL OR m.code=$1)
+       AND ($2::text IS NULL OR c.slug=$2)
        AND NOT EXISTS (
          SELECT 1 FROM products p JOIN product_editions pe ON pe.product_id=p.id
          WHERE p.category_id=c.id AND p.status='published' AND pe.market_code=m.code AND pe.status='published'
        )
-     ORDER BY m.code,c.sort_order,s.sort_order NULLS FIRST LIMIT 60`,[marketCode ?? null],
+      ORDER BY m.code,c.sort_order,s.sort_order NULLS FIRST LIMIT 60`,[marketCode ?? null,categorySlug ?? null],
   );
   const candidates: string[] = [];
   for (const row of rows) {
@@ -227,7 +242,7 @@ async function findCatalogGaps(client: PoolClient, runId: string, jobId: string,
       `INSERT INTO research_opportunities(market_code,title,problem_statement,evidence_json,status,source_summary,locale,source_references_json,provenance_json,opportunity_key,category_id,subcategory_id,confidence_score,priority)
        VALUES($1,$2,$3,$4,'new',$5,$6,$7,$8,$9,$10,$11,0.05,'LOW')
        ON CONFLICT(opportunity_key) WHERE opportunity_key IS NOT NULL DO NOTHING RETURNING id`,
-      [row.market_code,title,problem,evidence,`Internal catalog inventory detected no published editions in ${row.category_name}.`,row.locale,refs,{agent:'market_research',provider:LOCAL_PROVIDER,run_id:runId,job_id:jobId},key,row.category_id,row.subcategory_id],
+       [row.market_code,title,problem,JSON.stringify(evidence),`Internal catalog inventory detected no published editions in ${row.category_name}.`,row.locale,JSON.stringify(refs),{agent:'market_research',provider:LOCAL_PROVIDER,run_id:runId,job_id:jobId},key,row.category_id,row.subcategory_id],
     );
     let opportunityId = created.rows[0]?.id;
     if (!opportunityId) {
@@ -254,7 +269,9 @@ async function handleScoring(client: PoolClient, job: AgentJob) {
     [id,scored.score,scored.confidence,scored.priority],
   );
   const children:ChildJob[]=[];
-  if(scored.priority!=='LOW') children.push({type:'product_brief',input:{opportunityId:id,providerKey:LOCAL_PROVIDER},key:id,parentId:job.id});
+  // A catalog gap can start a private review draft at low confidence; this is
+  // never presented as customer-demand evidence and cannot auto-publish.
+  children.push({type:'product_brief',input:{opportunityId:id,providerKey:LOCAL_PROVIDER},key:id,parentId:job.id});
   return {output:{opportunityId:id,...scored},children};
 }
 
@@ -301,17 +318,19 @@ async function handleGeneration(client: PoolClient, job: AgentJob, runId: string
   const checksum=createHash('sha256').update(bytes).digest('hex');
   const assetId=randomUUID();
   await client.query(
-    `INSERT INTO product_assets(id,product_job_id,product_id,asset_type,storage_key,file_name,mime_type,version,metadata_json,status,asset_bytes,size_bytes,checksum_sha256)
-     VALUES($1,$2,$3,'guide',$4,$5,'text/markdown',1,$6,'pending',$7,$8,$9,$10) ON CONFLICT(idempotency_key) DO NOTHING`,
-    [assetId,productJobId,productId,`postgres:product_assets/${assetId}`,`${slug}.md`,{generation_method:'deterministic_template_v1',provider:LOCAL_PROVIDER,run_id:runId,created_at:new Date().toISOString(),source_brief:productJobId},bytes,bytes.length,checksum,`asset:${productJobId}:v1`],
+    `INSERT INTO product_assets(id,product_job_id,product_id,asset_type,storage_key,file_name,mime_type,version,metadata_json,status,asset_bytes,size_bytes,checksum_sha256,idempotency_key)
+     VALUES($1,$2,$3,'guide',$4,$5,'text/markdown',$6,$7,'pending',$8,$9,$10,$11) ON CONFLICT(idempotency_key) DO NOTHING`,
+    [assetId,productJobId,productId,`postgres:product_assets/${assetId}`,`${slug}.md`,Number(brief.brief_version),{generation_method:'deterministic_template_v1',provider:LOCAL_PROVIDER,run_id:runId,created_at:new Date().toISOString(),source_brief:productJobId,source_opportunity_id:productJob.opportunity_id,evidence_confidence:Number(brief.evidence_confidence),provenance:brief.provenance,encoding:'utf-8'},bytes,bytes.length,checksum,`asset:${productJobId}:v${Number(brief.brief_version)}`],
   );
-  const storedAsset=await client.query<{id:string}>('SELECT id FROM product_assets WHERE idempotency_key=$1',[`asset:${productJobId}:v1`]);
+  const assetKey=`asset:${productJobId}:v${Number(brief.brief_version)}`;
+  const storedAsset=await client.query<{id:string}>('SELECT id FROM product_assets WHERE idempotency_key=$1',[assetKey]);
+  if(!storedAsset.rowCount) throw Object.assign(new Error('Generated Markdown asset could not be persisted.'),{code:'ASSET_PERSIST_FAILED',retryable:true});
   await client.query(`UPDATE product_jobs SET product_id=$2,status='running',updated_at=now() WHERE id=$1`,[productJobId,productId]);
   const targets=await client.query<{code:string;locale:string}>(`SELECT code,locale FROM markets WHERE enabled=true AND code<>$1`,[productJob.market_code]);
   const localizationJobs:ChildJob[]=[];
   for(const target of targets.rows){
     const idempotencyKey=`localization:${productId}:${productJob.market_code}:${target.code}:v1`;
-    await client.query(`INSERT INTO localization_jobs(product_id,source_market_code,target_market_code,source_locale,target_locale,status,error_message,input_json,idempotency_key) VALUES($1,$2,$3,$4,$5,'review_required','Provider required; no translation or localization was fabricated.',$6,$7) ON CONFLICT(idempotency_key) DO NOTHING`,[productId,productJob.market_code,target.code,productJob.locale,target.locale,{productJobId,reason:'No verified free/local localization provider.'},idempotencyKey]);
+      await client.query(`INSERT INTO localization_jobs(product_id,source_market_code,target_market_code,source_locale,target_locale,status,error_message,input_json,idempotency_key) VALUES($1,$2,$3,$4,$5,'provider_required','No free/local provider; no translation or localization was fabricated.',$6,$7) ON CONFLICT(idempotency_key) DO NOTHING`,[productId,productJob.market_code,target.code,productJob.locale,target.locale,{productJobId,reason:'No verified free/local localization provider.'},idempotencyKey]);
     localizationJobs.push({type:'localization',input:{productId,sourceMarketCode:productJob.market_code,targetMarketCode:target.code,providerKey:''},key:idempotencyKey,parentId:job.id,costClass:'UNKNOWN',terminal:'provider_required',reason:`No verified free/local localization provider is configured for ${target.code}.`});
   }
   return {output:{productJobId,productId,assetId:storedAsset.rows[0]?.id,fileName:`${slug}.md`,sizeBytes:bytes.length,checksumSha256:checksum,method:'deterministic_template_v1',localizationTargetsProviderRequired:targets.rowCount},children:[{type:'asset_validation',input:{productJobId,providerKey:LOCAL_PROVIDER},key:productJobId,parentId:job.id},...localizationJobs] as ChildJob[]};
@@ -340,19 +359,23 @@ async function handleCatalog(client:PoolClient,job:AgentJob) {
 }
 
 async function handleQuality(client:PoolClient,job:AgentJob) {
-  const r=await client.query<any>(`SELECT pj.brief_json,p.id product_id,a.asset_bytes,a.mime_type,a.file_name FROM product_jobs pj JOIN products p ON p.id=pj.product_id LEFT JOIN product_assets a ON a.product_job_id=pj.id WHERE pj.id=$1 ORDER BY a.version DESC LIMIT 1`,[job.input_json.productJobId]);
+  const r=await client.query<any>(`SELECT pj.brief_json,p.id product_id,a.asset_bytes,a.mime_type,a.file_name,a.status asset_status,a.size_bytes,a.checksum_sha256 FROM product_jobs pj JOIN products p ON p.id=pj.product_id LEFT JOIN product_assets a ON a.product_job_id=pj.id WHERE pj.id=$1 ORDER BY a.version DESC LIMIT 1`,[job.input_json.productJobId]);
   const row=r.rows[0];
   if(!row) throw Object.assign(new Error('Product or brief is missing.'),{code:'QUALITY_INPUT_MISSING',retryable:false});
   const brief=row.brief_json as ReturnType<typeof buildProductBrief>;
-  const validation=providers.execute<{bytes:Uint8Array;mimeType:string;fileName:string},ReturnType<typeof import('./domain').validateMarkdownAsset>>(LOCAL_PROVIDER,'markdown_validation',{bytes:row.asset_bytes??new Uint8Array(),mimeType:row.mime_type??'',fileName:row.file_name??''});
-  const quality=providers.execute<{brief:ReturnType<typeof buildProductBrief>;asset:ReturnType<typeof import('./domain').validateMarkdownAsset>},ReturnType<typeof import('./domain').evaluateQuality>>(LOCAL_PROVIDER,'quality_evaluation',{brief,asset:validation});
-  await client.query(`INSERT INTO quality_checks(product_id,product_job_id,check_type,status,score,findings_json) VALUES($1,$2,'deterministic_template_quality',$3,$4,$5)`,[row.product_id,job.input_json.productJobId,quality.status,quality.score,quality.findings]);
+  const bytes=(row.asset_bytes??new Uint8Array()) as Uint8Array;
+  const validation=providers.execute<{bytes:Uint8Array;mimeType:string;fileName:string},ReturnType<typeof import('./domain').validateMarkdownAsset>>(LOCAL_PROVIDER,'markdown_validation',{bytes,mimeType:row.mime_type??'',fileName:row.file_name??''});
+  const checksum=createHash('sha256').update(bytes).digest('hex');
+  const integrityVerified=checksum===row.checksum_sha256&&Number(row.size_bytes)===bytes.byteLength;
+  const assetValidated=row.asset_status==='validated'&&validation.valid&&integrityVerified;
+  const quality=providers.execute<{brief:ReturnType<typeof buildProductBrief>;asset:ReturnType<typeof import('./domain').validateMarkdownAsset>},ReturnType<typeof import('./domain').evaluateQuality>>(LOCAL_PROVIDER,'quality_evaluation',{brief,asset:{...validation,valid:assetValidated,reason:assetValidated?null:'Asset has not passed persisted byte, size, or checksum validation.'}});
+  await client.query(`INSERT INTO quality_checks(product_id,product_job_id,check_type,status,score,findings_json,idempotency_key) VALUES($1,$2,'deterministic_template_quality',$3,$4,$5,$6) ON CONFLICT(idempotency_key) DO UPDATE SET status=EXCLUDED.status,score=EXCLUDED.score,findings_json=EXCLUDED.findings_json,checked_at=now()`,[row.product_id,job.input_json.productJobId,quality.status,quality.score,JSON.stringify(quality.findings),`quality:${job.input_json.productJobId}:v1`]);
   const children:ChildJob[]=[];
   if(quality.status==='passed') {
     children.push({type:'publishing_policy',input:{productId:row.product_id,productJobId:job.input_json.productJobId,providerKey:LOCAL_PROVIDER},key:row.product_id,parentId:job.id});
     children.push({type:'seo_discovery',input:{productId:row.product_id,providerKey:LOCAL_PROVIDER},key:row.product_id,parentId:job.id});
     children.push({type:'marketing_strategy',input:{productId:row.product_id,providerKey:LOCAL_PROVIDER},key:row.product_id,parentId:job.id});
-    children.push({type:'market_feedback',input:{providerKey:LOCAL_PROVIDER},key:`feedback:${row.product_id}`,parentId:job.id});
+     children.push({type:'market_feedback',input:{productId:row.product_id,providerKey:LOCAL_PROVIDER},key:`feedback:${row.product_id}`,parentId:job.id});
     children.push({type:'analytics_growth',input:{productId:row.product_id,providerKey:''},key:row.product_id,parentId:job.id,costClass:'UNKNOWN',terminal:'provider_required',reason:'No authorized analytics source is configured; no traffic or sales are fabricated.'});
   }
   return {output:{productId:row.product_id,...quality},children};
@@ -361,7 +384,7 @@ async function handleQuality(client:PoolClient,job:AgentJob) {
 async function handlePublishingPolicy(client:PoolClient,job:AgentJob) {
   const product=await client.query<any>(`SELECT p.id,p.status,o.market_code,o.locale FROM products p JOIN product_jobs pj ON pj.product_id=p.id JOIN research_opportunities o ON o.id=pj.opportunity_id WHERE p.id=$1 AND pj.id=$2`,[job.input_json.productId,job.input_json.productJobId]);
   if(!product.rowCount) throw Object.assign(new Error('Publishing product or market is missing.'),{code:'PUBLISH_INPUT_MISSING',retryable:false});
-  const quality=await client.query(`SELECT 1 FROM quality_checks WHERE product_id=$1 AND status='passed' LIMIT 1`,[job.input_json.productId]);
+  const quality=await client.query(`SELECT 1 FROM quality_checks WHERE product_id=$1 AND product_job_id=$2 AND status='passed' LIMIT 1`,[job.input_json.productId,job.input_json.productJobId]);
   const decision=publishingPolicy({qualityPassed:!!quality.rowCount,approvalRequired:true,approved:false,productStatus:product.rows[0].status});
   const p=product.rows[0];
   const publishing=await client.query<{id:string}>(
@@ -370,7 +393,7 @@ async function handlePublishingPolicy(client:PoolClient,job:AgentJob) {
     [p.id,p.market_code,p.locale,decision.reason,`publish-review:${p.id}:${p.market_code}:${p.locale}`],
   );
   const publishingId=publishing.rows[0]?.id??(await client.query<{id:string}>('SELECT id FROM publishing_jobs WHERE idempotency_key=$1',[`publish-review:${p.id}:${p.market_code}:${p.locale}`])).rows[0]?.id;
-  await client.query(`INSERT INTO agent_approvals(agent_job_id,approval_type,request_json) VALUES($1,'publishing',$2) ON CONFLICT DO NOTHING`,[job.id,{productId:p.id,publishingJobId:publishingId,requiresReviewedPrice:true,reason:decision.reason}]);
+  await client.query(`INSERT INTO agent_approvals(agent_job_id,publishing_job_id,approval_type,request_json) VALUES($1,$2,'publishing',$3) ON CONFLICT DO NOTHING`,[job.id,publishingId,{productId:p.id,publishingJobId:publishingId,requiresReviewedPrice:true,reason:decision.reason}]);
   return {output:{productId:p.id,decision:decision.status,publishingJobId:publishingId,reason:decision.reason},terminalStatus:'approval_required'};
 }
 
@@ -398,7 +421,7 @@ async function handleMarketingStrategy(client:PoolClient,job:AgentJob,runId:stri
   if(!strategyId) strategyId=(await client.query<{id:string}>('SELECT id FROM marketing_strategies WHERE idempotency_key=$1',[key])).rows[0]?.id;
   if(!strategyId) throw new Error('Could not persist organic marketing strategy.');
   const campaignKey=`organic-campaign:${p.id}:v1`;
-  const campaign=await client.query<{id:string}>(`INSERT INTO marketing_campaigns(strategy_id,product_id,name,objective,status,target_definition_json,approval_required) VALUES($1,$2,$3,'Internal organic discovery plan','draft',$4,true) ON CONFLICT(idempotency_key) DO NOTHING RETURNING id`,[strategyId,p.id,`${p.title} — organic discovery draft`,{market:p.market_code,locale:p.locale,allowedChannels:['marketplace','website SEO'],externalPosting:false},campaignKey]);
+  const campaign=await client.query<{id:string}>(`INSERT INTO marketing_campaigns(strategy_id,product_id,name,objective,status,target_definition_json,approval_required,idempotency_key) VALUES($1,$2,$3,'Internal organic discovery plan','draft',$4,true,$5) ON CONFLICT(idempotency_key) DO NOTHING RETURNING id`,[strategyId,p.id,`${p.title} — organic discovery draft`,{market:p.market_code,locale:p.locale,allowedChannels:['marketplace','website SEO'],externalPosting:false},campaignKey]);
   let campaignId=campaign.rows[0]?.id;
   if(!campaignId) campaignId=(await client.query<{id:string}>('SELECT id FROM marketing_campaigns WHERE idempotency_key=$1',[campaignKey])).rows[0]?.id;
   if(!campaignId) throw new Error('Could not persist organic campaign draft.');
@@ -425,11 +448,11 @@ async function handleMarketingContent(client:PoolClient,job:AgentJob,runId:strin
 async function handleFeedback(client:PoolClient,job:AgentJob) {
   await client.query('BEGIN');
   try {
-  const signals=await client.query<any>(`SELECT id,market_code,product_id,source_reference,summary,evidence_json FROM market_feedback_signals WHERE processed_at IS NULL ORDER BY observed_at LIMIT 100 FOR UPDATE SKIP LOCKED`);
+  const signals=await client.query<any>(`SELECT id,market_code,product_id,source_reference,summary,evidence_json FROM market_feedback_signals WHERE processed_at IS NULL AND product_id=$1 ORDER BY observed_at LIMIT 100 FOR UPDATE SKIP LOCKED`,[job.input_json.productId]);
   for(const signal of signals.rows) {
     if(signal.product_id) {
       const opp=await client.query<{id:string}>('SELECT id FROM research_opportunities WHERE market_code=$1 AND category_id=(SELECT category_id FROM products WHERE id=$2) ORDER BY created_at DESC LIMIT 1',[signal.market_code,signal.product_id]);
-      if(opp.rowCount) await client.query(`UPDATE research_opportunities SET evidence_json=evidence_json || $2::jsonb,source_references_json=source_references_json || $3::jsonb,updated_at=now() WHERE id=$1`,[opp.rows[0].id,[{type:'market_feedback_signal',signal_id:signal.id,summary:signal.summary,evidence:signal.evidence_json}],signal.source_reference?[{type:'feedback_reference',reference:signal.source_reference}]:[]]);
+      if(opp.rowCount) await client.query(`UPDATE research_opportunities SET evidence_json=evidence_json || $2::jsonb,source_references_json=source_references_json || $3::jsonb,updated_at=now() WHERE id=$1`,[opp.rows[0].id,JSON.stringify([{type:'market_feedback_signal',signal_id:signal.id,summary:signal.summary,evidence:signal.evidence_json}]),JSON.stringify(signal.source_reference?[{type:'feedback_reference',reference:signal.source_reference}]:[])]);
     }
     await client.query('UPDATE market_feedback_signals SET processed_at=now() WHERE id=$1',[signal.id]);
   }
@@ -443,7 +466,7 @@ async function executeJob(job: AgentJob,runId:string) {
   try {
     let result: {output:unknown;children?:ChildJob[];terminalStatus?:string};
     switch(job.job_type) {
-      case 'market_research': result=await findCatalogGaps(client,runId,job.id,job.input_json.marketCode);break;
+      case 'market_research': result=await findCatalogGaps(client,runId,job.id,job.input_json.marketCode,job.input_json.categorySlug);break;
       case 'opportunity_scoring': result=await handleScoring(client,job);break;
       case 'product_brief': result=await handleBrief(client,job,runId);break;
       case 'product_generation': result=await handleGeneration(client,job,runId);break;
@@ -462,7 +485,8 @@ async function executeJob(job: AgentJob,runId:string) {
     }
     await client.query('BEGIN');
     const status=result.terminalStatus??'completed';
-    await client.query(`UPDATE agent_jobs SET status=$2,output_json=$3,completed_at=now(),locked_at=NULL,updated_at=now() WHERE id=$1`,[job.id,status,result.output]);
+    const terminalReason=(result.output as {reason?:string}|null)?.reason??null;
+    await client.query(`UPDATE agent_jobs SET status=$2,output_json=$3,error_code=CASE WHEN $4 IS NULL THEN NULL ELSE upper($2) END,error_message=$4,completed_at=now(),locked_at=NULL,updated_at=now() WHERE id=$1`,[job.id,status,result.output,terminalReason]);
     if(job.job_type==='publishing_policy') {
       const publishingId=(result.output as any)?.publishingJobId;
       if(publishingId) await client.query(`UPDATE agent_approvals SET request_json=request_json || $2::jsonb WHERE agent_job_id=$1 AND approval_type='publishing' AND status='pending'`,[job.id,{publishingJobId:publishingId}]);
@@ -480,7 +504,8 @@ async function finalizeRun(runId:string) {
        status=CASE WHEN EXISTS(SELECT 1 FROM agent_jobs j WHERE j.agent_run_id=r.id AND j.status='failed') THEN 'failed'
                    WHEN EXISTS(SELECT 1 FROM agent_jobs j WHERE j.agent_run_id=r.id AND j.status IN ('queued','retry_wait','waiting_dependency','running')) THEN 'running'
                    ELSE 'completed' END,
-       completed_at=CASE WHEN EXISTS(SELECT 1 FROM agent_jobs j WHERE j.agent_run_id=r.id AND j.status IN ('queued','retry_wait','waiting_dependency','running')) THEN NULL ELSE now() END
+       completed_at=CASE WHEN EXISTS(SELECT 1 FROM agent_jobs j WHERE j.agent_run_id=r.id AND j.status IN ('queued','retry_wait','waiting_dependency','running')) THEN NULL ELSE now() END,
+       error_message=CASE WHEN EXISTS(SELECT 1 FROM agent_jobs j WHERE j.agent_run_id=r.id AND j.status='failed') THEN COALESCE((SELECT j.error_message FROM agent_jobs j WHERE j.agent_run_id=r.id AND j.status='failed' ORDER BY j.updated_at,j.id LIMIT 1),r.error_message) ELSE r.error_message END
      WHERE r.id=$1`,[runId],
   );
 }
@@ -494,12 +519,16 @@ export async function processAgentRun(runId:string) {
     const client=await db.connect();
     let assessment:OperationAssessment;
     try { assessment=await getProviderAssessment(client,job); }
-    finally { client.release(); }
+    catch(error) {
+      client.release();
+      await finishJob(job,'failed',null,[],classifyExecutionError(error));
+      continue;
+    }
+    client.release();
     if(assessment.status!=='allowed') { await failPolicy(job,assessment); continue; }
     try { await executeJob(job,runId); }
     catch(error) {
-      const err=error as Error & {code?:string;retryable?:boolean};
-      await finishJob(job,'failed',null,[],{code:err.code??'AGENT_ERROR',message:err.message??'Agent job failed.',retryable:err.retryable??true});
+      await finishJob(job,'failed',null,[],classifyExecutionError(error));
     }
   }
   await finalizeRun(runId);
@@ -521,7 +550,7 @@ export async function runDueSchedules(requestedBy:string) {
   const runs:string[]=[];
   try{
     await client.query('BEGIN');
-    const due=await client.query<any>(`SELECT id,agent_type,schedule_expression,timezone,configuration_json,next_run_at FROM agent_schedules WHERE enabled=true AND next_run_at<=now() ORDER BY next_run_at,id FOR UPDATE SKIP LOCKED LIMIT 20`);
+    const due=await client.query<any>(`SELECT id,agent_type,schedule_expression,timezone,configuration_json,next_run_at FROM agent_schedules WHERE enabled=true AND next_run_at<=now() ORDER BY next_run_at,id FOR UPDATE SKIP LOCKED LIMIT $1`,[MAX_SCHEDULES_PER_REQUEST]);
     for(const schedule of due.rows){
       const interval=scheduleIntervalMs(schedule.schedule_expression,schedule.timezone);
       const scheduledAt=new Date(schedule.next_run_at).toISOString();
@@ -530,7 +559,7 @@ export async function runDueSchedules(requestedBy:string) {
       const eligible=interval!==null&&schedule.agent_type==='market_research';
       const status=eligible?'queued':'blocked';
       const reason=interval===null?'Unsupported schedule or timezone; safe scheduler supports UTC @hourly, @daily and @weekly only.':'No automatic handler is registered for this schedule agent type.';
-      await client.query(`INSERT INTO agent_jobs(agent_run_id,job_type,status,cost_class,input_json,output_json,idempotency_key) VALUES($1,$2,$3,$4,$5,$6,$7)`,[run.rows[0].id,schedule.agent_type,status,eligible?'FREE':'BLOCKED',eligible?{providerKey:LOCAL_PROVIDER,marketCode:schedule.configuration_json?.marketCode}:{reason},{status:eligible?'queued':'blocked',reason:eligible?null:reason},key]);
+      await client.query(`INSERT INTO agent_jobs(agent_run_id,job_type,status,cost_class,input_json,output_json,idempotency_key,completed_at,error_code,error_message) VALUES($1,$2,$3,$4,$5,$6,$7,CASE WHEN $3='blocked' THEN now() ELSE NULL END,CASE WHEN $3='blocked' THEN 'SCHEDULE_BLOCKED' END,CASE WHEN $3='blocked' THEN $8 END)`,[run.rows[0].id,schedule.agent_type,status,eligible?'FREE':'BLOCKED',eligible?{providerKey:LOCAL_PROVIDER,marketCode:schedule.configuration_json?.marketCode}:{reason},{status:eligible?'queued':'blocked',reason:eligible?null:reason},key,reason]);
       await addEvent(client,run.rows[0].id,eligible?'schedule_job_queued':'schedule_blocked',eligible?'Due free internal research schedule queued.':reason,{scheduleId:schedule.id,scheduledAt,requestedBy},eligible?'info':'warning');
       if(eligible) runs.push(run.rows[0].id);
       else await client.query(`UPDATE agent_runs SET status='completed',completed_at=now() WHERE id=$1`,[run.rows[0].id]);

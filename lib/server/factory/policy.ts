@@ -26,7 +26,7 @@ export function assessOperation(input: {
   }
   if (input.externalAction) {
     if (!input.authorizedIntegration) return { status: 'blocked', reason: 'No authorized external integration is configured.' };
-    if (input.ownerApprovalRequired && !input.ownerApproved) return { status: 'approval_required', reason: 'Owner approval is required before external communication.' };
+    if (!input.ownerApproved) return { status: 'approval_required', reason: 'Owner approval is required before external communication.' };
   }
   if (!input.freeResourceAllowed) return { status: 'blocked', reason: 'Free resources are disabled by policy.' };
   if (input.costClass === 'FREE_WITH_LIMIT' && !input.withinFreeLimit) {

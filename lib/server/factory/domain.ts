@@ -1,4 +1,5 @@
 import type { CostClass, OperationAssessment } from './policy.ts';
+import { createHash } from 'node:crypto';
 
 export type JobStatus = 'queued' | 'waiting_dependency' | 'running' | 'retry_wait' | 'completed' | 'failed' | 'blocked' | 'provider_required' | 'approval_required' | 'cancelled';
 
@@ -14,6 +15,14 @@ export function canRetryJob(status: JobStatus, retryCount: number, maxRetries: n
 
 export function retryDelaySeconds(retryCount: number) {
   return Math.min(3600, Math.max(1, 15 * 2 ** Math.max(0, retryCount - 1)));
+}
+
+export function classifyExecutionError(error:unknown){
+  const value=(error&&typeof error==='object'?error:{}) as {code?:string;message?:string;retryable?:boolean};
+  const code=typeof value.code==='string'?value.code:'AGENT_ERROR';
+  const transientCodes=new Set(['40001','40P01','55P03','53300','57P01','57P02','57P03','ECONNRESET','ECONNREFUSED','ETIMEDOUT','EPIPE']);
+  const retryable=value.retryable??(code.startsWith('08')||transientCodes.has(code));
+  return {code,message:typeof value.message==='string'?value.message:'Factory execution failed.',retryable};
 }
 
 export function dependenciesReady(statuses: JobStatus[]) {
@@ -58,6 +67,8 @@ export function scoreResearchOpportunity(opportunity: ResearchOpportunity) {
 }
 
 export function buildProductBrief(opportunity: ResearchOpportunity) {
+  const evidence=Array.isArray(opportunity.evidence_json)?opportunity.evidence_json:[];
+  const internalCatalogOnly=evidence.length>0&&evidence.every((entry:any)=>entry?.type==='internal_catalog_gap');
   return {
     brief_version: 1,
     title: opportunity.title,
@@ -75,7 +86,8 @@ export function buildProductBrief(opportunity: ResearchOpportunity) {
     quality_requirements: ['All sections present', 'No unsupported claims', 'Evidence and provenance retained'],
     localization_requirements: ['Review terminology and regional conventions before another locale is approved'],
     evidence_confidence: opportunity.confidence_score ?? 0,
-    provenance: { source_opportunity_id: opportunity.id, method: 'deterministic_template_v1', generated_at: new Date().toISOString() },
+    evidence_basis: internalCatalogOnly?'internal_catalog_inventory_only':'operator_submitted_references_not_independently_verified',
+    provenance: { source_opportunity_id: opportunity.id, evidence_basis:internalCatalogOnly?'internal_catalog_inventory_only':'operator_submitted_references_not_independently_verified', method: 'deterministic_template_v1', generated_at: new Date().toISOString() },
   };
 }
 
@@ -84,11 +96,17 @@ export function buildMarkdownAsset(brief: ReturnType<typeof buildProductBrief>) 
   return [
     `# ${brief.title}`,
     '',
-    `> Draft ${brief.format.replaceAll('_', ' ')} created from a reviewed product brief. Validate the market need and all claims before publication.`,
+    `> Private draft ${brief.format.replaceAll('_', ' ')} created from a deterministic template. Review every section and validate the market need and all claims before publication.`,
     '',
     '## Customer problem',
     '',
     brief.customer_problem,
+    '',
+    '## Evidence basis and limitations',
+    '',
+    brief.evidence_basis==='internal_catalog_inventory_only'
+      ? 'This draft originated from an internal catalog coverage gap only. A missing listing is not evidence of customer demand; independently validate the need before investing in or publishing this product.'
+      : 'This draft uses operator-submitted reference summaries that the system did not fetch or independently verify. Review the original sources and validate claims before publication.',
     '',
     '## How to use this guide',
     '',
@@ -103,10 +121,13 @@ export function buildMarkdownAsset(brief: ReturnType<typeof buildProductBrief>) 
 }
 
 export function validateMarkdownAsset(bytes: Uint8Array, mimeType: string, fileName: string) {
-  const text = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+  let text:string;
+  try{text=new TextDecoder('utf-8', { fatal: true }).decode(bytes);}
+  catch{return {valid:false,sizeBytes:bytes.byteLength,missingHeadings:[],reason:'Asset is not valid UTF-8.'};}
   const requiredHeadings = ['# ', '## Customer problem', '## How to use this guide', '## Outcome and scope', '## Action plan'];
   const missingHeadings = requiredHeadings.filter((heading) => !text.includes(heading));
-  const valid = mimeType === 'text/markdown' && fileName.toLowerCase().endsWith('.md') && bytes.byteLength > 100 && bytes.byteLength <= 2_000_000 && missingHeadings.length === 0;
+  const safeFileName=/^[a-z0-9][a-z0-9._-]{0,119}\.md$/i.test(fileName)&&!fileName.includes('..');
+  const valid = mimeType === 'text/markdown' && safeFileName && bytes.byteLength > 100 && bytes.byteLength <= 2_000_000 && missingHeadings.length === 0;
   return { valid, sizeBytes: bytes.byteLength, missingHeadings, reason: valid ? null : 'Asset format, size, encoding, or required sections failed validation.' };
 }
 
@@ -124,7 +145,7 @@ export function evaluateQuality(brief: ReturnType<typeof buildProductBrief>, ass
 export function publishingPolicy(input: { qualityPassed: boolean; approvalRequired: boolean; approved: boolean; productStatus: string }) : OperationAssessment {
   if (!input.qualityPassed) return { status: 'blocked', reason: 'Required quality checks must pass before publishing.' };
   if (input.productStatus !== 'draft') return { status: 'blocked', reason: 'Only draft products may enter the publishing workflow.' };
-  if (input.approvalRequired && !input.approved) return { status: 'approval_required', reason: 'Public catalog publishing requires an authorized human approval.' };
+  if (!input.approved) return { status: 'approval_required', reason: 'Public catalog publishing always requires an authorized human approval.' };
   return { status: 'allowed', reason: 'Quality and publication policy checks passed.' };
 }
 
@@ -151,7 +172,7 @@ export function canTransitionJob(from: JobStatus, to: JobStatus) {
 
 export function makeIdempotencyKey(namespace:string,key:string) {
   const normalized=`${namespace}:${key}`.trim().replace(/[^a-zA-Z0-9:._-]/g,'_');
-  return normalized.length<=150?normalized:normalized.slice(0,130)+':'+Array.from(new TextEncoder().encode(normalized)).slice(-12).map((byte)=>byte.toString(16).padStart(2,'0')).join('');
+  return normalized.length<=150?normalized:`${normalized.slice(0,80)}:${createHash('sha256').update(normalized).digest('hex')}`;
 }
 
 export function normalizePublicSourceUrl(raw:string) {

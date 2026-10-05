@@ -220,7 +220,7 @@ CREATE TABLE IF NOT EXISTS product_jobs (
   opportunity_id UUID NOT NULL REFERENCES research_opportunities(id),
   product_id UUID REFERENCES products(id),
   job_type TEXT NOT NULL CHECK (btrim(job_type) <> ''),
-  status TEXT NOT NULL DEFAULT 'queued' CHECK (status IN ('queued','running','awaiting_review','completed','failed','cancelled')),
+  status TEXT NOT NULL DEFAULT 'queued' CHECK (status IN ('queued','running','awaiting_review','completed','failed','blocked','provider_required','cancelled')),
   brief_json JSONB NOT NULL DEFAULT '{}'::jsonb,
   error_message TEXT,
   retry_count INT NOT NULL DEFAULT 0 CHECK (retry_count >= 0),
@@ -255,7 +255,7 @@ CREATE TABLE IF NOT EXISTS localization_jobs (
   target_market_code TEXT NOT NULL REFERENCES markets(code),
   source_locale TEXT NOT NULL CHECK (btrim(source_locale) <> ''),
   target_locale TEXT NOT NULL CHECK (btrim(target_locale) <> ''),
-  status TEXT NOT NULL DEFAULT 'queued' CHECK (status IN ('queued','running','review_required','completed','failed','cancelled')),
+  status TEXT NOT NULL DEFAULT 'queued' CHECK (status IN ('queued','running','review_required','provider_required','completed','failed','cancelled')),
   input_json JSONB NOT NULL DEFAULT '{}'::jsonb,
   output_json JSONB,
   error_message TEXT,
@@ -639,6 +639,7 @@ CREATE TABLE IF NOT EXISTS agent_resource_usage (
 CREATE TABLE IF NOT EXISTS agent_approvals (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   agent_job_id UUID NOT NULL REFERENCES agent_jobs(id),
+  publishing_job_id UUID REFERENCES publishing_jobs(id),
   approval_type TEXT NOT NULL CHECK (approval_type IN ('publishing','external_communication','paid_operation','integration','sensitive_operation')),
   status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','approved','rejected','cancelled')),
   request_json JSONB NOT NULL DEFAULT '{}'::jsonb,
@@ -649,8 +650,10 @@ CREATE TABLE IF NOT EXISTS agent_approvals (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   CHECK ((status IN ('approved','rejected') AND decided_by IS NOT NULL AND decided_at IS NOT NULL) OR status NOT IN ('approved','rejected'))
 );
+ALTER TABLE agent_approvals ADD COLUMN IF NOT EXISTS publishing_job_id UUID REFERENCES publishing_jobs(id);
 CREATE UNIQUE INDEX IF NOT EXISTS agent_approvals_one_pending_per_job_idx ON agent_approvals(agent_job_id, approval_type) WHERE status='pending';
 CREATE INDEX IF NOT EXISTS agent_approvals_status_requested_idx ON agent_approvals(status, requested_at);
+CREATE INDEX IF NOT EXISTS agent_approvals_publishing_job_idx ON agent_approvals(publishing_job_id) WHERE publishing_job_id IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS market_feedback_signals (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -669,3 +672,32 @@ CREATE TABLE IF NOT EXISTS market_feedback_signals (
 COMMENT ON TABLE market_feedback_signals IS 'Private aggregated or de-identified signals only; do not store direct personal information.';
 CREATE INDEX IF NOT EXISTS market_feedback_signals_unprocessed_idx ON market_feedback_signals(observed_at) WHERE processed_at IS NULL;
 CREATE INDEX IF NOT EXISTS market_feedback_signals_market_type_idx ON market_feedback_signals(market_code, signal_type, observed_at DESC);
+
+-- Stage 6: persisted quality-check idempotency and fail-closed publishing gates.
+ALTER TABLE product_jobs DROP CONSTRAINT IF EXISTS product_jobs_status_check;
+ALTER TABLE product_jobs ADD CONSTRAINT product_jobs_status_check CHECK (status IN ('queued','running','awaiting_review','completed','failed','blocked','provider_required','cancelled'));
+ALTER TABLE quality_checks ADD COLUMN IF NOT EXISTS idempotency_key TEXT;
+CREATE UNIQUE INDEX IF NOT EXISTS quality_checks_idempotency_idx ON quality_checks(idempotency_key);
+ALTER TABLE agent_approvals ADD COLUMN IF NOT EXISTS publishing_job_id UUID REFERENCES publishing_jobs(id);
+CREATE INDEX IF NOT EXISTS agent_approvals_publishing_job_idx ON agent_approvals(publishing_job_id) WHERE publishing_job_id IS NOT NULL;
+ALTER TABLE localization_jobs DROP CONSTRAINT IF EXISTS localization_jobs_status_check;
+ALTER TABLE localization_jobs ADD CONSTRAINT localization_jobs_status_check CHECK (status IN ('queued','running','review_required','provider_required','completed','failed','cancelled'));
+ALTER TABLE publishing_jobs DROP CONSTRAINT IF EXISTS publishing_jobs_approval_gate_check;
+ALTER TABLE publishing_jobs ADD CONSTRAINT publishing_jobs_approval_gate_check CHECK (status NOT IN ('publishing','published') OR (approval_required IS TRUE AND product_edition_id IS NOT NULL AND approved_by IS NOT NULL AND approved_at IS NOT NULL));
+CREATE OR REPLACE FUNCTION diginanba_factory_publication_gate() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF NEW.status='published' AND (COALESCE(NEW.metadata_json->>'source','')='autonomous_product_factory' OR (TG_OP='UPDATE' AND COALESCE(OLD.metadata_json->>'source','')='autonomous_product_factory')) THEN
+    IF NOT EXISTS (
+      SELECT 1 FROM publishing_jobs pj
+      JOIN product_editions pe ON pe.id=pj.product_edition_id AND pe.product_id=NEW.id AND pe.market_code=pj.market_code AND pe.locale=pj.locale AND pe.status='published'
+      JOIN prices pr ON pr.product_edition_id=pe.id AND pr.valid_to IS NULL
+      WHERE pj.product_id=NEW.id AND pj.status='published' AND pj.approval_required IS TRUE
+        AND pj.approved_by IS NOT NULL AND pj.approved_at IS NOT NULL AND pj.published_at IS NOT NULL
+    ) THEN
+      RAISE EXCEPTION 'Factory-generated drafts require an approved, priced, published market edition before product publication.' USING ERRCODE='23514';
+    END IF;
+  END IF;
+  RETURN NEW;
+END $$;
+DROP TRIGGER IF EXISTS diginanba_factory_publication_gate_trigger ON products;
+CREATE TRIGGER diginanba_factory_publication_gate_trigger BEFORE INSERT OR UPDATE ON products FOR EACH ROW EXECUTE FUNCTION diginanba_factory_publication_gate();
