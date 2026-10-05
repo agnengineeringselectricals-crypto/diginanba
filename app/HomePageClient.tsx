@@ -34,11 +34,13 @@ export default function HomePageClient({ initialProducts, categories, needs, row
   const [sort, setSort] = useState('featured');
   const [marketOpen, setMarketOpen] = useState(false);
   const [cartCount, setCartCount] = useState(0);
+  const headerRef = useRef<HTMLElement>(null);
   const categoryNavRef = useRef<HTMLDivElement>(null);
   const [canScrollCategories, setCanScrollCategories] = useState(false);
   const [categoryNavAtStart, setCategoryNavAtStart] = useState(true);
   const [categoryNavAtEnd, setCategoryNavAtEnd] = useState(false);
   const [expandedCategory, setExpandedCategory] = useState('');
+  const [subcategoryMenuLeft, setSubcategoryMenuLeft] = useState(22);
 
   useEffect(() => {
     let selected = localStorage.getItem('diginanba-market') as Market | null;
@@ -85,6 +87,32 @@ export default function HomePageClient({ initialProducts, categories, needs, row
       window.removeEventListener('resize', updateScrollState);
     };
   }, [categories]);
+
+  useEffect(() => {
+    if (!expandedCategory) return;
+    const positionMenu = () => {
+      if (window.matchMedia('(max-width: 700px)').matches) return;
+      const header = headerRef.current;
+      const nav = categoryNavRef.current;
+      const item = Array.from(nav?.querySelectorAll<HTMLButtonElement>('[data-category-slug]') ?? [])
+        .find((button) => button.dataset.categorySlug === expandedCategory);
+      if (!header || !item) return;
+      const headerLeft = header.getBoundingClientRect().left;
+      const menuWidth = Math.min(720, window.innerWidth - 44);
+      const minLeft = 22 - headerLeft;
+      const maxLeft = Math.max(minLeft, window.innerWidth - menuWidth - 22 - headerLeft);
+      const itemLeft = item.getBoundingClientRect().left - headerLeft;
+      setSubcategoryMenuLeft(Math.min(Math.max(itemLeft, minLeft), maxLeft));
+    };
+    positionMenu();
+    const nav = categoryNavRef.current;
+    window.addEventListener('resize', positionMenu);
+    nav?.addEventListener('scroll', positionMenu, { passive: true });
+    return () => {
+      window.removeEventListener('resize', positionMenu);
+      nav?.removeEventListener('scroll', positionMenu);
+    };
+  }, [expandedCategory]);
 
   const visibleProducts = useMemo(() => {
     const tokens = query.trim().split(/\s+/u).filter(Boolean).map(normalizeWord).filter((token) => token.length > 1);
@@ -209,7 +237,7 @@ export default function HomePageClient({ initialProducts, categories, needs, row
   }
 
   return <>
-    <header className="ref-header" onMouseLeave={() => { if (window.matchMedia('(hover: hover)').matches) setExpandedCategory(''); }}>
+    <header ref={headerRef} className="ref-header" onMouseLeave={() => { if (window.matchMedia('(hover: hover)').matches) setExpandedCategory(''); }}>
       <div className="ref-container ref-header-top">
         <Link href="/" className="ref-logo"><span>Digi</span>Nanba</Link>
         <form className="ref-market-search" onSubmit={runSearch} role="search">
@@ -230,11 +258,11 @@ export default function HomePageClient({ initialProducts, categories, needs, row
       <nav className="ref-marketplace-nav" aria-label="Browse product categories"><div className="ref-container ref-marketplace-nav-shell">
         {canScrollCategories && <button className="ref-category-scroll-arrow" type="button" onClick={() => categoryNavRef.current?.scrollBy({ left: -Math.max(180, (categoryNavRef.current?.clientWidth ?? 0) * 0.7), behavior: 'smooth' })} disabled={categoryNavAtStart} aria-label="Scroll categories left" title={categoryNavAtStart ? 'Start of categories' : 'Show earlier categories'}>←</button>}
         <div className="ref-marketplace-nav-inner" ref={categoryNavRef} role="group" aria-label="Product categories" tabIndex={0}>
-          {categories.map((item) => <button className={`${category === item.name ? 'active' : ''}${expandedCategory === item.slug ? ' expanded' : ''}`} key={item.slug} onMouseEnter={() => { if (window.matchMedia('(hover: hover)').matches) setExpandedCategory(item.slug); }} onFocus={() => setExpandedCategory(item.slug)} onClick={() => setExpandedCategory((current) => current === item.slug && !window.matchMedia('(hover: hover)').matches ? '' : item.slug)} aria-expanded={expandedCategory === item.slug} aria-haspopup="true">{item.icon} {item.name}<span aria-hidden="true">⌄</span></button>)}
+          {categories.map((item) => <button data-category-slug={item.slug} className={`${category === item.name ? 'active' : ''}${expandedCategory === item.slug ? ' expanded' : ''}`} key={item.slug} onMouseEnter={() => { if (window.matchMedia('(hover: hover)').matches) setExpandedCategory(item.slug); }} onFocus={() => setExpandedCategory(item.slug)} onClick={() => setExpandedCategory((current) => current === item.slug && !window.matchMedia('(hover: hover)').matches ? '' : item.slug)} aria-expanded={expandedCategory === item.slug} aria-haspopup="true">{item.icon} {item.name}<span aria-hidden="true">⌄</span></button>)}
         </div>
         {canScrollCategories && <button className="ref-category-scroll-arrow" type="button" onClick={() => categoryNavRef.current?.scrollBy({ left: Math.max(180, categoryNavRef.current.clientWidth * 0.7), behavior: 'smooth' })} disabled={categoryNavAtEnd} aria-label="Scroll categories right" title={categoryNavAtEnd ? 'End of categories' : 'Show more categories'}>→</button>}
       </div></nav>
-      {menuCategory && <div className="ref-subcategory-menu" onMouseEnter={() => setExpandedCategory(menuCategory.slug)}>
+      {menuCategory && <div className="ref-subcategory-menu" style={{ left: `${subcategoryMenuLeft}px` }} onMouseEnter={() => setExpandedCategory(menuCategory.slug)}>
         <div className="ref-subcategory-menu-heading"><div><span className="ref-kicker">{menuCategory.icon} BROWSE CATEGORY</span><h2>{menuCategory.name}</h2></div><button className="ref-subcategory-browse-all" onClick={() => chooseCategory(menuCategory.name)}>Browse all {menuCategory.name}</button></div>
         {menuCategory.subcategories.length ? <div className="ref-subcategory-grid">{menuCategory.subcategories.map((item) => <button key={item.key} onClick={() => chooseSubcategory(menuCategory, item)}>{item.name}<span aria-hidden="true">→</span></button>)}</div> : <p className="ref-subcategory-empty">More topics in this category are coming soon.</p>}
       </div>}
