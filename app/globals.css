@@ -276,8 +276,6 @@
   .ref-market-search>button{width:43px}
   .ref-marketplace-nav-inner{gap:1px;padding-left:11px;padding-right:11px}
   .ref-marketplace-nav-inner button,.ref-marketplace-nav-inner>a,.ref-subnav-categories summary,.ref-subnav-more summary{padding:9px 8px;font-size:11px}
-  .ref-marketplace-nav-inner>button:nth-of-type(n+6){display:none}
-  .ref-marketplace-nav-inner>button:nth-of-type(5){display:inline-flex}
   .ref-footer-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:24px;padding:28px 20px}
   .ref-footer-controls{flex-wrap:wrap;gap:9px}
   .ref-footer-controls>.ref-logo{flex-basis:100%;width:max-content;text-align:center}
@@ -290,7 +288,6 @@
   .ref-header-actions{gap:1px}
   .ref-header-account strong,.ref-header-orders strong,.ref-header-cart strong{font-size:9px}
   .ref-language-control select{font-size:10px}
-  .ref-marketplace-nav-inner>button:nth-of-type(n+5){display:none}
 }
 
 /* Compact, product-first homepage header and intro. */
@@ -390,4 +387,22 @@
   .ref-market-flag{width:21px;font-size:15px}
   .ref-header-account{padding-left:2px;padding-right:2px}
   .ref-needs{grid-template-columns:1fr}
+}
+
+/* Direct category navigation with an accessible horizontal scroll control. */
+.ref-marketplace-nav-shell{display:flex;align-items:stretch;gap:6px;min-width:0}
+.ref-marketplace-nav-inner{flex:1;min-width:0;max-width:none;padding:0;gap:3px;overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;scrollbar-width:none;white-space:nowrap;scroll-behavior:smooth}
+.ref-marketplace-nav-inner::-webkit-scrollbar{display:none}
+.ref-marketplace-nav-inner button{display:inline-flex;align-items:center;min-height:44px;font-size:14px;padding:10px 11px}
+.ref-category-scroll-arrow{align-self:center;flex:none;width:38px;height:36px;display:grid;place-items:center;border:1px solid #667085;border-radius:8px;background:#303b4e;color:#fff;font-size:23px;line-height:1;cursor:pointer}
+.ref-category-scroll-arrow:hover:not(:disabled){background:#46536a;border-color:#aeb8c8}
+.ref-category-scroll-arrow:disabled{opacity:.42;cursor:default}
+.ref-category-scroll-arrow:focus-visible,.ref-marketplace-nav-inner:focus-visible{outline:2px solid #f2b84b;outline-offset:2px}
+@media(max-width:700px){
+  .ref-marketplace-nav-shell{padding-left:12px;padding-right:12px;gap:4px}
+  .ref-marketplace-nav-inner>button{display:inline-flex;min-height:42px;font-size:12px;padding:9px 8px}
+  .ref-category-scroll-arrow{width:36px;height:36px}
+}
+@media(max-width:390px){
+  .ref-marketplace-nav-inner>button{display:inline-flex}
 }

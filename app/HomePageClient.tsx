@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CatalogProduct } from '@/lib/catalog';
 import type { Market } from '@/lib/market';
 import type { DiscoveryCategory, DiscoveryNeed, DiscoveryRow } from '@/lib/discovery';
@@ -33,6 +33,9 @@ export default function HomePageClient({ initialProducts, categories, needs, row
   const [sort, setSort] = useState('featured');
   const [marketOpen, setMarketOpen] = useState(false);
   const [cartCount, setCartCount] = useState(0);
+  const categoryNavRef = useRef<HTMLDivElement>(null);
+  const [canScrollCategories, setCanScrollCategories] = useState(false);
+  const [categoryNavAtEnd, setCategoryNavAtEnd] = useState(false);
 
   useEffect(() => {
     let selected = localStorage.getItem('diginanba-market') as Market | null;
@@ -61,6 +64,23 @@ export default function HomePageClient({ initialProducts, categories, needs, row
       .catch(() => undefined);
     return () => { cancelled = true; };
   }, [market]);
+
+  useEffect(() => {
+    const nav = categoryNavRef.current;
+    if (!nav) return;
+    const updateScrollState = () => {
+      const maxScroll = nav.scrollWidth - nav.clientWidth;
+      setCanScrollCategories(maxScroll > 2);
+      setCategoryNavAtEnd(maxScroll <= 2 || nav.scrollLeft >= maxScroll - 2);
+    };
+    updateScrollState();
+    nav.addEventListener('scroll', updateScrollState, { passive: true });
+    window.addEventListener('resize', updateScrollState);
+    return () => {
+      nav.removeEventListener('scroll', updateScrollState);
+      window.removeEventListener('resize', updateScrollState);
+    };
+  }, [categories]);
 
   const visibleProducts = useMemo(() => {
     const tokens = query.trim().split(/\s+/u).filter(Boolean).map(normalizeWord).filter((token) => token.length > 1);
@@ -151,8 +171,6 @@ export default function HomePageClient({ initialProducts, categories, needs, row
     });
   }
 
-  const primaryCategories = categories.slice(0, 6);
-  const additionalCategories = categories.slice(6);
   const marketFlag = market === 'UK' ? '🇬🇧' : '🇺🇸';
 
   function renderProductCard(product: CatalogProduct, shelf = false) {
@@ -181,20 +199,11 @@ export default function HomePageClient({ initialProducts, categories, needs, row
         </div>
       </div>
 
-      <section className="ref-hero"><div className="ref-container ref-hero-layout">
-        <div className="ref-hero-content">
-          <span className="ref-eyebrow">DIGITAL PRODUCTS FOR WORK, LEARNING &amp; LIFE</span>
-          <h1>Find the right digital product for what you want to do.</h1>
-          <p>Learn something new, solve a work challenge, or bring your next idea to life.</p>
+      <nav className="ref-marketplace-nav" aria-label="Browse product categories"><div className="ref-container ref-marketplace-nav-shell">
+        <div className="ref-marketplace-nav-inner" ref={categoryNavRef} role="group" aria-label="Product categories" tabIndex={0}>
+          {categories.map((item) => <button className={category === item.name ? 'active' : ''} key={item.name} onClick={() => chooseCategory(item.name)} aria-pressed={category === item.name}>{item.icon} {item.name}</button>)}
         </div>
-      </div></section>
-
-      <nav className="ref-marketplace-nav" aria-label="Browse product categories"><div className="ref-container ref-marketplace-nav-inner">
-        <button className={category === 'All' ? 'active' : ''} onClick={() => chooseCategory('All')}>☰ All</button>
-        <details className="ref-subnav-categories"><summary>Categories</summary><div className="ref-category-dropdown">{categories.map((item) => <button key={item.name} onClick={(event) => { chooseCategory(item.name); event.currentTarget.closest('details')?.removeAttribute('open'); }}>{item.icon} {item.name}</button>)}</div></details>
-        {primaryCategories.map((item) => <button className={category === item.name ? 'active' : ''} key={item.name} onClick={() => chooseCategory(item.name)}>{item.name}</button>)}
-        {additionalCategories.length > 0 && <details className="ref-subnav-more"><summary>More</summary><div className="ref-category-dropdown">{additionalCategories.map((item) => <button key={item.name} onClick={(event) => { chooseCategory(item.name); event.currentTarget.closest('details')?.removeAttribute('open'); }}>{item.icon} {item.name}</button>)}</div></details>}
-        <a href="#needs">Explore by goal</a>
+        {canScrollCategories && <button className="ref-category-scroll-arrow" type="button" onClick={() => categoryNavRef.current?.scrollBy({ left: Math.max(180, categoryNavRef.current.clientWidth * 0.7), behavior: 'smooth' })} disabled={categoryNavAtEnd} aria-label="Scroll categories right" title={categoryNavAtEnd ? 'End of categories' : 'Show more categories'}>→</button>}
       </div></nav>
     </header>
 
