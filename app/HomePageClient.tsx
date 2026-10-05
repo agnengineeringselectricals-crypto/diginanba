@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CatalogProduct } from '@/lib/catalog';
-import type { Market } from '@/lib/market';
+import { markets, type Market } from '@/lib/market';
 import type { DiscoveryCategory, DiscoveryNeed, DiscoveryRow } from '@/lib/discovery';
 
 const languagesByMarket: Record<Market, { code: string; label: string }[]> = {
@@ -171,7 +171,7 @@ export default function HomePageClient({ initialProducts, categories, needs, row
     });
   }
 
-  const marketFlag = market === 'UK' ? '🇬🇧' : '🇺🇸';
+  const selectedMarket = markets[market];
 
   function renderProductCard(product: CatalogProduct, shelf = false) {
     return <article className={`ref-product${shelf ? ' ref-shelf-card' : ''}`} key={`${shelf ? 'shelf-' : ''}${product.id}`}>
@@ -195,7 +195,7 @@ export default function HomePageClient({ initialProducts, categories, needs, row
           <Link className="ref-header-account" href="/login">Sign in / Sign up</Link>
           <Link className="ref-header-cart" href="/cart" aria-label={`Cart, ${cartCount} items`}><span aria-hidden="true">🛒</span><strong>Cart</strong><span className="ref-count">{cartCount}</span></Link>
           <label className="ref-language-control"><span className="sr-only">Language</span><select value={language} onChange={(event) => setSelectedLanguage(event.target.value)} aria-label="Choose language">{languagesByMarket[market].map((item) => <option value={item.code} key={item.code}>EN</option>)}</select></label>
-          <button className="ref-market-flag" onClick={() => setMarketOpen(true)} aria-label={`Selected market ${market === 'UK' ? 'United Kingdom' : 'United States'}; change country`} title={market === 'UK' ? 'United Kingdom' : 'United States'}>{marketFlag}</button>
+          <button className="ref-market-flag" onClick={() => setMarketOpen(true)} aria-label={`Selected market ${selectedMarket.label}; change country`} title={selectedMarket.label}><span role="img" aria-label={selectedMarket.label}>{selectedMarket.flag}</span></button>
         </div>
       </div>
 
@@ -248,7 +248,7 @@ export default function HomePageClient({ initialProducts, categories, needs, row
 
     {marketOpen && <div className="ref-modal-backdrop" onClick={() => setMarketOpen(false)}><div className="ref-modal" role="dialog" aria-modal="true" aria-labelledby="market-title" onClick={(event) => event.stopPropagation()}>
       <button className="ref-close" onClick={() => setMarketOpen(false)} aria-label="Close market selector">✕</button><h2 id="market-title">Choose your market</h2><p>Prices are shown in the currency for your selected market.</p>
-      <div className="ref-market-options"><button className={`ref-market-option ${market === 'US' ? 'active' : ''}`} onClick={() => setSelectedMarket('US')}>🇺🇸 <b>United States</b><br /><small>USD</small></button><button className={`ref-market-option ${market === 'UK' ? 'active' : ''}`} onClick={() => setSelectedMarket('UK')}>🇬🇧 <b>United Kingdom</b><br /><small>GBP</small></button></div>
+      <div className="ref-market-options">{(Object.entries(markets) as [Market, (typeof markets)[Market]][]).map(([code, option]) => <button className={`ref-market-option ${market === code ? 'active' : ''}`} key={code} onClick={() => setSelectedMarket(code)}>{option.flag} <b>{option.label}</b><br /><small>{option.currency}</small></button>)}</div>
     </div></div>}
   </>;
 }
