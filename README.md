@@ -57,3 +57,7 @@ Vercel can connect this Next.js project to GitHub so pushes can generate preview
 - secure separation of server-only checkout logic
 
 Before production payments, configure a payment provider, merchant/KYC settings, tax rules, webhook signing, and Vercel environment variables. Vercel recommends keeping secrets server-side and scoping environment variables by Production/Preview/Development; changes to environment variables require a redeploy.
+
+## Stage 1 — Autonomous Product Factory database foundation
+
+`db/schema.sql` adds private storage tables for agent-run records, research opportunities, product jobs/assets, localization, quality checks, publishing approvals and agent events. This is database infrastructure only: no agent workers, AI integrations, customer-facing endpoints, or automatic publishing are implemented or enabled. The existing `AI Factory Manager` role remains unchanged. Apply the schema to add the tables to an existing database.

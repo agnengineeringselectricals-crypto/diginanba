@@ -181,3 +181,135 @@ SELECT pe.id,'GBP',v.amount FROM product_editions pe JOIN (VALUES
 CREATE TABLE IF NOT EXISTS payments (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE, provider TEXT NOT NULL, provider_payment_id TEXT UNIQUE, currency_code CHAR(3) NOT NULL, amount_minor BIGINT NOT NULL, status TEXT NOT NULL DEFAULT 'pending', raw_reference JSONB, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), updated_at TIMESTAMPTZ NOT NULL DEFAULT now());
 CREATE TABLE IF NOT EXISTS payment_events (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), payment_id UUID REFERENCES payments(id) ON DELETE SET NULL, provider TEXT NOT NULL, event_id TEXT NOT NULL UNIQUE, event_type TEXT NOT NULL, payload JSONB NOT NULL, received_at TIMESTAMPTZ NOT NULL DEFAULT now());
 CREATE TABLE IF NOT EXISTS entitlements (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE, order_item_id UUID NOT NULL REFERENCES order_items(id) ON DELETE CASCADE, status TEXT NOT NULL DEFAULT 'active', granted_at TIMESTAMPTZ NOT NULL DEFAULT now(), UNIQUE(user_id, order_item_id));
+
+-- Stage 1: private Autonomous Product Factory pipeline storage only.
+-- No workers, AI integrations, APIs, or automatic publishing are enabled by these tables.
+CREATE TABLE IF NOT EXISTS agent_runs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  agent_type TEXT NOT NULL CHECK (btrim(agent_type) <> ''),
+  status TEXT NOT NULL DEFAULT 'queued' CHECK (status IN ('queued','running','completed','failed','cancelled')),
+  started_at TIMESTAMPTZ,
+  completed_at TIMESTAMPTZ,
+  error_message TEXT,
+  input_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+  output_json JSONB,
+  retry_count INT NOT NULL DEFAULT 0 CHECK (retry_count >= 0),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CHECK (completed_at IS NULL OR started_at IS NULL OR completed_at >= started_at)
+);
+CREATE INDEX IF NOT EXISTS agent_runs_status_created_idx ON agent_runs(status, created_at DESC);
+CREATE INDEX IF NOT EXISTS agent_runs_type_created_idx ON agent_runs(agent_type, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS research_opportunities (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  market_code TEXT NOT NULL REFERENCES markets(code),
+  title TEXT NOT NULL CHECK (btrim(title) <> ''),
+  problem_statement TEXT NOT NULL CHECK (btrim(problem_statement) <> ''),
+  opportunity_score NUMERIC(5,2) CHECK (opportunity_score BETWEEN 0 AND 100),
+  evidence_json JSONB NOT NULL DEFAULT '[]'::jsonb,
+  status TEXT NOT NULL DEFAULT 'new' CHECK (status IN ('new','scoring','qualified','rejected','converted','archived')),
+  source_summary TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS research_opportunities_market_status_score_idx ON research_opportunities(market_code, status, opportunity_score DESC);
+CREATE INDEX IF NOT EXISTS research_opportunities_created_idx ON research_opportunities(created_at DESC);
+
+CREATE TABLE IF NOT EXISTS product_jobs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  opportunity_id UUID NOT NULL REFERENCES research_opportunities(id),
+  product_id UUID REFERENCES products(id),
+  job_type TEXT NOT NULL CHECK (btrim(job_type) <> ''),
+  status TEXT NOT NULL DEFAULT 'queued' CHECK (status IN ('queued','running','awaiting_review','completed','failed','cancelled')),
+  brief_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+  error_message TEXT,
+  retry_count INT NOT NULL DEFAULT 0 CHECK (retry_count >= 0),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS product_jobs_opportunity_created_idx ON product_jobs(opportunity_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS product_jobs_status_created_idx ON product_jobs(status, created_at DESC);
+CREATE INDEX IF NOT EXISTS product_jobs_product_idx ON product_jobs(product_id) WHERE product_id IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS product_assets (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  product_job_id UUID NOT NULL REFERENCES product_jobs(id),
+  product_id UUID REFERENCES products(id),
+  asset_type TEXT NOT NULL CHECK (btrim(asset_type) <> ''),
+  storage_key TEXT NOT NULL CHECK (btrim(storage_key) <> ''),
+  file_name TEXT NOT NULL CHECK (btrim(file_name) <> ''),
+  mime_type TEXT NOT NULL CHECK (btrim(mime_type) <> ''),
+  version INT NOT NULL DEFAULT 1 CHECK (version > 0),
+  metadata_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','available','validated','rejected','failed','archived')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS product_assets_job_created_idx ON product_assets(product_job_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS product_assets_product_idx ON product_assets(product_id) WHERE product_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS product_assets_status_idx ON product_assets(status);
+
+CREATE TABLE IF NOT EXISTS localization_jobs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  product_id UUID NOT NULL REFERENCES products(id),
+  source_market_code TEXT NOT NULL REFERENCES markets(code),
+  target_market_code TEXT NOT NULL REFERENCES markets(code),
+  source_locale TEXT NOT NULL CHECK (btrim(source_locale) <> ''),
+  target_locale TEXT NOT NULL CHECK (btrim(target_locale) <> ''),
+  status TEXT NOT NULL DEFAULT 'queued' CHECK (status IN ('queued','running','review_required','completed','failed','cancelled')),
+  input_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+  output_json JSONB,
+  error_message TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CHECK (source_market_code <> target_market_code OR source_locale <> target_locale)
+);
+CREATE INDEX IF NOT EXISTS localization_jobs_product_created_idx ON localization_jobs(product_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS localization_jobs_target_status_idx ON localization_jobs(target_market_code, status, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS quality_checks (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  product_id UUID REFERENCES products(id),
+  product_job_id UUID REFERENCES product_jobs(id),
+  check_type TEXT NOT NULL CHECK (btrim(check_type) <> ''),
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','passed','failed','warning','skipped')),
+  score NUMERIC(5,2) CHECK (score BETWEEN 0 AND 100),
+  findings_json JSONB NOT NULL DEFAULT '[]'::jsonb,
+  checked_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CHECK (product_id IS NOT NULL OR product_job_id IS NOT NULL)
+);
+CREATE INDEX IF NOT EXISTS quality_checks_product_checked_idx ON quality_checks(product_id, checked_at DESC) WHERE product_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS quality_checks_job_checked_idx ON quality_checks(product_job_id, checked_at DESC) WHERE product_job_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS quality_checks_status_checked_idx ON quality_checks(status, checked_at DESC);
+
+CREATE TABLE IF NOT EXISTS publishing_jobs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  product_id UUID NOT NULL REFERENCES products(id),
+  product_edition_id UUID REFERENCES product_editions(id),
+  market_code TEXT NOT NULL REFERENCES markets(code),
+  locale TEXT NOT NULL CHECK (btrim(locale) <> ''),
+  status TEXT NOT NULL DEFAULT 'queued' CHECK (status IN ('queued','awaiting_approval','approved','publishing','published','rejected','failed','cancelled')),
+  approval_required BOOLEAN NOT NULL DEFAULT true,
+  approved_by UUID REFERENCES users(id),
+  approved_at TIMESTAMPTZ,
+  published_at TIMESTAMPTZ,
+  error_message TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CHECK (status <> 'published' OR published_at IS NOT NULL),
+  CHECK (approval_required IS FALSE OR status NOT IN ('publishing','published') OR approved_at IS NOT NULL)
+);
+CREATE INDEX IF NOT EXISTS publishing_jobs_status_created_idx ON publishing_jobs(status, created_at DESC);
+CREATE INDEX IF NOT EXISTS publishing_jobs_product_market_idx ON publishing_jobs(product_id, market_code, locale);
+CREATE INDEX IF NOT EXISTS publishing_jobs_approval_idx ON publishing_jobs(approval_required, status) WHERE approval_required IS TRUE;
+
+CREATE TABLE IF NOT EXISTS agent_events (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  agent_run_id UUID NOT NULL REFERENCES agent_runs(id),
+  event_type TEXT NOT NULL CHECK (btrim(event_type) <> ''),
+  level TEXT NOT NULL DEFAULT 'info' CHECK (level IN ('debug','info','warning','error')),
+  message TEXT NOT NULL CHECK (btrim(message) <> ''),
+  data_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS agent_events_run_created_idx ON agent_events(agent_run_id, created_at);
+CREATE INDEX IF NOT EXISTS agent_events_level_created_idx ON agent_events(level, created_at DESC);
