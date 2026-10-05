@@ -153,6 +153,7 @@ export default function HomePageClient({ initialProducts, categories, needs, row
 
   const primaryCategories = categories.slice(0, 6);
   const additionalCategories = categories.slice(6);
+  const marketFlag = market === 'UK' ? '🇬🇧' : '🇺🇸';
 
   function renderProductCard(product: CatalogProduct, shelf = false) {
     return <article className={`ref-product${shelf ? ' ref-shelf-card' : ''}`} key={`${shelf ? 'shelf-' : ''}${product.id}`}>
@@ -176,8 +177,18 @@ export default function HomePageClient({ initialProducts, categories, needs, row
           <Link className="ref-header-account" href="/login">Sign in / Sign up</Link>
           <Link className="ref-header-cart" href="/cart" aria-label={`Cart, ${cartCount} items`}><span aria-hidden="true">🛒</span><strong>Cart</strong><span className="ref-count">{cartCount}</span></Link>
           <label className="ref-language-control"><span className="sr-only">Language</span><select value={language} onChange={(event) => setSelectedLanguage(event.target.value)} aria-label="Choose language">{languagesByMarket[market].map((item) => <option value={item.code} key={item.code}>EN</option>)}</select></label>
+          <button className="ref-market-flag" onClick={() => setMarketOpen(true)} aria-label={`Selected market ${market === 'UK' ? 'United Kingdom' : 'United States'}; change country`} title={market === 'UK' ? 'United Kingdom' : 'United States'}>{marketFlag}</button>
         </div>
       </div>
+
+      <section className="ref-hero"><div className="ref-container ref-hero-layout">
+        <div className="ref-hero-content">
+          <span className="ref-eyebrow">DIGITAL PRODUCTS FOR WORK, LEARNING &amp; LIFE</span>
+          <h1>Find the right digital product for what you want to do.</h1>
+          <p>Learn something new, solve a work challenge, or bring your next idea to life.</p>
+        </div>
+      </div></section>
+
       <nav className="ref-marketplace-nav" aria-label="Browse product categories"><div className="ref-container ref-marketplace-nav-inner">
         <button className={category === 'All' ? 'active' : ''} onClick={() => chooseCategory('All')}>☰ All</button>
         <details className="ref-subnav-categories"><summary>Categories</summary><div className="ref-category-dropdown">{categories.map((item) => <button key={item.name} onClick={(event) => { chooseCategory(item.name); event.currentTarget.closest('details')?.removeAttribute('open'); }}>{item.icon} {item.name}</button>)}</div></details>
@@ -187,15 +198,7 @@ export default function HomePageClient({ initialProducts, categories, needs, row
       </div></nav>
     </header>
 
-    <main id="home">
-      <section className="ref-hero"><div className="ref-container ref-hero-layout">
-        <div className="ref-hero-content">
-          <span className="ref-eyebrow">DIGITAL PRODUCTS FOR WORK, LEARNING &amp; LIFE</span>
-          <h1>Find the right digital product for what you want to do.</h1>
-          <p>Learn something new, solve a work challenge, or bring your next idea to life.</p>
-        </div>
-      </div></section>
-
+    <main id="home" className="ref-home">
       <section id="explore" className="ref-section ref-explore"><div className="ref-container">
         {hasActiveFilters ? <>
           <div className="ref-section-head"><div><span className="ref-kicker">PRODUCT RESULTS</span><h2>Explore digital products</h2></div><button className="ref-clear-filters" onClick={() => { setQuery(''); setCategory('All'); setNeedFilter([]); setActiveNeed(''); }}>Clear filters</button></div>
@@ -213,9 +216,9 @@ export default function HomePageClient({ initialProducts, categories, needs, row
       </div></section>
 
       <section id="needs" className="ref-section ref-needs-section"><div className="ref-container">
-        <details className="ref-needs-disclosure"><summary><span><span className="ref-kicker">EXPLORE BY GOAL</span><strong>What are you trying to do?</strong><small>Choose a goal to find useful products.</small></span><span className="ref-disclosure-icon" aria-hidden="true">＋</span></summary>
+        <div className="ref-needs-disclosure"><div className="ref-needs-heading"><span><span className="ref-kicker">EXPLORE BY GOAL</span><strong>What are you trying to do?</strong><small>Choose a goal to find useful products.</small></span></div>
           <div className="ref-needs">{needs.map((need) => <button className="ref-need" key={need.label} onClick={() => chooseNeed(need)}><span>{need.icon}</span>{need.label}<span aria-hidden="true">→</span></button>)}</div>
-        </details>
+        </div>
       </div></section>
 
       <section className="ref-section ref-topic-section"><div className="ref-container"><div className="ref-topic-panel"><div><span className="ref-kicker">KEEP EXPLORING</span><h2>Find a resource for your next idea.</h2><p>Browse practical learning and productivity products made to help you move forward.</p></div><Link className="ref-primary" href="/explore">Explore the marketplace</Link></div></div></section>

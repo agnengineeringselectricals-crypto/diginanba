@@ -350,3 +350,44 @@
   .ref-header-cart strong{font-size:9px}
   .ref-language-control select{font-size:9px}
 }
+
+/* Latest homepage refinement: blush canvas, open goal choices and readable nav. */
+.ref-header{position:relative}
+.ref-hero{padding:11px 0 12px;background:#fff4f8;border-bottom:1px solid #f1dfe7}
+.ref-hero-content{grid-template-columns:auto 1fr;gap:3px 15px}
+.ref-hero-content .ref-eyebrow{background:#fbe7ef;color:#783f57}
+.ref-marketplace-nav-inner button,.ref-marketplace-nav-inner>a,.ref-subnav-categories summary,.ref-subnav-more summary{font-size:14px;padding:10px 10px}
+.ref-marketplace-nav-inner{overflow-x:auto;overscroll-behavior-x:contain}
+.ref-header-actions{gap:7px}
+.ref-market-flag{display:grid;place-items:center;width:32px;height:34px;padding:0;border:1px solid transparent;border-radius:6px;background:transparent;font-size:19px;cursor:pointer}
+.ref-market-flag:hover{border-color:#c8cfdd}
+.ref-home{background:linear-gradient(180deg,#fff7fa 0%,#fffafd 52%,#fff6fa 100%)}
+.ref-home .ref-section{background:transparent}
+.ref-home .ref-shelf-card,.ref-home .ref-product,.ref-home .ref-needs-disclosure,.ref-home .ref-topic-panel,.ref-home .ref-empty{background:#fff}
+.ref-needs-disclosure{padding:17px 16px 16px}
+.ref-needs-heading{padding:0 4px 14px}
+.ref-needs-heading>span{display:grid;gap:3px}
+.ref-needs-heading strong{font-size:20px;color:#172033}
+.ref-needs-heading small{font-size:13px;color:#68738a}
+.ref-needs{display:grid;padding:0;grid-template-columns:repeat(5,minmax(0,1fr));gap:9px}
+.ref-need{min-width:0;display:flex;align-items:center;gap:9px;padding:13px 12px;border-radius:12px;font-size:13px}
+.ref-need>span:last-child{margin-left:auto;flex:none}
+@media(max-width:1100px){
+  .ref-marketplace-nav-inner button,.ref-marketplace-nav-inner>a,.ref-subnav-categories summary,.ref-subnav-more summary{font-size:13px;padding:9px 8px}
+  .ref-needs{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+@media(max-width:700px){
+  .ref-header-actions{gap:2px}
+  .ref-market-flag{width:25px;height:30px;font-size:17px}
+  .ref-marketplace-nav-inner button,.ref-marketplace-nav-inner>a,.ref-subnav-categories summary,.ref-subnav-more summary{font-size:12px;padding:9px 8px}
+  .ref-needs{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .ref-needs-disclosure{padding:14px 12px 12px}
+  .ref-needs-heading{padding:0 3px 11px}
+  .ref-needs-heading strong{font-size:18px}
+  .ref-need{padding:12px 10px;font-size:12px}
+}
+@media(max-width:390px){
+  .ref-market-flag{width:21px;font-size:15px}
+  .ref-header-account{padding-left:2px;padding-right:2px}
+  .ref-needs{grid-template-columns:1fr}
+}
