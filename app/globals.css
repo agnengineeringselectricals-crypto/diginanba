@@ -406,3 +406,31 @@
 @media(max-width:390px){
   .ref-marketplace-nav-inner>button{display:inline-flex}
 }
+
+/* Category → subcategory menu; the scroll container remains limited to the top row. */
+.ref-marketplace-nav-inner>button{gap:6px}
+.ref-marketplace-nav-inner>button>span{font-size:16px;line-height:1;opacity:.76}
+.ref-marketplace-nav-inner>button.expanded{background:#ffffff18;border-color:#ffffff85}
+.ref-subcategory-menu{position:absolute;z-index:45;top:100%;left:max(22px,calc((100% - 1240px)/2 + 22px));width:min(720px,calc(100% - 44px));padding:19px 21px 21px;border:1px solid #e7e3e8;border-radius:0 0 14px 14px;background:#fff;color:#172033;box-shadow:0 18px 40px #10152526}
+.ref-subcategory-menu-heading{display:flex;align-items:center;justify-content:space-between;gap:14px;padding-bottom:14px;border-bottom:1px solid #ece8ec}
+.ref-subcategory-menu-heading h2{margin:5px 0 0;font-size:20px;letter-spacing:-.3px}
+.ref-subcategory-menu-heading .ref-kicker{background:#fbe7ef;color:#783f57}
+.ref-subcategory-browse-all{flex:none;padding:9px 12px;border:1px solid #e4d9df;border-radius:8px;background:#fff7fa;color:#523444;font:inherit;font-size:12px;font-weight:700;cursor:pointer}
+.ref-subcategory-browse-all:hover{border-color:#d2aebe;background:#fbedf3}
+.ref-subcategory-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px 9px;padding-top:14px}
+.ref-subcategory-grid button{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0;padding:11px 10px;border:1px solid #eee9ed;border-radius:8px;background:#fff;color:#283348;text-align:left;font:inherit;font-size:13px;cursor:pointer}
+.ref-subcategory-grid button:hover,.ref-subcategory-grid button:focus-visible{border-color:#d7b9c7;background:#fff7fa}
+.ref-subcategory-grid button span{flex:none;color:#81566b}
+.ref-subcategory-empty{margin:14px 0 0;color:#68738a;font-size:13px}
+@media(max-width:700px){
+  .ref-subcategory-menu{position:static;width:auto;margin:0 12px 11px;padding:15px 13px 14px;border-radius:12px}
+  .ref-subcategory-menu-heading h2{font-size:17px}
+  .ref-subcategory-browse-all{white-space:normal;font-size:11px;padding:8px}
+  .ref-subcategory-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;padding-top:11px}
+  .ref-subcategory-grid button{padding:11px 9px;font-size:12px;min-height:42px}
+}
+@media(max-width:390px){
+  .ref-subcategory-menu{margin-left:9px;margin-right:9px;padding-left:10px;padding-right:10px}
+  .ref-subcategory-menu-heading{align-items:flex-start;flex-direction:column}
+  .ref-subcategory-grid{grid-template-columns:1fr}
+}

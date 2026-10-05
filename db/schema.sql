@@ -10,8 +10,17 @@ CREATE TABLE IF NOT EXISTS audit_logs (id UUID PRIMARY KEY DEFAULT gen_random_uu
 CREATE TABLE IF NOT EXISTS markets (code TEXT PRIMARY KEY, country_name TEXT NOT NULL, currency_code CHAR(3) NOT NULL, locale TEXT NOT NULL, enabled BOOLEAN NOT NULL DEFAULT true);
 CREATE TABLE IF NOT EXISTS categories (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), slug TEXT NOT NULL UNIQUE, name TEXT NOT NULL, description TEXT, sort_order INT NOT NULL DEFAULT 0, enabled BOOLEAN NOT NULL DEFAULT true, search_terms TEXT[] NOT NULL DEFAULT '{}');
 ALTER TABLE categories ADD COLUMN IF NOT EXISTS search_terms TEXT[] NOT NULL DEFAULT '{}';
-CREATE TABLE IF NOT EXISTS products (category_id UUID REFERENCES categories(id), id UUID PRIMARY KEY DEFAULT gen_random_uuid(), slug TEXT NOT NULL UNIQUE, title TEXT NOT NULL, description TEXT, product_type TEXT NOT NULL, owner_type TEXT NOT NULL DEFAULT 'platform', status TEXT NOT NULL DEFAULT 'draft', created_at TIMESTAMPTZ NOT NULL DEFAULT now(), updated_at TIMESTAMPTZ NOT NULL DEFAULT now());
+CREATE TABLE IF NOT EXISTS subcategories (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), category_id UUID NOT NULL REFERENCES categories(id) ON DELETE RESTRICT, slug TEXT NOT NULL, name TEXT NOT NULL, description TEXT, sort_order INT NOT NULL DEFAULT 0, enabled BOOLEAN NOT NULL DEFAULT true, search_terms TEXT[] NOT NULL DEFAULT '{}', created_at TIMESTAMPTZ NOT NULL DEFAULT now(), updated_at TIMESTAMPTZ NOT NULL DEFAULT now(), UNIQUE(category_id, slug), UNIQUE(id, category_id));
+CREATE TABLE IF NOT EXISTS products (category_id UUID REFERENCES categories(id), subcategory_id UUID, id UUID PRIMARY KEY DEFAULT gen_random_uuid(), slug TEXT NOT NULL UNIQUE, title TEXT NOT NULL, description TEXT, product_type TEXT NOT NULL, owner_type TEXT NOT NULL DEFAULT 'platform', status TEXT NOT NULL DEFAULT 'draft', created_at TIMESTAMPTZ NOT NULL DEFAULT now(), updated_at TIMESTAMPTZ NOT NULL DEFAULT now());
 ALTER TABLE products ADD COLUMN IF NOT EXISTS category_id UUID REFERENCES categories(id);
+ALTER TABLE products ADD COLUMN IF NOT EXISTS subcategory_id UUID;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='products_subcategory_category_fk' AND conrelid='products'::regclass) THEN
+    ALTER TABLE products ADD CONSTRAINT products_subcategory_category_fk FOREIGN KEY (subcategory_id, category_id) REFERENCES subcategories(id, category_id);
+  END IF;
+END $$;
+CREATE INDEX IF NOT EXISTS subcategories_parent_order_idx ON subcategories(category_id, enabled, sort_order);
+CREATE INDEX IF NOT EXISTS products_subcategory_id_idx ON products(subcategory_id);
 
 CREATE TABLE IF NOT EXISTS product_editions (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), product_id UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE, market_code TEXT NOT NULL REFERENCES markets(code), locale TEXT NOT NULL, title TEXT NOT NULL, description TEXT, version TEXT NOT NULL DEFAULT '1.0', status TEXT NOT NULL DEFAULT 'draft', UNIQUE(product_id, market_code, locale, version));
 CREATE TABLE IF NOT EXISTS prices (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), product_edition_id UUID NOT NULL REFERENCES product_editions(id) ON DELETE CASCADE, currency_code CHAR(3) NOT NULL, amount_minor BIGINT NOT NULL, valid_from TIMESTAMPTZ NOT NULL DEFAULT now(), valid_to TIMESTAMPTZ);
@@ -57,6 +66,28 @@ UPDATE categories SET search_terms=ARRAY['video','audio','content','creator','po
 UPDATE categories SET search_terms=ARRAY['photo','photography','image','picture'] WHERE slug='photography' AND search_terms='{}';
 UPDATE categories SET search_terms=ARRAY['printable','planner','worksheet'] WHERE slug='printables' AND search_terms='{}';
 UPDATE categories SET search_terms=ARRAY['personal','goals','habits','wellness','routine'] WHERE slug='personal-lifestyle' AND search_terms='{}';
+
+-- Admin-managed category → subcategory → product taxonomy.
+INSERT INTO subcategories(category_id,slug,name,sort_order,search_terms)
+SELECT c.id,v.slug,v.name,v.sort_order,v.search_terms FROM (VALUES
+('ebooks-guides','business-guides','Business Guides',1,ARRAY['business guide','entrepreneur']),('ebooks-guides','how-to-guides','How-to Guides',2,ARRAY['how to','step by step']),('ebooks-guides','self-help','Self-Help',3,ARRAY['self help','personal growth']),('ebooks-guides','technical-guides','Technical Guides',4,ARRAY['technical','engineering']),('ebooks-guides','exam-preparation','Exam Preparation',5,ARRAY['exam','test prep']),
+('excel-sheets','finance-accounting','Finance & Accounting',1,ARRAY['finance','accounting','cashflow','invoice']),('excel-sheets','budgeting','Budgeting',2,ARRAY['budget','budgeting']),('excel-sheets','business-templates','Business Templates',3,ARRAY['business template','business spreadsheet']),('excel-sheets','dashboards','Dashboards',4,ARRAY['dashboard','kpi']),('excel-sheets','data-analysis','Data Analysis',5,ARRAY['data analysis','analytics']),
+('templates-documents','business-documents','Business Documents',1,ARRAY['business','proposal','onboarding']),('templates-documents','project-management','Project Management',2,ARRAY['project','management']),('templates-documents','resumes-cvs','Resumes & CVs',3,ARRAY['resume','résumé','cv']),('templates-documents','checklists','Checklists',4,ARRAY['checklist','sop']),('templates-documents','planners','Planners',5,ARRAY['planner','planning']),
+('design-assets','social-media-design','Social Media Design',1,ARRAY['social media','instagram']),('design-assets','brand-identity','Brand Identity',2,ARRAY['brand','logo']),('design-assets','presentations','Presentations',3,ARRAY['presentation','slides']),('design-assets','ui-ux-assets','UI / UX Assets',4,ARRAY['ui','ux','interface']),('design-assets','creative-templates','Creative Templates',5,ARRAY['design kit','creative']),
+('marketing-sales','social-media','Social Media',1,ARRAY['social media','instagram','content calendar']),('marketing-sales','seo','SEO',2,ARRAY['seo','search engine']),('marketing-sales','email-marketing','Email Marketing',3,ARRAY['email','newsletter']),('marketing-sales','sales-templates','Sales Templates',4,ARRAY['sales','proposal']),('marketing-sales','advertising','Advertising',5,ARRAY['advertising','ads','promotion']),
+('ai-automation','ai-prompts','AI Prompts',1,ARRAY['prompt','prompts']),('ai-automation','ai-agents','AI Agents',2,ARRAY['agent','agents']),('ai-automation','ai-workflows','AI Workflows',3,ARRAY['workflow','workflows']),('ai-automation','automation-templates','Automation Templates',4,ARRAY['automation','automate']),('ai-automation','productivity','Productivity',5,ARRAY['productivity','task']),
+('business-entrepreneurship','business-plans','Business Plans',1,ARRAY['business plan','growth planner']),('business-entrepreneurship','starting-a-business','Starting a Business',2,ARRAY['startup','launch']),('business-entrepreneurship','business-operations','Business Operations',3,ARRAY['operations','sop']),('business-entrepreneurship','freelancing','Freelancing',4,ARRAY['freelance','client']),('business-entrepreneurship','business-growth','Business Growth',5,ARRAY['growth','sales']),
+('education-learning','online-courses','Online Courses',1,ARRAY['course','training']),('education-learning','study-guides','Study Guides',2,ARRAY['study','learning guide']),('education-learning','exam-prep','Exam Preparation',3,ARRAY['exam','test prep']),('education-learning','skill-roadmaps','Skill Roadmaps',4,ARRAY['roadmap','skill']),('education-learning','coding-education','Coding',5,ARRAY['coding','programming','python']),
+('software-code','app-starter-kits','App Starter Kits',1,ARRAY['app','application']),('software-code','web-development','Web Development',2,ARRAY['web','website','frontend']),('software-code','python','Python',3,ARRAY['python']),('software-code','no-code-tools','No-code Tools',4,ARRAY['no code','nocode']),('software-code','developer-resources','Developer Resources',5,ARRAY['developer','software','code']),
+('cad-engineering','autocad','AutoCAD',1,ARRAY['autocad','cad']),('cad-engineering','electrical-engineering','Electrical',2,ARRAY['electrical','circuit']),('cad-engineering','mechanical-engineering','Mechanical',3,ARRAY['mechanical']),('cad-engineering','civil-engineering','Civil',4,ARRAY['civil','structural']),('cad-engineering','engineering-calculations','Engineering Calculations',5,ARRAY['calculation','calculator']),
+('finance-accounting','personal-finance','Personal Finance',1,ARRAY['personal finance','budget']),('finance-accounting','bookkeeping','Bookkeeping',2,ARRAY['bookkeeping','accounting']),('finance-accounting','invoicing','Invoicing',3,ARRAY['invoice','invoicing']),('finance-accounting','cash-flow','Cash Flow',4,ARRAY['cashflow','cash flow']),('finance-accounting','tax-planning','Tax Planning',5,ARRAY['tax']),
+('career-professional','resumes-cvs','Resumes & CVs',1,ARRAY['resume','résumé','cv']),('career-professional','job-search','Job Search',2,ARRAY['job','career']),('career-professional','interview-prep','Interview Preparation',3,ARRAY['interview']),('career-professional','freelance-career','Freelance Career',4,ARRAY['freelance','proposal']),('career-professional','professional-development','Professional Development',5,ARRAY['professional','development']),
+('video-audio','video-editing','Video Editing',1,ARRAY['video','editing']),('video-audio','video-scripts','Scripts & Storyboards',2,ARRAY['script','storyboard']),('video-audio','audio-resources','Audio Resources',3,ARRAY['audio','sound']),('video-audio','podcasting','Podcasting',4,ARRAY['podcast']),('video-audio','content-production','Content Production',5,ARRAY['content','creator']),
+('photography','photo-editing','Photo Editing',1,ARRAY['photo editing','lightroom']),('photography','presets','Presets',2,ARRAY['preset']),('photography','stock-photography','Stock Photography',3,ARRAY['stock photo','image']),('photography','photo-planning','Session Planning',4,ARRAY['photo session','shot list']),('photography','lighting','Lighting',5,ARRAY['lighting','studio']),
+('printables','printable-planners','Planners',1,ARRAY['planner']),('printables','worksheets','Worksheets',2,ARRAY['worksheet']),('printables','trackers','Trackers',3,ARRAY['tracker']),('printables','kids-printables','Kids & Classroom',4,ARRAY['kids','classroom']),('printables','home-printables','Home & Lifestyle',5,ARRAY['home','lifestyle']),
+('personal-lifestyle','habits-goals','Habits & Goals',1,ARRAY['habit','goal']),('personal-lifestyle','wellness','Wellness',2,ARRAY['wellness','health']),('personal-lifestyle','journals','Journals',3,ARRAY['journal']),('personal-lifestyle','personal-productivity','Personal Productivity',4,ARRAY['productivity','routine']),('personal-lifestyle','hobbies','Hobbies',5,ARRAY['hobby','hobbies'])
+) AS v(category_slug,slug,name,sort_order,search_terms) JOIN categories c ON c.slug=v.category_slug
+ON CONFLICT(category_id,slug) DO NOTHING;
 
 CREATE TABLE IF NOT EXISTS marketplace_needs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -111,6 +142,23 @@ INSERT INTO products(category_id,slug,title,description,product_type,owner_type,
 ((SELECT id FROM categories WHERE slug='business-entrepreneurship'),'startup-operations-playbook','Startup Operations Playbook','Practical SOPs and checklists for an early-stage team.','guide','platform','published'),
 ((SELECT id FROM categories WHERE slug='templates-documents'),'client-onboarding-system','Client Onboarding System','A reusable workflow for collecting requirements and starting projects.','template','platform','published')
 ON CONFLICT DO NOTHING;
+
+UPDATE products p SET subcategory_id=s.id FROM categories c JOIN subcategories s ON s.category_id=c.id
+WHERE p.category_id=c.id AND p.subcategory_id IS NULL AND p.slug='business-growth-planner' AND c.slug='business-entrepreneurship' AND s.slug='business-plans';
+UPDATE products p SET subcategory_id=s.id FROM categories c JOIN subcategories s ON s.category_id=c.id
+WHERE p.category_id=c.id AND p.subcategory_id IS NULL AND p.slug='invoice-cashflow-toolkit' AND c.slug='finance-accounting' AND s.slug='cash-flow';
+UPDATE products p SET subcategory_id=s.id FROM categories c JOIN subcategories s ON s.category_id=c.id
+WHERE p.category_id=c.id AND p.subcategory_id IS NULL AND p.slug='ai-prompt-workflow-library' AND c.slug='ai-automation' AND s.slug='ai-prompts';
+UPDATE products p SET subcategory_id=s.id FROM categories c JOIN subcategories s ON s.category_id=c.id
+WHERE p.category_id=c.id AND p.subcategory_id IS NULL AND p.slug='freelance-proposal-pack' AND c.slug='career-professional' AND s.slug='freelance-career';
+UPDATE products p SET subcategory_id=s.id FROM categories c JOIN subcategories s ON s.category_id=c.id
+WHERE p.category_id=c.id AND p.subcategory_id IS NULL AND p.slug='creator-content-calendar' AND c.slug='marketing-sales' AND s.slug='social-media';
+UPDATE products p SET subcategory_id=s.id FROM categories c JOIN subcategories s ON s.category_id=c.id
+WHERE p.category_id=c.id AND p.subcategory_id IS NULL AND p.slug='project-cost-calculator' AND c.slug='excel-sheets' AND s.slug='finance-accounting';
+UPDATE products p SET subcategory_id=s.id FROM categories c JOIN subcategories s ON s.category_id=c.id
+WHERE p.category_id=c.id AND p.subcategory_id IS NULL AND p.slug='startup-operations-playbook' AND c.slug='business-entrepreneurship' AND s.slug='business-operations';
+UPDATE products p SET subcategory_id=s.id FROM categories c JOIN subcategories s ON s.category_id=c.id
+WHERE p.category_id=c.id AND p.subcategory_id IS NULL AND p.slug='client-onboarding-system' AND c.slug='templates-documents' AND s.slug='business-documents';
 
 INSERT INTO product_editions(product_id,market_code,locale,title,description,status)
 SELECT p.id,'US','en-US',p.title,p.description,'published' FROM products p WHERE p.slug IN ('business-growth-planner','invoice-cashflow-toolkit','ai-prompt-workflow-library','freelance-proposal-pack','creator-content-calendar','project-cost-calculator','startup-operations-playbook','client-onboarding-system')

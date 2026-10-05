@@ -40,6 +40,7 @@ Never commit `.env.local` or production secrets. Store production secrets in Ver
 - Catalog API with database-first and safe demo fallback.
 - Cart foundation and authenticated order creation API.
 - Seed catalog SQL for categories, products, editions and prices.
+- Admin-ready category → subcategory → product taxonomy. `db/schema.sql` is idempotent and adds ordered/enabled subcategories plus a category-safe product subcategory association. Apply it to existing databases before enabling the taxonomy there.
 - Real payment processing is intentionally not enabled yet.
 
 Vercel can connect this Next.js project to GitHub so pushes can generate preview/production deployments.

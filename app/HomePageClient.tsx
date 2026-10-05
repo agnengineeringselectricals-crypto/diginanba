@@ -28,6 +28,7 @@ export default function HomePageClient({ initialProducts, categories, needs, row
   const [products, setProducts] = useState(initialProducts);
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('All');
+  const [subcategory, setSubcategory] = useState('');
   const [needFilter, setNeedFilter] = useState<string[]>([]);
   const [activeNeed, setActiveNeed] = useState('');
   const [sort, setSort] = useState('featured');
@@ -36,6 +37,7 @@ export default function HomePageClient({ initialProducts, categories, needs, row
   const categoryNavRef = useRef<HTMLDivElement>(null);
   const [canScrollCategories, setCanScrollCategories] = useState(false);
   const [categoryNavAtEnd, setCategoryNavAtEnd] = useState(false);
+  const [expandedCategory, setExpandedCategory] = useState('');
 
   useEffect(() => {
     let selected = localStorage.getItem('diginanba-market') as Market | null;
@@ -85,7 +87,7 @@ export default function HomePageClient({ initialProducts, categories, needs, row
   const visibleProducts = useMemo(() => {
     const tokens = query.trim().split(/\s+/u).filter(Boolean).map(normalizeWord).filter((token) => token.length > 1);
     const filtered = products.flatMap((product) => {
-      const searchable = `${product.title} ${product.category} ${product.description}`.toLowerCase();
+      const searchable = `${product.title} ${product.category} ${product.subcategory ?? ''} ${product.description}`.toLowerCase();
       const words = searchable.split(/[^a-z0-9]+/u).filter(Boolean).map(normalizeWord);
       const metadata = categories.find((item) => item.matches.includes(product.category))?.searchTerms ?? [];
       const score = tokens.reduce((total, token) => {
@@ -96,30 +98,54 @@ export default function HomePageClient({ initialProducts, categories, needs, row
       }, 0);
       const searchMatches = tokens.length === 0 || score > 0;
       const selectedCategory = categories.find((item) => item.name === category);
-      const categoryMatches = category === 'All' || selectedCategory?.matches.includes(product.category);
+      const selectedSubcategory = selectedCategory?.subcategories.find((item) => item.key === subcategory);
+      const categoryMatches = category === 'All' || Boolean(selectedCategory && (selectedCategory.matches.includes(product.category) || product.categorySlug === selectedCategory.slug));
+      const normalizedProduct = normalizeWord(`${product.title} ${product.description} ${product.subcategory ?? ''}`);
+      const subcategoryMatches = !selectedSubcategory || (
+        product.categorySlug === selectedCategory?.slug && product.subcategorySlug === selectedSubcategory.slug
+      ) || (
+        product.categorySlug === selectedCategory?.slug && !product.subcategorySlug &&
+        selectedSubcategory.searchTerms.some((term) => normalizedProduct.includes(normalizeWord(term)))
+      );
       const needMatches = needFilter.length === 0 || needFilter.some((name) => {
         const selectedNeedCategory = categories.find((item) => item.name === name);
         return (selectedNeedCategory?.matches ?? [name]).includes(product.category);
       });
-      return searchMatches && categoryMatches && needMatches ? [{ product, score }] : [];
+      return searchMatches && categoryMatches && subcategoryMatches && needMatches ? [{ product, score }] : [];
     });
     if (sort === 'low') filtered.sort((a, b) => a.product.amountMinor - b.product.amountMinor);
     else if (sort === 'high') filtered.sort((a, b) => b.product.amountMinor - a.product.amountMinor);
     else if (tokens.length) filtered.sort((a, b) => b.score - a.score);
     return filtered.map(({ product }) => product);
-  }, [categories, category, needFilter, products, query, sort]);
-  const hasActiveFilters = Boolean(query.trim() || category !== 'All' || needFilter.length);
+  }, [categories, category, needFilter, products, query, sort, subcategory]);
+  const hasActiveFilters = Boolean(query.trim() || category !== 'All' || subcategory || needFilter.length);
+  const selectedCategory = categories.find((item) => item.name === category);
+  const selectedSubcategory = selectedCategory?.subcategories.find((item) => item.key === subcategory);
+  const menuCategory = categories.find((item) => item.slug === expandedCategory);
 
   function chooseCategory(value: string) {
     setCategory(value);
+    setSubcategory('');
     setNeedFilter([]);
     setActiveNeed('');
+    setExpandedCategory('');
+    document.getElementById('explore')?.scrollIntoView({ behavior: 'smooth' });
+  }
+
+  function chooseSubcategory(categoryItem: DiscoveryCategory, subcategoryItem: DiscoveryCategory['subcategories'][number]) {
+    setQuery('');
+    setCategory(categoryItem.name);
+    setSubcategory(subcategoryItem.key);
+    setNeedFilter([]);
+    setActiveNeed('');
+    setExpandedCategory('');
     document.getElementById('explore')?.scrollIntoView({ behavior: 'smooth' });
   }
 
   function chooseNeed(need: DiscoveryNeed) {
     setQuery('');
     setCategory('All');
+    setSubcategory('');
     setNeedFilter(need.categories);
     setActiveNeed(need.label);
     document.getElementById('explore')?.scrollIntoView({ behavior: 'smooth' });
@@ -181,7 +207,7 @@ export default function HomePageClient({ initialProducts, categories, needs, row
   }
 
   return <>
-    <header className="ref-header">
+    <header className="ref-header" onMouseLeave={() => { if (window.matchMedia('(hover: hover)').matches) setExpandedCategory(''); }}>
       <div className="ref-container ref-header-top">
         <Link href="/" className="ref-logo"><span>Digi</span>Nanba</Link>
         <form className="ref-market-search" onSubmit={runSearch} role="search">
@@ -201,19 +227,24 @@ export default function HomePageClient({ initialProducts, categories, needs, row
 
       <nav className="ref-marketplace-nav" aria-label="Browse product categories"><div className="ref-container ref-marketplace-nav-shell">
         <div className="ref-marketplace-nav-inner" ref={categoryNavRef} role="group" aria-label="Product categories" tabIndex={0}>
-          {categories.map((item) => <button className={category === item.name ? 'active' : ''} key={item.name} onClick={() => chooseCategory(item.name)} aria-pressed={category === item.name}>{item.icon} {item.name}</button>)}
+          {categories.map((item) => <button className={`${category === item.name ? 'active' : ''}${expandedCategory === item.slug ? ' expanded' : ''}`} key={item.slug} onMouseEnter={() => { if (window.matchMedia('(hover: hover)').matches) setExpandedCategory(item.slug); }} onFocus={() => setExpandedCategory(item.slug)} onClick={() => setExpandedCategory((current) => current === item.slug && !window.matchMedia('(hover: hover)').matches ? '' : item.slug)} aria-expanded={expandedCategory === item.slug} aria-haspopup="true">{item.icon} {item.name}<span aria-hidden="true">⌄</span></button>)}
         </div>
         {canScrollCategories && <button className="ref-category-scroll-arrow" type="button" onClick={() => categoryNavRef.current?.scrollBy({ left: Math.max(180, categoryNavRef.current.clientWidth * 0.7), behavior: 'smooth' })} disabled={categoryNavAtEnd} aria-label="Scroll categories right" title={categoryNavAtEnd ? 'End of categories' : 'Show more categories'}>→</button>}
       </div></nav>
+      {menuCategory && <div className="ref-subcategory-menu" onMouseEnter={() => setExpandedCategory(menuCategory.slug)}>
+        <div className="ref-subcategory-menu-heading"><div><span className="ref-kicker">{menuCategory.icon} BROWSE CATEGORY</span><h2>{menuCategory.name}</h2></div><button className="ref-subcategory-browse-all" onClick={() => chooseCategory(menuCategory.name)}>Browse all {menuCategory.name}</button></div>
+        {menuCategory.subcategories.length ? <div className="ref-subcategory-grid">{menuCategory.subcategories.map((item) => <button key={item.key} onClick={() => chooseSubcategory(menuCategory, item)}>{item.name}<span aria-hidden="true">→</span></button>)}</div> : <p className="ref-subcategory-empty">More topics in this category are coming soon.</p>}
+      </div>}
     </header>
 
     <main id="home" className="ref-home">
       <section id="explore" className="ref-section ref-explore"><div className="ref-container">
         {hasActiveFilters ? <>
-          <div className="ref-section-head"><div><span className="ref-kicker">PRODUCT RESULTS</span><h2>Explore digital products</h2></div><button className="ref-clear-filters" onClick={() => { setQuery(''); setCategory('All'); setNeedFilter([]); setActiveNeed(''); }}>Clear filters</button></div>
-          <div className="ref-toolbar"><label className="ref-filter-label">Category<select value={category} onChange={(event) => { setCategory(event.target.value); setNeedFilter([]); setActiveNeed(''); }} aria-label="Filter by category"><option value="All">All categories</option>{categories.map((item) => <option value={item.name} key={item.name}>{item.name}</option>)}</select></label><label className="ref-filter-label">Sort by<select value={sort} onChange={(event) => setSort(event.target.value)} aria-label="Sort products"><option value="featured">Recommended</option><option value="low">Price: low to high</option><option value="high">Price: high to low</option></select></label></div>
+          <div className="ref-section-head"><div><span className="ref-kicker">PRODUCT RESULTS</span><h2>Explore digital products</h2></div><button className="ref-clear-filters" onClick={() => { setQuery(''); setCategory('All'); setSubcategory(''); setNeedFilter([]); setActiveNeed(''); }}>Clear filters</button></div>
+          <div className="ref-toolbar"><label className="ref-filter-label">Category<select value={category} onChange={(event) => { setCategory(event.target.value); setSubcategory(''); setNeedFilter([]); setActiveNeed(''); }} aria-label="Filter by category"><option value="All">All categories</option>{categories.map((item) => <option value={item.name} key={item.slug}>{item.name}</option>)}</select></label>{selectedCategory && <label className="ref-filter-label">Subcategory<select value={subcategory} onChange={(event) => setSubcategory(event.target.value)} aria-label="Filter by subcategory"><option value="">All {selectedCategory.name}</option>{selectedCategory.subcategories.map((item) => <option value={item.key} key={item.key}>{item.name}</option>)}</select></label>}<label className="ref-filter-label">Sort by<select value={sort} onChange={(event) => setSort(event.target.value)} aria-label="Sort products"><option value="featured">Recommended</option><option value="low">Price: low to high</option><option value="high">Price: high to low</option></select></label></div>
+          {selectedSubcategory && <p className="ref-active-filter">Showing: <strong>{selectedCategory?.name} › {selectedSubcategory.name}</strong></p>}
           {activeNeed && <p className="ref-active-filter">Showing products to help you: <strong>{activeNeed}</strong></p>}
-          {visibleProducts.length ? <div className="ref-products">{visibleProducts.map((product) => renderProductCard(product))}</div> : <div className="ref-empty"><h3>No products match that search yet.</h3><p>Try another phrase or browse all products.</p><button className="ref-view-product" onClick={() => { setQuery(''); setCategory('All'); setNeedFilter([]); setActiveNeed(''); }}>Show all products</button></div>}
+          {visibleProducts.length ? <div className="ref-products">{visibleProducts.map((product) => renderProductCard(product))}</div> : <div className="ref-empty"><h3>No products match that search yet.</h3><p>Try another phrase or browse all products.</p><button className="ref-view-product" onClick={() => { setQuery(''); setCategory('All'); setSubcategory(''); setNeedFilter([]); setActiveNeed(''); }}>Show all products</button></div>}
         </> : <div className="ref-shelves">{rows.map((row) => {
           const shelfProducts = products.filter((product) => belongsToRow(product, row));
           if (!shelfProducts.length) return null;
