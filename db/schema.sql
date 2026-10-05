@@ -359,6 +359,8 @@ CREATE TABLE IF NOT EXISTS marketing_strategies (
 CREATE INDEX IF NOT EXISTS marketing_strategies_market_status_idx ON marketing_strategies(market_code, status, created_at DESC);
 CREATE INDEX IF NOT EXISTS marketing_strategies_product_idx ON marketing_strategies(product_id) WHERE product_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS marketing_strategies_category_idx ON marketing_strategies(category_id) WHERE category_id IS NOT NULL;
+ALTER TABLE marketing_strategies ADD COLUMN IF NOT EXISTS idempotency_key TEXT;
+CREATE UNIQUE INDEX IF NOT EXISTS marketing_strategies_idempotency_idx ON marketing_strategies(idempotency_key);
 
 CREATE TABLE IF NOT EXISTS marketing_campaigns (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -382,6 +384,8 @@ CREATE TABLE IF NOT EXISTS marketing_campaigns (
 CREATE INDEX IF NOT EXISTS marketing_campaigns_strategy_status_idx ON marketing_campaigns(strategy_id, status, created_at DESC);
 CREATE INDEX IF NOT EXISTS marketing_campaigns_product_idx ON marketing_campaigns(product_id) WHERE product_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS marketing_campaigns_approval_idx ON marketing_campaigns(status, approved_at) WHERE approval_required IS TRUE;
+ALTER TABLE marketing_campaigns ADD COLUMN IF NOT EXISTS idempotency_key TEXT;
+CREATE UNIQUE INDEX IF NOT EXISTS marketing_campaigns_idempotency_idx ON marketing_campaigns(idempotency_key);
 
 CREATE TABLE IF NOT EXISTS marketing_campaign_targets (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -438,6 +442,8 @@ CREATE TABLE IF NOT EXISTS marketing_content (
 );
 CREATE INDEX IF NOT EXISTS marketing_content_campaign_status_idx ON marketing_content(campaign_id, approval_status, created_at DESC);
 CREATE INDEX IF NOT EXISTS marketing_content_product_idx ON marketing_content(product_id) WHERE product_id IS NOT NULL;
+ALTER TABLE marketing_content ADD COLUMN IF NOT EXISTS idempotency_key TEXT;
+CREATE UNIQUE INDEX IF NOT EXISTS marketing_content_idempotency_idx ON marketing_content(idempotency_key);
 
 CREATE TABLE IF NOT EXISTS marketing_channel_accounts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -530,3 +536,136 @@ CREATE TABLE IF NOT EXISTS agent_schedules (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS agent_schedules_agent_enabled_idx ON agent_schedules(agent_type, enabled, next_run_at);
+
+-- Stage 2+: durable orchestrator, provider cost catalog, approvals and feedback.
+-- No worker, schedule, or external provider is activated by this schema.
+ALTER TABLE agent_runs ADD COLUMN IF NOT EXISTS provenance_json JSONB NOT NULL DEFAULT '{}'::jsonb;
+ALTER TABLE research_opportunities ADD COLUMN IF NOT EXISTS country_code TEXT;
+ALTER TABLE research_opportunities ADD COLUMN IF NOT EXISTS region_code TEXT;
+ALTER TABLE research_opportunities ADD COLUMN IF NOT EXISTS locale TEXT;
+ALTER TABLE research_opportunities ADD COLUMN IF NOT EXISTS priority TEXT NOT NULL DEFAULT 'LOW' CHECK (priority IN ('HIGH','MEDIUM','LOW'));
+ALTER TABLE research_opportunities ADD COLUMN IF NOT EXISTS confidence_score NUMERIC(5,4) NOT NULL DEFAULT 0 CHECK (confidence_score BETWEEN 0 AND 1);
+ALTER TABLE research_opportunities ADD COLUMN IF NOT EXISTS source_references_json JSONB NOT NULL DEFAULT '[]'::jsonb;
+ALTER TABLE research_opportunities ADD COLUMN IF NOT EXISTS provenance_json JSONB NOT NULL DEFAULT '{}'::jsonb;
+ALTER TABLE research_opportunities ADD COLUMN IF NOT EXISTS opportunity_key TEXT;
+ALTER TABLE research_opportunities ADD COLUMN IF NOT EXISTS category_id UUID REFERENCES categories(id);
+ALTER TABLE research_opportunities ADD COLUMN IF NOT EXISTS subcategory_id UUID;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='research_opportunities_subcategory_category_fk' AND conrelid='research_opportunities'::regclass) THEN
+    ALTER TABLE research_opportunities ADD CONSTRAINT research_opportunities_subcategory_category_fk FOREIGN KEY (subcategory_id,category_id) REFERENCES subcategories(id,category_id);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='research_opportunities_subcategory_requires_category' AND conrelid='research_opportunities'::regclass) THEN
+    ALTER TABLE research_opportunities ADD CONSTRAINT research_opportunities_subcategory_requires_category CHECK (subcategory_id IS NULL OR category_id IS NOT NULL);
+  END IF;
+END $$;
+CREATE UNIQUE INDEX IF NOT EXISTS research_opportunities_key_idx ON research_opportunities(opportunity_key) WHERE opportunity_key IS NOT NULL;
+CREATE INDEX IF NOT EXISTS research_opportunities_category_idx ON research_opportunities(category_id, subcategory_id) WHERE category_id IS NOT NULL;
+ALTER TABLE product_jobs ADD COLUMN IF NOT EXISTS agent_job_id UUID;
+ALTER TABLE product_jobs ADD COLUMN IF NOT EXISTS idempotency_key TEXT;
+ALTER TABLE product_jobs ADD COLUMN IF NOT EXISTS brief_version INT NOT NULL DEFAULT 1 CHECK (brief_version > 0);
+CREATE UNIQUE INDEX IF NOT EXISTS product_jobs_idempotency_idx ON product_jobs(idempotency_key);
+ALTER TABLE publishing_jobs ADD COLUMN IF NOT EXISTS idempotency_key TEXT;
+CREATE UNIQUE INDEX IF NOT EXISTS publishing_jobs_idempotency_idx ON publishing_jobs(idempotency_key);
+ALTER TABLE product_assets ADD COLUMN IF NOT EXISTS asset_bytes BYTEA;
+ALTER TABLE product_assets ADD COLUMN IF NOT EXISTS size_bytes BIGINT CHECK (size_bytes IS NULL OR size_bytes >= 0);
+ALTER TABLE product_assets ADD COLUMN IF NOT EXISTS checksum_sha256 TEXT CHECK (checksum_sha256 IS NULL OR checksum_sha256 ~ '^[a-f0-9]{64}$');
+ALTER TABLE product_assets ADD COLUMN IF NOT EXISTS idempotency_key TEXT;
+CREATE UNIQUE INDEX IF NOT EXISTS product_assets_idempotency_idx ON product_assets(idempotency_key);
+ALTER TABLE localization_jobs ADD COLUMN IF NOT EXISTS idempotency_key TEXT;
+CREATE UNIQUE INDEX IF NOT EXISTS localization_jobs_idempotency_idx ON localization_jobs(idempotency_key);
+ALTER TABLE products ADD COLUMN IF NOT EXISTS search_terms TEXT[] NOT NULL DEFAULT '{}';
+ALTER TABLE products ADD COLUMN IF NOT EXISTS metadata_json JSONB NOT NULL DEFAULT '{}'::jsonb;
+
+CREATE TABLE IF NOT EXISTS agent_jobs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  agent_run_id UUID NOT NULL REFERENCES agent_runs(id),
+  parent_job_id UUID REFERENCES agent_jobs(id),
+  job_type TEXT NOT NULL CHECK (btrim(job_type) <> ''),
+  status TEXT NOT NULL DEFAULT 'queued' CHECK (status IN ('queued','waiting_dependency','running','retry_wait','completed','failed','blocked','provider_required','approval_required','cancelled')),
+  cost_class TEXT NOT NULL DEFAULT 'FREE' CHECK (cost_class IN ('FREE','FREE_WITH_LIMIT','PAID','UNKNOWN','BLOCKED')),
+  input_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+  output_json JSONB,
+  idempotency_key TEXT NOT NULL UNIQUE CHECK (btrim(idempotency_key) <> ''),
+  retry_count INT NOT NULL DEFAULT 0 CHECK (retry_count >= 0),
+  max_retries INT NOT NULL DEFAULT 2 CHECK (max_retries BETWEEN 0 AND 5),
+  available_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  started_at TIMESTAMPTZ,
+  completed_at TIMESTAMPTZ,
+  locked_at TIMESTAMPTZ,
+  error_code TEXT,
+  error_message TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CHECK (completed_at IS NULL OR started_at IS NULL OR completed_at >= started_at)
+);
+CREATE INDEX IF NOT EXISTS agent_jobs_run_status_idx ON agent_jobs(agent_run_id, status, created_at);
+CREATE INDEX IF NOT EXISTS agent_jobs_claim_idx ON agent_jobs(status, available_at, created_at) WHERE status IN ('queued','retry_wait');
+CREATE INDEX IF NOT EXISTS agent_jobs_parent_idx ON agent_jobs(parent_job_id) WHERE parent_job_id IS NOT NULL;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='product_jobs_agent_job_fk' AND conrelid='product_jobs'::regclass) THEN
+    ALTER TABLE product_jobs ADD CONSTRAINT product_jobs_agent_job_fk FOREIGN KEY (agent_job_id) REFERENCES agent_jobs(id);
+  END IF;
+END $$;
+CREATE INDEX IF NOT EXISTS product_jobs_agent_job_idx ON product_jobs(agent_job_id) WHERE agent_job_id IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS agent_resource_providers (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  provider_key TEXT NOT NULL UNIQUE CHECK (btrim(provider_key) <> ''),
+  display_name TEXT NOT NULL CHECK (btrim(display_name) <> ''),
+  capabilities TEXT[] NOT NULL DEFAULT '{}',
+  cost_class TEXT NOT NULL DEFAULT 'UNKNOWN' CHECK (cost_class IN ('FREE','FREE_WITH_LIMIT','PAID','UNKNOWN','BLOCKED')),
+  enabled BOOLEAN NOT NULL DEFAULT false,
+  automatic_allowed BOOLEAN NOT NULL DEFAULT false,
+  max_runs_per_day INT CHECK (max_runs_per_day IS NULL OR max_runs_per_day > 0),
+  policy_notes TEXT NOT NULL DEFAULT '',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CHECK (cost_class NOT IN ('PAID','UNKNOWN','BLOCKED') OR automatic_allowed IS FALSE),
+  CHECK (cost_class <> 'FREE_WITH_LIMIT' OR max_runs_per_day IS NOT NULL)
+);
+INSERT INTO agent_resource_providers(provider_key,display_name,capabilities,cost_class,enabled,automatic_allowed,policy_notes)
+VALUES ('diginanba-local-deterministic','DigiNanba local deterministic processing',ARRAY['catalog_inventory','opportunity_scoring','product_brief','asset_validation','metadata_validation','policy_checks'],'FREE',true,true,'Runs deterministic code against DigiNanba data; no external service or API key.')
+ON CONFLICT(provider_key) DO NOTHING;
+CREATE INDEX IF NOT EXISTS agent_resource_providers_cost_enabled_idx ON agent_resource_providers(cost_class, enabled, automatic_allowed);
+
+CREATE TABLE IF NOT EXISTS agent_resource_usage (
+  provider_id UUID NOT NULL REFERENCES agent_resource_providers(id),
+  usage_date DATE NOT NULL,
+  used_runs INT NOT NULL DEFAULT 0 CHECK (used_runs >= 0),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY(provider_id, usage_date)
+);
+
+CREATE TABLE IF NOT EXISTS agent_approvals (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  agent_job_id UUID NOT NULL REFERENCES agent_jobs(id),
+  approval_type TEXT NOT NULL CHECK (approval_type IN ('publishing','external_communication','paid_operation','integration','sensitive_operation')),
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','approved','rejected','cancelled')),
+  request_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+  decision_note TEXT,
+  requested_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  decided_by UUID REFERENCES users(id),
+  decided_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CHECK ((status IN ('approved','rejected') AND decided_by IS NOT NULL AND decided_at IS NOT NULL) OR status NOT IN ('approved','rejected'))
+);
+CREATE UNIQUE INDEX IF NOT EXISTS agent_approvals_one_pending_per_job_idx ON agent_approvals(agent_job_id, approval_type) WHERE status='pending';
+CREATE INDEX IF NOT EXISTS agent_approvals_status_requested_idx ON agent_approvals(status, requested_at);
+
+CREATE TABLE IF NOT EXISTS market_feedback_signals (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  source_type TEXT NOT NULL CHECK (source_type IN ('aggregated_analytics','catalog_performance','campaign_metrics','deidentified_feedback','operator_note')),
+  source_reference TEXT,
+  market_code TEXT REFERENCES markets(code),
+  product_id UUID REFERENCES products(id),
+  research_opportunity_id UUID REFERENCES research_opportunities(id),
+  signal_type TEXT NOT NULL CHECK (btrim(signal_type) <> ''),
+  summary TEXT NOT NULL CHECK (btrim(summary) <> ''),
+  evidence_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+  observed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  processed_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+COMMENT ON TABLE market_feedback_signals IS 'Private aggregated or de-identified signals only; do not store direct personal information.';
+CREATE INDEX IF NOT EXISTS market_feedback_signals_unprocessed_idx ON market_feedback_signals(observed_at) WHERE processed_at IS NULL;
+CREATE INDEX IF NOT EXISTS market_feedback_signals_market_type_idx ON market_feedback_signals(market_code, signal_type, observed_at DESC);
