@@ -36,6 +36,7 @@ export default function HomePageClient({ initialProducts, categories, needs, row
   const [cartCount, setCartCount] = useState(0);
   const categoryNavRef = useRef<HTMLDivElement>(null);
   const [canScrollCategories, setCanScrollCategories] = useState(false);
+  const [categoryNavAtStart, setCategoryNavAtStart] = useState(true);
   const [categoryNavAtEnd, setCategoryNavAtEnd] = useState(false);
   const [expandedCategory, setExpandedCategory] = useState('');
 
@@ -73,6 +74,7 @@ export default function HomePageClient({ initialProducts, categories, needs, row
     const updateScrollState = () => {
       const maxScroll = nav.scrollWidth - nav.clientWidth;
       setCanScrollCategories(maxScroll > 2);
+      setCategoryNavAtStart(maxScroll <= 2 || nav.scrollLeft <= 2);
       setCategoryNavAtEnd(maxScroll <= 2 || nav.scrollLeft >= maxScroll - 2);
     };
     updateScrollState();
@@ -226,6 +228,7 @@ export default function HomePageClient({ initialProducts, categories, needs, row
       </div>
 
       <nav className="ref-marketplace-nav" aria-label="Browse product categories"><div className="ref-container ref-marketplace-nav-shell">
+        {canScrollCategories && <button className="ref-category-scroll-arrow" type="button" onClick={() => categoryNavRef.current?.scrollBy({ left: -Math.max(180, (categoryNavRef.current?.clientWidth ?? 0) * 0.7), behavior: 'smooth' })} disabled={categoryNavAtStart} aria-label="Scroll categories left" title={categoryNavAtStart ? 'Start of categories' : 'Show earlier categories'}>←</button>}
         <div className="ref-marketplace-nav-inner" ref={categoryNavRef} role="group" aria-label="Product categories" tabIndex={0}>
           {categories.map((item) => <button className={`${category === item.name ? 'active' : ''}${expandedCategory === item.slug ? ' expanded' : ''}`} key={item.slug} onMouseEnter={() => { if (window.matchMedia('(hover: hover)').matches) setExpandedCategory(item.slug); }} onFocus={() => setExpandedCategory(item.slug)} onClick={() => setExpandedCategory((current) => current === item.slug && !window.matchMedia('(hover: hover)').matches ? '' : item.slug)} aria-expanded={expandedCategory === item.slug} aria-haspopup="true">{item.icon} {item.name}<span aria-hidden="true">⌄</span></button>)}
         </div>
