@@ -27,7 +27,6 @@ export default function HomePageClient({ initialProducts, categories, needs, row
   const [sort, setSort] = useState('featured');
   const [marketOpen, setMarketOpen] = useState(false);
   const [cartCount, setCartCount] = useState(0);
-  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   useEffect(() => {
     let selected = localStorage.getItem('diginanba-market') as Market | null;
@@ -99,7 +98,6 @@ export default function HomePageClient({ initialProducts, categories, needs, row
 
   function runSearch(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setCategory('All');
     setNeedFilter([]);
     setActiveNeed('');
     document.getElementById('explore')?.scrollIntoView({ behavior: 'smooth' });
@@ -134,6 +132,10 @@ export default function HomePageClient({ initialProducts, categories, needs, row
     });
   }
 
+  const marketName = market === 'UK' ? 'United Kingdom' : 'United States';
+  const primaryCategories = categories.slice(0, 6);
+  const additionalCategories = categories.slice(6);
+
   function renderProductCard(product: CatalogProduct, shelf = false) {
     return <article className={`ref-product${shelf ? ' ref-shelf-card' : ''}`} key={`${shelf ? 'shelf-' : ''}${product.id}`}>
       <Link className="ref-product-art" href={`/products/${product.slug}?market=${market}`} aria-label={`View ${product.title}`}>{productIcon(product)}</Link>
@@ -143,32 +145,31 @@ export default function HomePageClient({ initialProducts, categories, needs, row
 
   return <>
     <header className="ref-header">
-      <div className="ref-container ref-nav">
+      <div className="ref-container ref-header-top">
         <Link href="/" className="ref-logo"><span>Digi</span>Nanba</Link>
-        <button className="ref-menu-toggle" onClick={() => setMobileNavOpen((open) => !open)} aria-expanded={mobileNavOpen} aria-controls="main-navigation">{mobileNavOpen ? 'Close' : 'Browse'}</button>
-        <nav id="main-navigation" className={`ref-links ${mobileNavOpen ? 'is-open' : ''}`} aria-label="Main navigation">
-          <a href="#home" onClick={() => setMobileNavOpen(false)}>Home</a>
-          <a href="#explore" onClick={() => setMobileNavOpen(false)}>Explore</a>
-          <details className="ref-category-menu"><summary>Categories</summary><div className="ref-category-dropdown">{categories.map((item) => <button key={item.name} onClick={(event) => { chooseCategory(item.name); setMobileNavOpen(false); event.currentTarget.closest('details')?.removeAttribute('open'); }}>{item.icon} {item.name}</button>)}</div></details>
-          <a href="#needs" onClick={() => setMobileNavOpen(false)}>What do you need?</a>
-          <a className="ref-mobile-auth" href="/login">Log in</a>
-          <a className="ref-mobile-auth" href="/signup">Create an account</a>
-          <a className="ref-mobile-auth" href="/account">Your account and orders</a>
-        </nav>
-        <div className="ref-actions">
-          <button className="ref-market" onClick={() => setMarketOpen(true)} aria-label="Choose market and currency">{market === 'UK' ? '🇬🇧 GBP' : '🇺🇸 USD'}</button>
-          <Link className="ref-ghost ref-login" href="/login">Log in</Link>
-          <Link className="ref-primary ref-signup" href="/signup">Sign up</Link>
-          <Link className="ref-ghost ref-orders" href="/account">Orders</Link>
-          <Link className="ref-ghost ref-cart" href="/cart" aria-label={`Cart, ${cartCount} items`}>🛒<span className="ref-count">{cartCount}</span></Link>
+        <button className="ref-location" onClick={() => setMarketOpen(true)} aria-label={`Deliver to ${marketName}; change country or market`}><small>Deliver to</small><strong>{market === 'UK' ? '🇬🇧 United Kingdom' : '🇺🇸 United States'}</strong></button>
+        <form className="ref-market-search" onSubmit={runSearch} role="search">
+          <label className="sr-only" htmlFor="market-search-category">Search category</label>
+          <select id="market-search-category" value={category} onChange={(event) => chooseCategory(event.target.value)} aria-label="Choose search category"><option value="All">All</option>{categories.map((item) => <option value={item.name} key={item.name}>{item.name}</option>)}</select>
+          <label className="sr-only" htmlFor="market-search-input">Search DigiNanba</label>
+          <input id="market-search-input" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search DigiNanba" />
+          <button type="submit" aria-label="Search DigiNanba"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 5 5"/></svg></button>
+        </form>
+        <div className="ref-header-actions">
+          <label className="ref-language-control"><span className="sr-only">Language</span><select defaultValue="en" aria-label="Choose language"><option value="en">EN</option></select></label>
+          <Link className="ref-header-account" href="/login"><small>Hello, sign in</small><strong>Account &amp; Lists</strong></Link>
+          <Link className="ref-header-orders" href="/account"><small>Your</small><strong>Orders</strong></Link>
+          <Link className="ref-header-cart" href="/cart" aria-label={`Cart, ${cartCount} items`}><span aria-hidden="true">🛒</span><strong>Cart</strong><span className="ref-count">{cartCount}</span></Link>
         </div>
       </div>
+      <nav className="ref-marketplace-nav" aria-label="Browse product categories"><div className="ref-container ref-marketplace-nav-inner">
+        <button className={category === 'All' ? 'active' : ''} onClick={() => chooseCategory('All')}>☰ All</button>
+        <details className="ref-subnav-categories"><summary>Categories</summary><div className="ref-category-dropdown">{categories.map((item) => <button key={item.name} onClick={(event) => { chooseCategory(item.name); event.currentTarget.closest('details')?.removeAttribute('open'); }}>{item.icon} {item.name}</button>)}</div></details>
+        {primaryCategories.map((item) => <button className={category === item.name ? 'active' : ''} key={item.name} onClick={() => chooseCategory(item.name)}>{item.name}</button>)}
+        {additionalCategories.length > 0 && <details className="ref-subnav-more"><summary>More</summary><div className="ref-category-dropdown">{additionalCategories.map((item) => <button key={item.name} onClick={(event) => { chooseCategory(item.name); event.currentTarget.closest('details')?.removeAttribute('open'); }}>{item.icon} {item.name}</button>)}</div></details>}
+        <a href="#needs">Explore by goal</a>
+      </div></nav>
     </header>
-
-    <nav className="ref-marketplace-nav" aria-label="Browse product categories"><div className="ref-container ref-marketplace-nav-inner">
-      <button className={category === 'All' ? 'active' : ''} onClick={() => chooseCategory('All')}>All products</button>
-      {categories.map((item) => <button className={category === item.name ? 'active' : ''} key={item.name} onClick={() => chooseCategory(item.name)}>{item.name}</button>)}
-    </div></nav>
 
     <main id="home">
       <section className="ref-hero"><div className="ref-container ref-hero-layout">
@@ -176,11 +177,6 @@ export default function HomePageClient({ initialProducts, categories, needs, row
           <span className="ref-eyebrow">DIGITAL PRODUCTS FOR WORK, LEARNING &amp; LIFE</span>
           <h1>Find the right digital product for what you want to do.</h1>
           <p>Learn something new, solve a work challenge, or bring your next idea to life.</p>
-          <form className="ref-searchbox" onSubmit={runSearch} role="search">
-            <span aria-hidden="true">⌕</span>
-            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search courses, guides, templates, spreadsheets and more" aria-label="Search digital products" />
-            <button className="ref-primary" type="submit">Search</button>
-          </form>
         </div>
         {initialProducts[0] && <aside className="ref-hero-spotlight" aria-label="A product to explore">
           <div className="ref-spotlight-art">{productIcon(initialProducts[0])}</div>
@@ -213,12 +209,17 @@ export default function HomePageClient({ initialProducts, categories, needs, row
       <section className="ref-section ref-topic-section"><div className="ref-container"><div className="ref-topic-panel"><div><span className="ref-kicker">KEEP EXPLORING</span><h2>Find a resource for your next idea.</h2><p>Browse practical learning and productivity products made to help you move forward.</p></div><Link className="ref-primary" href="/explore">Explore the marketplace</Link></div></div></section>
     </main>
 
-    <footer className="ref-footer"><div className="ref-container ref-footer-grid">
-      <div className="ref-footer-brand"><h3><span>Digi</span>Nanba</h3><p>A global marketplace for practical digital products.</p><div className="ref-note">Checkout requires sign-in. Payments remain in demo mode until a provider is configured.</div></div>
-      <div><h4>Marketplace</h4><a href="#explore">Explore</a><a href="#needs">Browse by goal</a><Link href="/explore">All products</Link></div>
-      <div><h4>For customers</h4><Link href="/account">My account</Link><Link href="/cart">Cart</Link><Link href="/login">Sign in</Link></div>
-      <div><h4>For creators</h4><Link href="/signup">Become a seller</Link><a href="#explore">Creator resources</a></div>
-    </div><div className="ref-container ref-footer-bottom"><span>© {new Date().getFullYear()} DigiNanba</span><span>Digital products for everyday progress.</span></div></footer>
+    <footer className="ref-footer">
+      <a className="ref-back-top" href="#home">Back to top</a>
+      <div className="ref-container ref-footer-grid">
+        <div><h4>Get to Know DigiNanba</h4><a href="#home">About DigiNanba</a><a href="#explore">Explore the marketplace</a><a href="#needs">Browse by goal</a></div>
+        <div><h4>Connect with Us</h4><Link href="/help">Help and support</Link><Link href="/signup">Create an account</Link><Link href="/login">Sign in</Link></div>
+        <div><h4>Make Money with Us</h4><Link href="/signup">Become a seller</Link><Link href="/help#creators">Creator resources</Link></div>
+        <div><h4>Let Us Help You</h4><Link href="/account">Your account</Link><Link href="/account">Orders and purchases</Link><Link href="/cart">Your cart</Link><Link href="/help">Help center</Link></div>
+      </div>
+      <div className="ref-footer-controls"><Link href="/" className="ref-logo"><span>Digi</span>Nanba</Link><label><span>Language</span><select defaultValue="en" aria-label="Choose language"><option value="en">English</option></select></label><button onClick={() => setMarketOpen(true)}><span>Country/region</span><strong>{market === 'UK' ? '🇬🇧 United Kingdom' : '🇺🇸 United States'}</strong></button></div>
+      <div className="ref-footer-bottom"><span>© {new Date().getFullYear()} DigiNanba</span><span>Digital products for everyday progress.</span></div>
+    </footer>
 
     {marketOpen && <div className="ref-modal-backdrop" onClick={() => setMarketOpen(false)}><div className="ref-modal" role="dialog" aria-modal="true" aria-labelledby="market-title" onClick={(event) => event.stopPropagation()}>
       <button className="ref-close" onClick={() => setMarketOpen(false)} aria-label="Close market selector">✕</button><h2 id="market-title">Choose your market</h2><p>Prices are shown in the currency for your selected market.</p>
