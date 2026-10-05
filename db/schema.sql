@@ -8,7 +8,8 @@ CREATE TABLE IF NOT EXISTS role_permissions (role_id UUID NOT NULL REFERENCES ro
 CREATE TABLE IF NOT EXISTS temporary_access (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE, permission_id UUID NOT NULL REFERENCES permissions(id), starts_at TIMESTAMPTZ NOT NULL, expires_at TIMESTAMPTZ NOT NULL, granted_by UUID REFERENCES users(id), reason TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT now());
 CREATE TABLE IF NOT EXISTS audit_logs (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), actor_user_id UUID REFERENCES users(id), action TEXT NOT NULL, resource_type TEXT NOT NULL, resource_id TEXT, before_json JSONB, after_json JSONB, result TEXT NOT NULL DEFAULT 'success', ip_hash TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT now());
 CREATE TABLE IF NOT EXISTS markets (code TEXT PRIMARY KEY, country_name TEXT NOT NULL, currency_code CHAR(3) NOT NULL, locale TEXT NOT NULL, enabled BOOLEAN NOT NULL DEFAULT true);
-CREATE TABLE IF NOT EXISTS categories (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), slug TEXT NOT NULL UNIQUE, name TEXT NOT NULL, description TEXT, sort_order INT NOT NULL DEFAULT 0, enabled BOOLEAN NOT NULL DEFAULT true);
+CREATE TABLE IF NOT EXISTS categories (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), slug TEXT NOT NULL UNIQUE, name TEXT NOT NULL, description TEXT, sort_order INT NOT NULL DEFAULT 0, enabled BOOLEAN NOT NULL DEFAULT true, search_terms TEXT[] NOT NULL DEFAULT '{}');
+ALTER TABLE categories ADD COLUMN IF NOT EXISTS search_terms TEXT[] NOT NULL DEFAULT '{}';
 CREATE TABLE IF NOT EXISTS products (category_id UUID REFERENCES categories(id), id UUID PRIMARY KEY DEFAULT gen_random_uuid(), slug TEXT NOT NULL UNIQUE, title TEXT NOT NULL, description TEXT, product_type TEXT NOT NULL, owner_type TEXT NOT NULL DEFAULT 'platform', status TEXT NOT NULL DEFAULT 'draft', created_at TIMESTAMPTZ NOT NULL DEFAULT now(), updated_at TIMESTAMPTZ NOT NULL DEFAULT now());
 ALTER TABLE products ADD COLUMN IF NOT EXISTS category_id UUID REFERENCES categories(id);
 
@@ -28,8 +29,59 @@ INSERT INTO categories(slug,name,description,sort_order) VALUES
 ('career-professional','Career & Professional','Career, freelance and professional productivity resources.',4),
 ('excel-sheets','Excel & Sheets','Spreadsheets, calculators and data tools.',5),
 ('marketing-sales','Marketing & Sales','Marketing systems, content and sales resources.',6),
-('templates-documents','Templates & Documents','Ready-to-use business and document templates.',7)
+('templates-documents','Templates & Documents','Ready-to-use business and document templates.',7),
+('ebooks-guides','Ebooks & Guides','Practical guides and ebooks for work and learning.',8),
+('design-assets','Design Assets','Editable design resources and creative assets.',9),
+('education-learning','Education & Learning','Courses and resources for learning new skills.',10),
+('software-code','Software / Code','Software, coding resources and app-building tools.',11),
+('cad-engineering','CAD / Engineering','Engineering and technical design resources.',12),
+('video-audio','Video / Audio','Resources for video, audio and content production.',13),
+('photography','Photography','Photography tools, guides and creative resources.',14),
+('printables','Printables','Printable planners, worksheets and practical tools.',15),
+('personal-lifestyle','Personal / Lifestyle','Resources for personal goals, habits and everyday life.',16)
 ON CONFLICT DO NOTHING;
+
+UPDATE categories SET search_terms=ARRAY['books','guide','reading'] WHERE slug='ebooks-guides' AND search_terms='{}';
+UPDATE categories SET search_terms=ARRAY['spreadsheet','budget','accounting','invoice','calculator'] WHERE slug='excel-sheets' AND search_terms='{}';
+UPDATE categories SET search_terms=ARRAY['resume','résumé','cv','project management','documents','checklist'] WHERE slug='templates-documents' AND search_terms='{}';
+UPDATE categories SET search_terms=ARRAY['instagram','social media','logo','creative','graphics'] WHERE slug='design-assets' AND search_terms='{}';
+UPDATE categories SET search_terms=ARRAY['instagram','seo','advertising','promotion','sales'] WHERE slug='marketing-sales' AND search_terms='{}';
+UPDATE categories SET search_terms=ARRAY['artificial intelligence','workflow','automate','productivity'] WHERE slug='ai-automation' AND search_terms='{}';
+UPDATE categories SET search_terms=ARRAY['business plan','startup','entrepreneur','company'] WHERE slug='business-entrepreneurship' AND search_terms='{}';
+UPDATE categories SET search_terms=ARRAY['learn','course','python','skill','training'] WHERE slug='education-learning' AND search_terms='{}';
+UPDATE categories SET search_terms=ARRAY['app','application','python','coding','software','programming'] WHERE slug='software-code' AND search_terms='{}';
+UPDATE categories SET search_terms=ARRAY['drawing','technical','engineering','design'] WHERE slug='cad-engineering' AND search_terms='{}';
+UPDATE categories SET search_terms=ARRAY['accounting','budget','invoice','cashflow','cash flow','finance'] WHERE slug='finance-accounting' AND search_terms='{}';
+UPDATE categories SET search_terms=ARRAY['resume','résumé','cv','job','career','cover letter'] WHERE slug='career-professional' AND search_terms='{}';
+UPDATE categories SET search_terms=ARRAY['video','audio','content','creator','podcast'] WHERE slug='video-audio' AND search_terms='{}';
+UPDATE categories SET search_terms=ARRAY['photo','photography','image','picture'] WHERE slug='photography' AND search_terms='{}';
+UPDATE categories SET search_terms=ARRAY['printable','planner','worksheet'] WHERE slug='printables' AND search_terms='{}';
+UPDATE categories SET search_terms=ARRAY['personal','goals','habits','wellness','routine'] WHERE slug='personal-lifestyle' AND search_terms='{}';
+
+CREATE TABLE IF NOT EXISTS marketplace_needs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  key TEXT NOT NULL UNIQUE,
+  label TEXT NOT NULL,
+  icon TEXT NOT NULL DEFAULT '✦',
+  category_names TEXT[] NOT NULL DEFAULT '{}',
+  sort_order INT NOT NULL DEFAULT 0,
+  enabled BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+INSERT INTO marketplace_needs(key,label,icon,category_names,sort_order) VALUES
+('start-business','Start a business','🚀',ARRAY['Business & Entrepreneurship','Ebooks & Guides'],1),
+('manage-finances','Manage finances','💰',ARRAY['Finance & Accounting','Excel & Sheets'],2),
+('grow-sales','Grow sales','📈',ARRAY['Marketing & Sales','Business & Entrepreneurship'],3),
+('create-content','Create content','🎬',ARRAY['Video / Audio','Marketing & Sales','Design Assets'],4),
+('learn-skill','Learn a skill','🎓',ARRAY['Education & Learning','Ebooks & Guides'],5),
+('get-job','Get a job','💼',ARRAY['Career & Professional'],6),
+('manage-projects','Manage projects','🗂️',ARRAY['Templates & Documents','Excel & Sheets'],7),
+('automate-work','Automate work','⚙️',ARRAY['AI & Automation','Software / Code'],8),
+('design-something','Design something','🎨',ARRAY['Design Assets','Photography','Printables'],9),
+('build-app','Build an app','💻',ARRAY['Software / Code','CAD / Engineering'],10)
+ON CONFLICT (key) DO NOTHING;
 
 INSERT INTO products(category_id,slug,title,description,product_type,owner_type,status) VALUES
 ((SELECT id FROM categories WHERE slug='business-entrepreneurship'),'business-growth-planner','Business Growth Planner','A practical planning toolkit for small businesses.','template','platform','published'),
