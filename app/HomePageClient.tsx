@@ -6,6 +6,11 @@ import type { CatalogProduct } from '@/lib/catalog';
 import type { Market } from '@/lib/market';
 import type { DiscoveryCategory, DiscoveryNeed, DiscoveryRow } from '@/lib/discovery';
 
+const languagesByMarket: Record<Market, { code: string; label: string }[]> = {
+  US: [{ code: 'en-US', label: 'English (US)' }],
+  UK: [{ code: 'en-GB', label: 'English (UK)' }],
+};
+
 type Props = {
   initialProducts: CatalogProduct[];
   categories: DiscoveryCategory[];
@@ -19,6 +24,7 @@ function normalizeWord(value: string) {
 
 export default function HomePageClient({ initialProducts, categories, needs, rows }: Props) {
   const [market, setMarket] = useState<Market>('US');
+  const [language, setLanguage] = useState('en-US');
   const [products, setProducts] = useState(initialProducts);
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('All');
@@ -36,6 +42,9 @@ export default function HomePageClient({ initialProducts, categories, needs, row
       selected = language.endsWith('-gb') || timezone.includes('london') ? 'UK' : 'US';
     }
     setMarket(selected);
+    const availableLanguages = languagesByMarket[selected];
+    const savedLanguage = localStorage.getItem('diginanba-language');
+    setLanguage(availableLanguages.some((item) => item.code === savedLanguage) ? savedLanguage! : availableLanguages[0].code);
     try {
       const cart = JSON.parse(localStorage.getItem('diginanba-cart') || '[]');
       setCartCount(Array.isArray(cart) ? cart.length : 0);
@@ -118,7 +127,17 @@ export default function HomePageClient({ initialProducts, categories, needs, row
   function setSelectedMarket(value: Market) {
     setMarket(value);
     localStorage.setItem('diginanba-market', value);
+    const availableLanguages = languagesByMarket[value];
+    if (!availableLanguages.some((item) => item.code === language)) {
+      setLanguage(availableLanguages[0].code);
+      localStorage.setItem('diginanba-language', availableLanguages[0].code);
+    }
     setMarketOpen(false);
+  }
+
+  function setSelectedLanguage(value: string) {
+    setLanguage(value);
+    localStorage.setItem('diginanba-language', value);
   }
 
   function productIcon(product: CatalogProduct) {
@@ -132,7 +151,6 @@ export default function HomePageClient({ initialProducts, categories, needs, row
     });
   }
 
-  const marketName = market === 'UK' ? 'United Kingdom' : 'United States';
   const primaryCategories = categories.slice(0, 6);
   const additionalCategories = categories.slice(6);
 
@@ -147,7 +165,6 @@ export default function HomePageClient({ initialProducts, categories, needs, row
     <header className="ref-header">
       <div className="ref-container ref-header-top">
         <Link href="/" className="ref-logo"><span>Digi</span>Nanba</Link>
-        <button className="ref-location" onClick={() => setMarketOpen(true)} aria-label={`Deliver to ${marketName}; change country or market`}><small>Deliver to</small><strong>{market === 'UK' ? '🇬🇧 United Kingdom' : '🇺🇸 United States'}</strong></button>
         <form className="ref-market-search" onSubmit={runSearch} role="search">
           <label className="sr-only" htmlFor="market-search-category">Search category</label>
           <select id="market-search-category" value={category} onChange={(event) => chooseCategory(event.target.value)} aria-label="Choose search category"><option value="All">All</option>{categories.map((item) => <option value={item.name} key={item.name}>{item.name}</option>)}</select>
@@ -156,10 +173,9 @@ export default function HomePageClient({ initialProducts, categories, needs, row
           <button type="submit" aria-label="Search DigiNanba"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 5 5"/></svg></button>
         </form>
         <div className="ref-header-actions">
-          <label className="ref-language-control"><span className="sr-only">Language</span><select defaultValue="en" aria-label="Choose language"><option value="en">EN</option></select></label>
-          <Link className="ref-header-account" href="/login"><small>Hello, sign in</small><strong>Account &amp; Lists</strong></Link>
-          <Link className="ref-header-orders" href="/account"><small>Your</small><strong>Orders</strong></Link>
+          <Link className="ref-header-account" href="/login">Sign in / Sign up</Link>
           <Link className="ref-header-cart" href="/cart" aria-label={`Cart, ${cartCount} items`}><span aria-hidden="true">🛒</span><strong>Cart</strong><span className="ref-count">{cartCount}</span></Link>
+          <label className="ref-language-control"><span className="sr-only">Language</span><select value={language} onChange={(event) => setSelectedLanguage(event.target.value)} aria-label="Choose language">{languagesByMarket[market].map((item) => <option value={item.code} key={item.code}>EN</option>)}</select></label>
         </div>
       </div>
       <nav className="ref-marketplace-nav" aria-label="Browse product categories"><div className="ref-container ref-marketplace-nav-inner">
@@ -178,10 +194,6 @@ export default function HomePageClient({ initialProducts, categories, needs, row
           <h1>Find the right digital product for what you want to do.</h1>
           <p>Learn something new, solve a work challenge, or bring your next idea to life.</p>
         </div>
-        {initialProducts[0] && <aside className="ref-hero-spotlight" aria-label="A product to explore">
-          <div className="ref-spotlight-art">{productIcon(initialProducts[0])}</div>
-          <div className="ref-spotlight-content"><span className="ref-kicker">A PLACE TO START</span><span className="ref-tag">{initialProducts[0].category}</span><h2>{initialProducts[0].title}</h2><p>{initialProducts[0].description}</p><div><strong>{initialProducts[0].price}</strong><Link href={`/products/${initialProducts[0].slug}?market=${market}`}>View product →</Link></div></div>
-        </aside>}
       </div></section>
 
       <section id="explore" className="ref-section ref-explore"><div className="ref-container">
@@ -215,9 +227,10 @@ export default function HomePageClient({ initialProducts, categories, needs, row
         <div><h4>Get to Know DigiNanba</h4><a href="#home">About DigiNanba</a><a href="#explore">Explore the marketplace</a><a href="#needs">Browse by goal</a></div>
         <div><h4>Connect with Us</h4><Link href="/help">Help and support</Link><Link href="/signup">Create an account</Link><Link href="/login">Sign in</Link></div>
         <div><h4>Make Money with Us</h4><Link href="/signup">Become a seller</Link><Link href="/help#creators">Creator resources</Link></div>
+        <div><h4>Refer &amp; Earn</h4><Link href="/refer">Referral program updates</Link></div>
         <div><h4>Let Us Help You</h4><Link href="/account">Your account</Link><Link href="/account">Orders and purchases</Link><Link href="/cart">Your cart</Link><Link href="/help">Help center</Link></div>
       </div>
-      <div className="ref-footer-controls"><Link href="/" className="ref-logo"><span>Digi</span>Nanba</Link><label><span>Language</span><select defaultValue="en" aria-label="Choose language"><option value="en">English</option></select></label><button onClick={() => setMarketOpen(true)}><span>Country/region</span><strong>{market === 'UK' ? '🇬🇧 United Kingdom' : '🇺🇸 United States'}</strong></button></div>
+      <div className="ref-footer-controls"><Link href="/" className="ref-logo"><span>Digi</span>Nanba</Link><label><span>Language</span><select value={language} onChange={(event) => setSelectedLanguage(event.target.value)} aria-label="Choose language">{languagesByMarket[market].map((item) => <option value={item.code} key={item.code}>{item.label}</option>)}</select></label><button onClick={() => setMarketOpen(true)}><span>Country/region</span><strong>{market === 'UK' ? '🇬🇧 United Kingdom' : '🇺🇸 United States'}</strong></button></div>
       <div className="ref-footer-bottom"><span>© {new Date().getFullYear()} DigiNanba</span><span>Digital products for everyday progress.</span></div>
     </footer>
 
