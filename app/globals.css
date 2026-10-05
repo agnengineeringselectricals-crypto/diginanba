@@ -349,7 +349,7 @@
 }
 
 /* Latest homepage refinement: blush canvas, open goal choices and readable nav. */
-.ref-header{position:relative}
+.ref-header{position:sticky;top:0;z-index:30}
 .ref-hero{padding:11px 0 12px;background:#fff4f8;border-bottom:1px solid #f1dfe7}
 .ref-hero-content{grid-template-columns:auto 1fr;gap:3px 15px}
 .ref-hero-content .ref-eyebrow{background:#fbe7ef;color:#783f57}
