@@ -313,3 +313,220 @@ CREATE TABLE IF NOT EXISTS agent_events (
 );
 CREATE INDEX IF NOT EXISTS agent_events_run_created_idx ON agent_events(agent_run_id, created_at);
 CREATE INDEX IF NOT EXISTS agent_events_level_created_idx ON agent_events(level, created_at DESC);
+
+-- Stage 1 extension: private marketing/growth foundation and a fail-closed cost policy.
+-- These tables do not connect external services or execute/schedule any work.
+CREATE TABLE IF NOT EXISTS agent_financial_policies (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  agent_type TEXT NOT NULL DEFAULT '*' CHECK (btrim(agent_type) <> ''),
+  max_spend_minor BIGINT NOT NULL DEFAULT 0 CHECK (max_spend_minor = 0),
+  currency_code CHAR(3) NOT NULL DEFAULT 'INR' CHECK (currency_code ~ '^[A-Z]{3}$'),
+  paid_actions_allowed BOOLEAN NOT NULL DEFAULT false CHECK (paid_actions_allowed IS FALSE),
+  owner_approval_required BOOLEAN NOT NULL DEFAULT true CHECK (owner_approval_required IS TRUE),
+  free_resource_allowed BOOLEAN NOT NULL DEFAULT true,
+  unknown_cost_action TEXT NOT NULL DEFAULT 'block' CHECK (unknown_cost_action = 'block'),
+  policy_status TEXT NOT NULL DEFAULT 'active' CHECK (policy_status IN ('active','inactive')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE(agent_type)
+);
+INSERT INTO agent_financial_policies(agent_type,max_spend_minor,currency_code,paid_actions_allowed,owner_approval_required,free_resource_allowed,unknown_cost_action,policy_status)
+VALUES ('*',0,'INR',false,true,true,'block','active')
+ON CONFLICT(agent_type) DO NOTHING;
+CREATE INDEX IF NOT EXISTS agent_financial_policies_status_idx ON agent_financial_policies(policy_status, agent_type);
+
+CREATE TABLE IF NOT EXISTS marketing_strategies (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  market_code TEXT REFERENCES markets(code),
+  country_code TEXT,
+  region_code TEXT,
+  state_code TEXT,
+  zone_code TEXT,
+  locale TEXT,
+  product_id UUID REFERENCES products(id),
+  category_id UUID REFERENCES categories(id),
+  objective TEXT NOT NULL CHECK (btrim(objective) <> ''),
+  strategy_type TEXT NOT NULL CHECK (btrim(strategy_type) <> ''),
+  audience_definition_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+  positioning_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+  channel_plan_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+  content_plan_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+  budget_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+  status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','review_required','approved','active','paused','completed','archived')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS marketing_strategies_market_status_idx ON marketing_strategies(market_code, status, created_at DESC);
+CREATE INDEX IF NOT EXISTS marketing_strategies_product_idx ON marketing_strategies(product_id) WHERE product_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS marketing_strategies_category_idx ON marketing_strategies(category_id) WHERE category_id IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS marketing_campaigns (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  strategy_id UUID NOT NULL REFERENCES marketing_strategies(id),
+  product_id UUID REFERENCES products(id),
+  name TEXT NOT NULL CHECK (btrim(name) <> ''),
+  objective TEXT NOT NULL CHECK (btrim(objective) <> ''),
+  status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','awaiting_approval','approved','active','paused','completed','cancelled')),
+  start_at TIMESTAMPTZ,
+  end_at TIMESTAMPTZ,
+  budget_json JSONB,
+  target_definition_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+  approval_required BOOLEAN NOT NULL DEFAULT true,
+  approved_by UUID REFERENCES users(id),
+  approved_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CHECK (end_at IS NULL OR start_at IS NULL OR end_at >= start_at),
+  CHECK (status NOT IN ('approved','active') OR approval_required IS FALSE OR approved_at IS NOT NULL)
+);
+CREATE INDEX IF NOT EXISTS marketing_campaigns_strategy_status_idx ON marketing_campaigns(strategy_id, status, created_at DESC);
+CREATE INDEX IF NOT EXISTS marketing_campaigns_product_idx ON marketing_campaigns(product_id) WHERE product_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS marketing_campaigns_approval_idx ON marketing_campaigns(status, approved_at) WHERE approval_required IS TRUE;
+
+CREATE TABLE IF NOT EXISTS marketing_campaign_targets (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  campaign_id UUID NOT NULL REFERENCES marketing_campaigns(id),
+  continent TEXT,
+  country_code TEXT,
+  region_code TEXT,
+  state_code TEXT,
+  zone_code TEXT,
+  city TEXT,
+  language_code TEXT,
+  audience_segment TEXT,
+  targeting_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS marketing_campaign_targets_campaign_idx ON marketing_campaign_targets(campaign_id, country_code, region_code);
+
+CREATE TABLE IF NOT EXISTS audience_segments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL CHECK (btrim(name) <> ''),
+  description TEXT,
+  market_code TEXT REFERENCES markets(code),
+  country_code TEXT,
+  region_code TEXT,
+  state_code TEXT,
+  zone_code TEXT,
+  locale TEXT,
+  segment_definition_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+  status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','approved','active','paused','archived')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS audience_segments_market_status_idx ON audience_segments(market_code, status, name);
+
+CREATE TABLE IF NOT EXISTS marketing_content (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  campaign_id UUID NOT NULL REFERENCES marketing_campaigns(id),
+  product_id UUID REFERENCES products(id),
+  channel TEXT NOT NULL CHECK (btrim(channel) <> ''),
+  content_type TEXT NOT NULL CHECK (btrim(content_type) <> ''),
+  locale TEXT NOT NULL CHECK (btrim(locale) <> ''),
+  title TEXT NOT NULL CHECK (btrim(title) <> ''),
+  body TEXT NOT NULL,
+  media_reference TEXT,
+  call_to_action TEXT,
+  destination_url TEXT,
+  metadata_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+  approval_status TEXT NOT NULL DEFAULT 'draft' CHECK (approval_status IN ('draft','pending_approval','approved','rejected','archived')),
+  approved_by UUID REFERENCES users(id),
+  approved_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CHECK (approval_status <> 'approved' OR approved_at IS NOT NULL)
+);
+CREATE INDEX IF NOT EXISTS marketing_content_campaign_status_idx ON marketing_content(campaign_id, approval_status, created_at DESC);
+CREATE INDEX IF NOT EXISTS marketing_content_product_idx ON marketing_content(product_id) WHERE product_id IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS marketing_channel_accounts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  channel TEXT NOT NULL CHECK (btrim(channel) <> ''),
+  account_name TEXT NOT NULL CHECK (btrim(account_name) <> ''),
+  account_reference TEXT,
+  market_code TEXT REFERENCES markets(code),
+  status TEXT NOT NULL DEFAULT 'unconfigured' CHECK (status IN ('unconfigured','pending_authorization','authorized','disabled','revoked')),
+  integration_type TEXT NOT NULL CHECK (btrim(integration_type) <> ''),
+  permissions_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+  metadata_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CHECK (NOT (metadata_json ?| ARRAY['password','api_key','access_token','refresh_token','secret','token','credentials']))
+);
+CREATE INDEX IF NOT EXISTS marketing_channel_accounts_market_status_idx ON marketing_channel_accounts(market_code, status, channel);
+
+CREATE TABLE IF NOT EXISTS marketing_publications (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  campaign_id UUID NOT NULL REFERENCES marketing_campaigns(id),
+  marketing_content_id UUID NOT NULL REFERENCES marketing_content(id),
+  channel TEXT NOT NULL CHECK (btrim(channel) <> ''),
+  external_reference TEXT,
+  status TEXT NOT NULL DEFAULT 'pending_approval' CHECK (status IN ('pending_approval','approved','scheduled','published','failed','cancelled')),
+  scheduled_at TIMESTAMPTZ,
+  published_at TIMESTAMPTZ,
+  failure_reason TEXT,
+  response_metadata_json JSONB,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CHECK (status <> 'published' OR published_at IS NOT NULL)
+);
+CREATE INDEX IF NOT EXISTS marketing_publications_campaign_status_idx ON marketing_publications(campaign_id, status, scheduled_at);
+CREATE INDEX IF NOT EXISTS marketing_publications_content_idx ON marketing_publications(marketing_content_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS marketing_metrics (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  campaign_id UUID NOT NULL REFERENCES marketing_campaigns(id),
+  marketing_content_id UUID REFERENCES marketing_content(id),
+  channel TEXT NOT NULL CHECK (btrim(channel) <> ''),
+  market_code TEXT REFERENCES markets(code),
+  country_code TEXT,
+  region_code TEXT,
+  metric_date DATE NOT NULL,
+  impressions BIGINT CHECK (impressions >= 0),
+  clicks BIGINT CHECK (clicks >= 0),
+  visits BIGINT CHECK (visits >= 0),
+  conversions BIGINT CHECK (conversions >= 0),
+  sales BIGINT CHECK (sales >= 0),
+  revenue_minor BIGINT CHECK (revenue_minor >= 0),
+  spend_minor BIGINT CHECK (spend_minor >= 0),
+  ctr NUMERIC(8,6) CHECK (ctr BETWEEN 0 AND 1),
+  conversion_rate NUMERIC(8,6) CHECK (conversion_rate BETWEEN 0 AND 1),
+  roas NUMERIC(12,4) CHECK (roas >= 0),
+  metrics_json JSONB,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE(campaign_id, marketing_content_id, channel, metric_date)
+);
+CREATE INDEX IF NOT EXISTS marketing_metrics_campaign_date_idx ON marketing_metrics(campaign_id, metric_date DESC);
+CREATE INDEX IF NOT EXISTS marketing_metrics_market_date_idx ON marketing_metrics(market_code, country_code, metric_date DESC);
+
+CREATE TABLE IF NOT EXISTS marketing_experiments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  campaign_id UUID NOT NULL REFERENCES marketing_campaigns(id),
+  experiment_type TEXT NOT NULL CHECK (btrim(experiment_type) <> ''),
+  hypothesis TEXT NOT NULL CHECK (btrim(hypothesis) <> ''),
+  variant_a_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+  variant_b_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+  status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','approved','running','completed','cancelled')),
+  winner TEXT CHECK (winner IN ('a','b')),
+  results_json JSONB,
+  started_at TIMESTAMPTZ,
+  completed_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CHECK (completed_at IS NULL OR started_at IS NULL OR completed_at >= started_at)
+);
+CREATE INDEX IF NOT EXISTS marketing_experiments_campaign_status_idx ON marketing_experiments(campaign_id, status, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS agent_schedules (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  agent_type TEXT NOT NULL CHECK (btrim(agent_type) <> ''),
+  schedule_expression TEXT NOT NULL CHECK (btrim(schedule_expression) <> ''),
+  timezone TEXT NOT NULL DEFAULT 'UTC' CHECK (btrim(timezone) <> ''),
+  enabled BOOLEAN NOT NULL DEFAULT false,
+  configuration_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+  last_run_at TIMESTAMPTZ,
+  next_run_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS agent_schedules_agent_enabled_idx ON agent_schedules(agent_type, enabled, next_run_at);
