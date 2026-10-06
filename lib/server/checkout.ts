@@ -1,12 +1,12 @@
 import 'server-only';
 import { db } from '@/lib/db';
-import { getConfiguredProvider } from '@/lib/payments/provider';
+import { getConfiguredProvider, type PaymentCurrency } from '@/lib/payments/provider';
 
 export type CheckoutLine = { slug: string; quantity: number };
 
 export async function createPendingOrder(userId:string,market:'US'|'UK',lines:CheckoutLine[]){
   if(!lines.length)throw new Error('Cart is empty');
-  const currency=market==='US'?'USD':'GBP';
+  const currency:PaymentCurrency=market==='US'?'USD':'GBP';
   const provider=getConfiguredProvider();
   const client=await db.connect();
   try{
