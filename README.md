@@ -84,14 +84,28 @@ After the database migrations below are applied, an authorized admin signs in an
 
 ### Database readiness and migrations
 
+The application uses PostgreSQL through the `pg` package. The app pool in `lib/db.ts`, manual migration runner, and integration test each use a `pg.Pool`; migrations use the same driver and connection settings, but create their own pool. SSL is enabled by default (`rejectUnauthorized: false`); `DATABASE_SSL=false` disables it and should only be used for a trusted local database. No other database engine is supported.
+
+Configure database connection variables separately for each environment; never reuse a production URL for local development, previews, or tests:
+
+| Variable | Purpose | Local development | Vercel Development / Preview / Production | Factory | Integration test | Safe format |
+| --- | --- | --- | --- | --- | --- | --- |
+| `DATABASE_URL` | PostgreSQL connection used by the application and manual migration runner | Required for database-backed features | Required for database-backed features in each deployed environment | Required in the environment where Factory tables and runs are intentionally activated | The test runner temporarily uses the dedicated test URL as its app connection | `postgresql://USER:PASSWORD@HOST:5432/DATABASE` |
+| `DATABASE_SSL` | Controls PostgreSQL TLS; only the exact value `false` disables TLS | Optional; defaults to TLS | Optional; leave default enabled for hosted databases | Same setting as the selected environment's database | Optional; test runner defaults it to `false` only when unset | `true` (default) or `false` for trusted local databases only |
+| `FACTORY_TEST_DATABASE_URL` | Dedicated, disposable PostgreSQL database for the Factory integration test | Required only to run that integration test | Not required; do not configure it in Vercel | Not used by the live Factory | Required to execute the database-backed integration test; the test refuses databases whose names do not contain `test`, `testing`, or `integration` | `postgresql://USER:PASSWORD@HOST:5432/diginanba_test` |
+
+For separation, use a local development database for local work, a non-production database for Vercel Preview, a distinct production database for Vercel Production, and a separate disposable test database for integration tests. The project does not compare the hosts or credentials of `DATABASE_URL` and `FACTORY_TEST_DATABASE_URL`; the test only checks the connected database name. Verify the target database out of band before configuring either URL. A checked-in `.env.example` contains placeholders for `DATABASE_URL` and `DATABASE_SSL`; it is not a credential. The test URL is intentionally not provided there to avoid encouraging reuse of a normal application database.
+
+For initial Factory activation and verification, use a dedicated development/verification database, not Production. Do not run Factory migrations or Factory jobs against the production `DATABASE_URL` during initial activation. The Vercel Production application may need its own `DATABASE_URL` for existing marketplace features; setting it does not itself apply Factory migrations. The Factory migration command is manual and there is no separate Factory-enablement variable, so keep production Factory operations unused until they have been separately approved and verified.
+
 There is no automatic production schema application. `db/schema.sql` is the complete idempotent bootstrap for a new database. Existing app databases need the core DigiNanba tables (`users`, `roles`, `markets`, `categories`, `subcategories`, `products`, and `product_editions`) before the Factory migrations. The checked-in migration path applies the private Stage 1–5 foundation and Stage 6 hardening in numbered, transactional, SHA-256-verified steps under a PostgreSQL advisory lock:
 
 ```powershell
-$env:DATABASE_URL = '<connection string for the intended DigiNanba database>'
+$env:DATABASE_URL = 'postgresql://USER:PASSWORD@HOST:5432/DATABASE'
 npm run db:migrate
 ```
 
-Review and back up the target database before running the command. The runner is manual; it is not called by the app, build, or Vercel. `db/migrations/001_factory_stages_1_5.sql` and `db/migrations/002_factory_stage6_hardening.sql` are additive and do not drop/replace application tables. The Stage 6 migration disables any existing schedules and adds a publication gate. It has not been applied to production as part of this code change.
+**Do not run this command until `DATABASE_URL` is explicitly set to the verified, authorized non-production target.** The runner creates a `diginanba_schema_migrations` ledger, takes a PostgreSQL advisory lock, applies each migration and ledger record in a transaction, and verifies the SHA-256 checksum of any previously applied migration. A checksum mismatch stops execution; rerunning an unchanged migration reports it as already applied. It is not called by the app, build, or Vercel. `db/migrations/001_factory_stages_1_5.sql` and `db/migrations/002_factory_stage6_hardening.sql` are additive to application tables. Stage 6 disables existing Factory schedules and adds a publication gate. Migration status must be confirmed against the ledger in the target database after a deliberate migration run.
 
 Schedules remain disabled by default. There is no background worker or cron. A manager may manually request due-schedule processing; each request is capped at five schedules and each run at 12 jobs. Only internal deterministic inventory research is eligible; unsupported schedules are blocked. Do not enable schedules until a separately reviewed worker and operational rate limits exist.
 
