@@ -35,28 +35,36 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="auth-page">
-      <form className="auth-card" onSubmit={submit}>
-        <a href="/" className="brand">DigiNanba</a>
-        <h1>Welcome back</h1>
-        <p className="auth-intro">Sign in to access your DigiNanba account, purchases and downloads.</p>
+    <main className="global-auth-page">
+      <header className="global-auth-header">
+        <a href="/" className="global-auth-logo">Digi<span>Nanba</span></a>
+        <div className="global-auth-market">🌐 Global marketplace</div>
+        <a href="/signup" className="global-auth-top-link">Create account</a>
+      </header>
 
-        {error && <div className="error">{error}</div>}
+      <section className="global-auth-main">
+        <div className="global-auth-card">
+          <div className="global-auth-kicker">WELCOME BACK</div>
+          <h1>Sign in to DigiNanba</h1>
+          <p className="global-auth-intro">Access your purchases, downloads, saved products and account settings.</p>
 
-        <SocialProviders />
+          {error && <div className="error">{error}</div>}
 
-        <div className="auth-divider"><span>or sign in with email</span></div>
+          <SocialProviders />
 
-        <div className="auth-form">
-          <label>Email<input type="email" value={email} onChange={e => setEmail(e.target.value)} required autoComplete="email" /></label>
-          <label>Password<input type="password" value={password} onChange={e => setPassword(e.target.value)} required autoComplete="current-password" /></label>
-          <button className="primary wide auth-submit" disabled={loading}>
-            {loading ? 'Signing in…' : 'Sign in'}
-          </button>
+          <div className="global-auth-divider"><span>or sign in with email</span></div>
+
+          <form className="global-auth-form" onSubmit={submit}>
+            <label>Email<input type="email" value={email} onChange={e => setEmail(e.target.value)} required autoComplete="email" placeholder="you@example.com" /></label>
+            <label>Password<input type="password" value={password} onChange={e => setPassword(e.target.value)} required autoComplete="current-password" placeholder="Enter your password" /></label>
+            <button className="global-auth-primary" disabled={loading}>{loading ? 'Signing in…' : 'Sign in'}</button>
+          </form>
+
+          <p className="global-auth-foot">New to DigiNanba? <a href="/signup">Create an account</a></p>
         </div>
+      </section>
 
-        <div className="auth-foot">New to DigiNanba? <a href="/signup">Create an account</a></div>
-      </form>
+      <footer className="global-auth-footer">© {new Date().getFullYear()} DigiNanba · Global digital products marketplace · <a href="/">Back to marketplace</a></footer>
     </main>
   );
 }
