@@ -57,7 +57,21 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async signIn({ user, account }) {
       if (!account || account.type !== 'oauth') return true;
       const email = user.email?.trim().toLowerCase();
-      if (!email) return '/login?error=SocialAccountNeedsEmail';
+      const providerAccountId = account.providerAccountId;
+      if (!email || !providerAccountId) return '/login?error=SocialAccountNeedsEmail';
+
+      const linked = await db.query(
+        'SELECT u.id, u.email, u.display_name, u.status FROM user_auth_accounts a JOIN users u ON u.id = a.user_id WHERE a.provider = $1 AND a.provider_account_id = $2 LIMIT 1',
+        [account.provider, providerAccountId]
+      );
+
+      if (linked.rows[0]) {
+        if (linked.rows[0].status !== 'active') return '/login?error=AccountDisabled';
+        user.id = linked.rows[0].id;
+        user.email = linked.rows[0].email;
+        user.name = linked.rows[0].display_name ?? user.name ?? user.email;
+        return true;
+      }
 
       const existing = await db.query(
         'SELECT id, status FROM users WHERE email = $1 LIMIT 1',
@@ -65,27 +79,30 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       );
 
       if (existing.rows[0]) {
-        if (existing.rows[0].status !== 'active') return '/login?error=AccountDisabled';
-        return true;
+        return '/login?error=AccountAlreadyExists';
       }
 
       const created = await db.query(
         'INSERT INTO users (email, display_name, status) VALUES ($1, $2, $3) RETURNING id',
         [email, user.name?.trim() || email, 'active']
       );
+
+      await db.query(
+        'INSERT INTO user_auth_accounts (user_id, provider, provider_account_id) VALUES ($1, $2, $3)',
+        [created.rows[0].id, account.provider, providerAccountId]
+      );
+
       user.id = created.rows[0].id;
       return true;
     },
     async jwt({ token, user }) {
-      if (user) {
-        if (user.id) token.userId = user.id;
-        if (!token.userId && user.email) {
-          const result = await db.query(
-            'SELECT id FROM users WHERE email = $1 LIMIT 1',
-            [user.email.trim().toLowerCase()]
-          );
-          if (result.rows[0]) token.userId = result.rows[0].id;
-        }
+      if (user?.id) token.userId = user.id;
+      if (!token.userId && user?.email) {
+        const result = await db.query(
+          'SELECT id FROM users WHERE email = $1 LIMIT 1',
+          [user.email.trim().toLowerCase()]
+        );
+        if (result.rows[0]) token.userId = result.rows[0].id;
       }
       return token;
     },
