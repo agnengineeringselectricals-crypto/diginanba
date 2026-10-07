@@ -441,3 +441,21 @@
 @media(max-width:700px){
   .ref-market-flag{flex-basis:30px;min-width:30px}
 }
+
+
+/* Global-marketplace authentication pages: match the DigiNanba production marketplace language. */
+.global-auth-page{min-height:100vh;background:linear-gradient(180deg,#fff7fa 0%,#fff 48%,#f7f8fb 100%);color:#172033;display:flex;flex-direction:column}
+.global-auth-header{min-height:68px;background:#111827;color:#fff;display:flex;align-items:center;justify-content:space-between;gap:18px;padding:9px max(22px,calc((100% - 1240px)/2 + 22px));box-shadow:0 1px 0 #0002}
+.global-auth-logo{font-size:22px;font-weight:900;letter-spacing:-.6px;color:#fff}.global-auth-logo span{color:#a9a1ff}
+.global-auth-market{font-size:12px;font-weight:800;color:#d8dcea;margin-left:auto}
+.global-auth-top-link{border:1px solid #697489;border-radius:8px;padding:9px 13px;color:#fff;font-size:12px;font-weight:800}.global-auth-top-link:hover{background:#273348}
+.global-auth-main{flex:1;display:grid;place-items:center;padding:44px 18px}
+.global-auth-card{width:min(500px,100%);background:#fff;border:1px solid #e5e8f0;border-radius:18px;padding:32px;box-shadow:0 18px 45px #18203812}
+.global-auth-kicker{display:inline-block;background:#fbe7ef;color:#783f57;border-radius:99px;padding:6px 9px;font-size:10px;font-weight:900;letter-spacing:.08em}
+.global-auth-card h1{font-size:31px;line-height:1.16;letter-spacing:-.8px;margin:13px 0 8px;color:#172033}
+.global-auth-intro{color:#68738a;line-height:1.55;font-size:14px;margin:0 0 20px}
+.global-auth-divider{display:flex;align-items:center;gap:12px;color:#7a8293;font-size:11px;font-weight:800;margin:20px 0}.global-auth-divider:before,.global-auth-divider:after{content:"";height:1px;background:#e7e8ee;flex:1}
+.global-auth-form{display:grid;gap:15px}.global-auth-form label{display:grid;gap:7px;font-size:13px;font-weight:800;color:#273149}.global-auth-form input{width:100%;border:1px solid #dfe2ea;border-radius:10px;padding:12px 13px;font:inherit;font-size:14px;color:#172033;outline:none;background:#fff}.global-auth-form input::placeholder{color:#9aa2b1}.global-auth-form input:focus{border-color:#5b4df6;box-shadow:0 0 0 3px #5b4df61a}
+.global-auth-primary{width:100%;min-height:46px;border:0;border-radius:10px;background:#5b4df6;color:#fff;font:inherit;font-size:14px;font-weight:900;cursor:pointer;margin-top:3px}.global-auth-primary:hover:not(:disabled){background:#493be4}.global-auth-primary:disabled{opacity:.65;cursor:wait}
+.global-auth-foot{text-align:center;color:#68738a;font-size:13px;margin:21px 0 0}.global-auth-foot a{color:#5146d8;font-weight:800}.global-auth-footer{background:#172033;color:#aeb6c7;text-align:center;padding:18px 20px;font-size:11px}.global-auth-footer a{color:#fff;font-weight:700}
+@media(max-width:560px){.global-auth-header{padding:9px 14px}.global-auth-market{display:none}.global-auth-top-link{padding:8px 10px}.global-auth-main{padding:25px 12px}.global-auth-card{padding:25px 20px}.global-auth-card h1{font-size:27px}}
