@@ -38,8 +38,6 @@ export default function SocialProviders() {
     });
   }, []);
 
-  if (!providers.length) return null;
-
   async function continueWith(providerId: string) {
     setLoading(providerId);
     await signIn(providerId, { callbackUrl: '/account' });
@@ -50,7 +48,7 @@ export default function SocialProviders() {
       <section className="social-login" aria-label="Social sign in">
         <div className="social-divider"><span>or continue with</span></div>
         <div className="social-grid">
-          {providers.map((provider) => (
+          {(providers.length ? providers : [{ id: 'google', name: 'Google' }]).map((provider) => (
             <button
               key={provider.id}
               type="button"
