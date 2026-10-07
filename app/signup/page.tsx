@@ -37,29 +37,37 @@ export default function SignupPage() {
   }
 
   return (
-    <main className="auth-page">
-      <form className="auth-card" onSubmit={submit}>
-        <a href="/" className="brand">DigiNanba</a>
-        <h1>Create your account</h1>
-        <p className="auth-intro">Join DigiNanba to save purchases, access downloads and manage your profile.</p>
+    <main className="global-auth-page">
+      <header className="global-auth-header">
+        <a href="/" className="global-auth-logo">Digi<span>Nanba</span></a>
+        <div className="global-auth-market">🌐 Global marketplace</div>
+        <a href="/login" className="global-auth-top-link">Sign in</a>
+      </header>
 
-        {error && <div className="error">{error}</div>}
+      <section className="global-auth-main">
+        <div className="global-auth-card">
+          <div className="global-auth-kicker">JOIN THE MARKETPLACE</div>
+          <h1>Create your DigiNanba account</h1>
+          <p className="global-auth-intro">Create one account to discover, purchase and securely access digital products worldwide.</p>
 
-        <SocialProviders />
+          {error && <div className="error">{error}</div>}
 
-        <div className="auth-divider"><span>or create with email</span></div>
+          <SocialProviders />
 
-        <div className="auth-form">
-          <label>Name<input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required autoComplete="name" /></label>
-          <label>Email<input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} required autoComplete="email" /></label>
-          <label>Password<input type="password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} required minLength={8} autoComplete="new-password" /></label>
-          <button className="primary wide auth-submit" disabled={loading}>
-            {loading ? 'Creating…' : 'Create account'}
-          </button>
+          <div className="global-auth-divider"><span>or create with email</span></div>
+
+          <form className="global-auth-form" onSubmit={submit}>
+            <label>Name<input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required autoComplete="name" placeholder="Your name" /></label>
+            <label>Email<input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} required autoComplete="email" placeholder="you@example.com" /></label>
+            <label>Password<input type="password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} required minLength={8} autoComplete="new-password" placeholder="At least 8 characters" /></label>
+            <button className="global-auth-primary" disabled={loading}>{loading ? 'Creating…' : 'Create account'}</button>
+          </form>
+
+          <p className="global-auth-foot">Already have an account? <a href="/login">Sign in</a></p>
         </div>
+      </section>
 
-        <div className="auth-foot">Already have an account? <a href="/login">Sign in</a></div>
-      </form>
+      <footer className="global-auth-footer">© {new Date().getFullYear()} DigiNanba · Global digital products marketplace · <a href="/">Back to marketplace</a></footer>
     </main>
   );
 }
