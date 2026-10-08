@@ -67,6 +67,8 @@ export default function HomePageClient({ initialProducts }: Props) {
   const [sort, setSort] = useState('featured');
   const [marketOpen, setMarketOpen] = useState(false);
   const [cartCount, setCartCount] = useState(0);
+  const [languageCode, setLanguageCode] = useState('EN');
+  const [countryFlag, setCountryFlag] = useState('🇺🇸');
 
   useEffect(() => {
     let selected = localStorage.getItem('diginanba-market') as Market | null;
@@ -76,6 +78,12 @@ export default function HomePageClient({ initialProducts }: Props) {
       selected = language.endsWith('-gb') || timezone.includes('london') ? 'UK' : 'US';
     }
     setMarket(selected);
+    const language = (navigator.language || 'en-US').toLowerCase();
+    const localeCountry = language.split('-')[1]?.toUpperCase() || (selected === 'UK' ? 'GB' : 'US');
+    const languagePart = (language.split('-')[0] || 'en').toUpperCase().slice(0, 2);
+    const flags: Record<string, string> = { US:'🇺🇸', GB:'🇬🇧', IN:'🇮🇳', CA:'🇨🇦', AU:'🇦🇺', DE:'🇩🇪', FR:'🇫🇷', ES:'🇪🇸', IT:'🇮🇹', JP:'🇯🇵', CN:'🇨🇳', BR:'🇧🇷', AE:'🇦🇪', SG:'🇸🇬' };
+    setLanguageCode(languagePart);
+    setCountryFlag(flags[localeCountry] || (selected === 'UK' ? '🇬🇧' : '🇺🇸'));
     try {
       const cart = JSON.parse(localStorage.getItem('diginanba-cart') || '[]');
       setCartCount(Array.isArray(cart) ? cart.length : 0);
@@ -160,14 +168,20 @@ export default function HomePageClient({ initialProducts }: Props) {
     <header className="ref-header">
       <div className="ref-container ref-nav">
         <Link href="/" className="ref-logo"><span>Digi</span>Nanba</Link>
-        <nav className="ref-links" aria-label="Main navigation">
-          <a href="#home">Home</a><a href="#explore">Explore</a><a href="#categories">Categories</a><a href="#needs">What do you need?</a>
-        </nav>
         <div className="ref-actions">
-          <button className="ref-market" onClick={() => setMarketOpen(true)}>{market === 'UK' ? '🇬🇧 UK · GBP' : '🇺🇸 US · USD'}</button>
-          <Link className="ref-ghost" href="/login">Log in</Link>
-          <Link className="ref-primary" href="/signup">Sign up</Link>
-          <Link className="ref-ghost ref-cart" href="/cart" aria-label={`Cart, ${cartCount} items`}>🛒<span className="ref-count">{cartCount}</span></Link>
+          <button className="ref-language" onClick={() => setMarketOpen(true)} aria-label="Choose language and country">
+            <span className="ref-language-flag">{countryFlag}</span><span>{languageCode}</span>
+          </button>
+          <Link className="ref-signin" href="/login">Sign in / Sign up</Link>
+          <Link className="ref-cart" href="/cart" aria-label={`Cart, ${cartCount} items`}>🛒<span className="ref-count">{cartCount}</span></Link>
+        </div>
+      </div>
+      <div className="ref-search-row">
+        <div className="ref-container">
+          <form className="ref-searchbox ref-header-search" onSubmit={runSearch}>
+            <input value={heroQuery} onChange={(event) => setHeroQuery(event.target.value)} placeholder="Search for a product, skill, problem or goal…" aria-label="Search products" />
+            <button className="ref-primary" type="submit">Search</button>
+          </form>
         </div>
       </div>
     </header>
@@ -176,10 +190,6 @@ export default function HomePageClient({ initialProducts }: Props) {
       <section className="ref-hero">
         <div className="ref-container ref-market-grid">
           <div className="ref-market-left">
-            <form className="ref-searchbox ref-top-search" onSubmit={runSearch}>
-              <input value={heroQuery} onChange={(event) => setHeroQuery(event.target.value)} placeholder="Search for a product, skill, problem or goal…" aria-label="Search products" />
-              <button className="ref-primary" type="submit">Search</button>
-            </form>
             <h1>Find the digital tools that solve your problem.</h1>
             <div className="ref-category-panel" id="categories">
               <div className="ref-categories">{categories.map(([icon, label]) => <button className="ref-category" key={label} onClick={() => chooseCategory(label)}><span className="ref-category-icon">{icon}</span><span><strong>{label}</strong><small>Explore products</small></span></button>)}</div>
