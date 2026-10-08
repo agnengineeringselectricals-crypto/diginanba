@@ -81,3 +81,34 @@
 .ref-market-left>h1{font-size:18px;white-space:nowrap;letter-spacing:-.25px}
 @media(max-width:700px){.ref-market-left>h1{font-size:15px;white-space:nowrap;letter-spacing:-.3px}}
 @media(max-width:420px){.ref-market-left>h1{font-size:13px}}
+
+
+/* DigiNanba header revision: Amazon-style language selector + dedicated lower search row */
+.ref-nav{height:64px;justify-content:space-between}
+.ref-actions{margin-left:auto;gap:10px}
+.ref-language{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:#fff;color:#172033;border:1px solid #dfe3ec;padding:9px 11px;border-radius:10px;font:inherit;font-size:13px;font-weight:800;cursor:pointer;min-width:58px}
+.ref-language-flag{font-size:20px;line-height:1}
+.ref-signin{display:inline-flex;align-items:center;justify-content:center;background:#fff;color:#172033;border:1px solid #dfe3ec;padding:9px 13px;border-radius:10px;font-size:13px;font-weight:800;white-space:nowrap}
+.ref-cart{position:relative;display:inline-flex;align-items:center;justify-content:center;color:#172033;font-size:24px;line-height:1;padding:7px 5px;min-width:34px}
+.ref-search-row{border-top:1px solid #eef0f4;background:#fff;padding:8px 0}
+.ref-header-search{margin:0;width:100%;box-shadow:none;border-color:#dfe3ec}
+.ref-header-search input{font-size:15px}
+.ref-header-search .ref-primary{padding:10px 18px}
+@media(max-width:700px){
+  .ref-nav{height:58px}
+  .ref-language{padding:7px 8px;min-width:52px;font-size:12px}
+  .ref-language-flag{font-size:18px}
+  .ref-signin{padding:8px 9px;font-size:11px}
+  .ref-cart{font-size:22px}
+  .ref-search-row{padding:7px 0}
+  .ref-header-search{padding:4px}
+  .ref-header-search input{padding:10px;font-size:13px}
+  .ref-header-search .ref-primary{padding:9px 12px;font-size:12px}
+}
+@media(max-width:420px){
+  .ref-logo{font-size:17px}
+  .ref-actions{gap:5px}
+  .ref-signin{font-size:10px;padding:7px 7px}
+  .ref-language{padding:6px 7px}
+  .ref-header-search .ref-primary{padding:8px 10px}
+}
