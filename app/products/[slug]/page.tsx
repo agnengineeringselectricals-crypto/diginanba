@@ -67,6 +67,16 @@ export default async function ProductPage({
     },
   };
 
+  const breadcrumbJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'DigiNanba', item: 'https://diginanba.com/' },
+      { '@type': 'ListItem', position: 2, name: p.category, item: `https://diginanba.com/explore?q=${encodeURIComponent(p.category)}` },
+      { '@type': 'ListItem', position: 3, name: p.title, item: `https://diginanba.com/products/${p.slug}` },
+    ],
+  };
+
   return (
     <main className="wrap product-page">
       <Link href={`/explore?market=${market}`} className="muted">← Back to marketplace</Link>
