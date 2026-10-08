@@ -170,7 +170,7 @@ export default function HomePageClient({ initialProducts }: Props) {
         <Link href="/" className="ref-logo"><span>Digi</span>Nanba</Link>
         <div className="ref-actions">
           <button className="ref-language" onClick={() => setMarketOpen(true)} aria-label="Choose language and country">
-            <span className="ref-language-flag">{countryFlag}</span><span>{languageCode}</span>
+            <span>{languageCode}</span><span className="ref-language-flag">{countryFlag}</span>
           </button>
           <Link className="ref-signin" href="/login">Sign in / Sign up</Link>
           <Link className="ref-cart" href="/cart" aria-label={`Cart, ${cartCount} items`}><svg className="ref-cart-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h2l2.2 11.2a2 2 0 0 0 2 1.6h7.9a2 2 0 0 0 1.9-1.4L21 8H7" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><circle cx="10" cy="20" r="1.3" fill="currentColor"/><circle cx="18" cy="20" r="1.3" fill="currentColor"/></svg><span className="ref-count">{cartCount}</span></Link>
@@ -197,10 +197,7 @@ export default function HomePageClient({ initialProducts }: Props) {
           </div>
 
           <aside className="ref-featured-panel" aria-label="Featured digital products">
-            <div className="ref-featured-head">
-              <div><h2>Featured digital products</h2><p>Ready to add to your cart.</p></div>
-              {market === 'UK' ? <svg className="ref-market-flag-svg" viewBox="0 0 24 16" aria-label="United Kingdom flag"><rect width="24" height="16" fill="#012169"/><path d="M0 0l24 16M24 0L0 16" stroke="#fff" strokeWidth="3"/><path d="M0 0l24 16M24 0L0 16" stroke="#c8102e" strokeWidth="1.3"/><path d="M12 0v16M0 8h24" stroke="#fff" strokeWidth="5"/><path d="M12 0v16M0 8h24" stroke="#c8102e" strokeWidth="3"/></svg> : <svg className="ref-market-flag-svg" viewBox="0 0 24 16" aria-label="United States flag"><rect width="24" height="16" fill="#fff"/><path d="M0 1h24M0 4h24M0 7h24M0 10h24M0 13h24M0 16h24" stroke="#b22234" strokeWidth="1.7"/><rect width="10.5" height="8.6" fill="#3c3b6e"/></svg>}
-            </div>
+            <div className="ref-featured-head"><div></div></div>
             <div className="ref-featured-grid">
               {products.slice(0, 6).map((product) => <article className="ref-featured-card" key={product.id}>
                 <Link className="ref-featured-art" href={`/products/${product.slug}?market=${market}`} aria-label={`View ${product.title}`}>
