@@ -1,0 +1,1 @@
+import Link from 'next/link'; export default function Orders(){return <main className="page"><div className="card"><span className="eyebrow">ORDERS</span><h1>Orders & Purchases</h1><p>Your purchase history and receipts will appear here after connected checkout.</p><Link className="btn" href="/explore">Continue shopping</Link></div></main>}
