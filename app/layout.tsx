@@ -24,6 +24,8 @@ export const metadata = {
     description: 'Discover useful digital products, templates, spreadsheets, guides, AI workflows and practical tools.',
   },
   robots: { index: true, follow: true },
+  category: 'Digital products marketplace',
+  alternates: { canonical: '/' },
 };
 
 const organizationJsonLd = {
@@ -32,6 +34,16 @@ const organizationJsonLd = {
   name: 'DigiNanba',
   url: 'https://diginanba.com',
   description: 'Global digital-product marketplace for practical digital tools and resources.',
+  sameAs: [],
+};
+
+
+const websiteJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  name: 'DigiNanba',
+  url: 'https://diginanba.com',
+  description: 'Discover practical digital products, templates, spreadsheets, guides and AI workflows.',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
