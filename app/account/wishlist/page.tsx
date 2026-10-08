@@ -1,0 +1,1 @@
+import Link from 'next/link'; export default function Wishlist(){return <main className="page"><div className="card"><span className="eyebrow">WISHLIST</span><h1>Saved products</h1><p>Products saved for later will appear here.</p><Link className="btn" href="/explore">Browse products</Link></div></main>}
