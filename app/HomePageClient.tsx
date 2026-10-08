@@ -228,7 +228,7 @@ export default function HomePageClient({ initialProducts }: Props) {
 
     <footer className="ref-footer"><div className="ref-container ref-footer-grid">
       <div><h3>DigiNanba</h3><p>A global marketplace for practical digital products.</p><div className="ref-note">Checkout requires sign-in. Payments remain in demo mode until a provider is configured.</div></div>
-      <div><h4>Marketplace</h4><Link href="/explore">Explore</Link><Link href="/explore">Categories</Link><a href="#needs">What do you need?</a></div>
+      <div><h4>Marketplace</h4><Link href="/explore">Explore products</Link><Link href="/categories/ebooks-guides">Categories</Link><Link href="/solutions">Shop by goal</Link><Link href="/guides">DigiNanba Guides</Link></div>
       <div><h4>Account</h4><Link href="/login">Log in</Link><Link href="/signup">Create account</Link><Link href="/cart">Cart</Link></div>
       <div><h4>For creators</h4><Link href="/signup">Become a seller</Link><Link href="/explore">Seller resources</Link><Link href="/account">Help center</Link></div>
     </div></footer>
