@@ -119,7 +119,8 @@ export default function HomePageClient({ initialProducts }: Props) {
 
   function chooseCategory(value: string) {
     setCategory(value);
-    document.getElementById('explore')?.scrollIntoView({ behavior: 'smooth' });
+    const params = new URLSearchParams({ market, q: value });
+    window.location.href = `/explore?${params.toString()}`;
   }
 
   function chooseNeed(value: string) {
@@ -130,9 +131,9 @@ export default function HomePageClient({ initialProducts }: Props) {
 
   function runSearch(event?: React.FormEvent) {
     event?.preventDefault();
-    setQuery(heroQuery);
-    setCategory('All');
-    document.getElementById('explore')?.scrollIntoView({ behavior: 'smooth' });
+    const params = new URLSearchParams({ market });
+    if (heroQuery.trim()) params.set('q', heroQuery.trim());
+    window.location.href = `/explore?${params.toString()}`;
   }
 
   function setSelectedMarket(value: Market) {
@@ -227,9 +228,9 @@ export default function HomePageClient({ initialProducts }: Props) {
 
     <footer className="ref-footer"><div className="ref-container ref-footer-grid">
       <div><h3>DigiNanba</h3><p>A global marketplace for practical digital products.</p><div className="ref-note">Checkout requires sign-in. Payments remain in demo mode until a provider is configured.</div></div>
-      <div><h4>Marketplace</h4><a href="#explore">Explore</a><a href="#categories">Categories</a><a href="#needs">What do you need?</a></div>
+      <div><h4>Marketplace</h4><Link href="/explore">Explore</Link><Link href="/explore">Categories</Link><a href="#needs">What do you need?</a></div>
       <div><h4>Account</h4><Link href="/login">Log in</Link><Link href="/signup">Create account</Link><Link href="/cart">Cart</Link></div>
-      <div><h4>For creators</h4><Link href="/signup">Become a seller</Link><a href="#explore">Seller resources</a><a href="#explore">Help center</a></div>
+      <div><h4>For creators</h4><Link href="/signup">Become a seller</Link><Link href="/explore">Seller resources</Link><Link href="/account">Help center</Link></div>
     </div></footer>
 
     {marketOpen && <div className="ref-modal-backdrop" onClick={() => setMarketOpen(false)}><div className="ref-modal" role="dialog" aria-modal="true" aria-labelledby="market-title" onClick={(event) => event.stopPropagation()}>
