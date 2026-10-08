@@ -1,2 +1,21 @@
-import {auth} from '@/lib/auth';import {redirect} from 'next/navigation';
-import Link from 'next/link';export default async function SellerPayouts(){const session=await auth();if(!session?.user)redirect('/login');return <main className="wrap"><Link href="/seller" className="muted">← Seller Center</Link><h1>Payouts</h1><p className="muted">Manage seller earnings and payout settings.</p><div className="panel"><h2>Payout account</h2><p className="muted">Banking, tax and payout-provider configuration will be connected before live seller payouts are enabled.</p><button className="btn primary">Set payout preferences</button></div></main>
+import { auth } from '@/lib/auth';
+import { redirect } from 'next/navigation';
+import Link from 'next/link';
+
+export default async function SellerPayouts() {
+  const session = await auth();
+  if (!session?.user) redirect('/login');
+
+  return (
+    <main className="wrap">
+      <Link href="/seller" className="muted">← Seller Center</Link>
+      <h1>Payouts</h1>
+      <p className="muted">Manage seller earnings and payout settings.</p>
+      <div className="panel">
+        <h2>Payout account</h2>
+        <p className="muted">Banking, tax and payout-provider configuration will be connected before live seller payouts are enabled.</p>
+        <button className="btn primary" type="button">Set payout preferences</button>
+      </div>
+    </main>
+  );
+}
