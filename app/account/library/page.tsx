@@ -1,0 +1,1 @@
+import Link from 'next/link'; export default function Library(){return <main className="page"><div className="card"><span className="eyebrow">MY DIGINANBA LIBRARY</span><h1>Your digital products</h1><p>Purchased products, secure downloads, licenses and future updates will appear here.</p><Link className="btn" href="/explore">Find products</Link></div></main>}
