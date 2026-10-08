@@ -25,7 +25,6 @@ export const metadata = {
   },
   robots: { index: true, follow: true },
   category: 'Digital products marketplace',
-  alternates: { canonical: '/' },
 };
 
 const organizationJsonLd = {
@@ -51,10 +50,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body>
         <Providers>{children}</Providers>
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
-        />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }} />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }} />
       </body>
     </html>
   );
