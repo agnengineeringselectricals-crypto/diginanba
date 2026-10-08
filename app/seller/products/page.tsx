@@ -1,2 +1,36 @@
-import {auth} from '@/lib/auth';import {redirect} from 'next/navigation';
-import Link from 'next/link';export default async function SellerProducts(){const session=await auth();if(!session?.user)redirect('/login');return <main className="wrap"><Link href="/seller" className="muted">← Seller Center</Link><div className="page-head"><div><div className="eyebrow">SELLER CENTER</div><h1>Products</h1><p className="muted">Create, organize and improve your digital products.</p></div><button className="btn primary">+ Add product</button></div><div className="product-list-grid"><section className="panel"><h2>Product management</h2><p className="muted">Drafts, published products, editions, licensing, versions and localized files will be managed here.</p><div className="button-row"><button className="btn">Import product</button><button className="btn">Create bundle</button></div></section><section className="panel"><h2>Quality checklist</h2><p className="muted">Description · preview · file delivery · license · localized edition · SEO title · structured data.</p></section></div></main>
+import { auth } from '@/lib/auth';
+import { redirect } from 'next/navigation';
+import Link from 'next/link';
+
+export default async function SellerProducts() {
+  const session = await auth();
+  if (!session?.user) redirect('/login');
+
+  return (
+    <main className="wrap">
+      <Link href="/seller" className="muted">← Seller Center</Link>
+      <div className="page-head">
+        <div>
+          <div className="eyebrow">SELLER CENTER</div>
+          <h1>Products</h1>
+          <p className="muted">Create, organize and improve your digital products.</p>
+        </div>
+        <button className="btn primary" type="button">+ Add product</button>
+      </div>
+      <div className="product-list-grid">
+        <section className="panel">
+          <h2>Product management</h2>
+          <p className="muted">Drafts, published products, editions, licensing, versions and localized files will be managed here.</p>
+          <div className="button-row">
+            <button className="btn" type="button">Import product</button>
+            <button className="btn" type="button">Create bundle</button>
+          </div>
+        </section>
+        <section className="panel">
+          <h2>Quality checklist</h2>
+          <p className="muted">Description · preview · file delivery · license · localized edition · SEO title · structured data.</p>
+        </section>
+      </div>
+    </main>
+  );
+}
