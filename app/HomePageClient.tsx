@@ -199,7 +199,7 @@ export default function HomePageClient({ initialProducts }: Props) {
           <aside className="ref-featured-panel" aria-label="Featured digital products">
             <div className="ref-featured-head">
               <div><h2>Featured digital products</h2><p>Ready to add to your cart.</p></div>
-              <span>{marketName}</span>
+              <span className="ref-featured-market"><span className="ref-featured-market-flag">{countryFlag}</span> {marketName}</span>
             </div>
             <div className="ref-featured-grid">
               {products.slice(0, 6).map((product) => <article className="ref-featured-card" key={product.id}>
