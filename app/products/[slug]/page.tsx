@@ -57,6 +57,7 @@ export default async function ProductPage({
     category: p.category,
     brand: { '@type': 'Brand', name: 'DigiNanba' },
     url: `https://diginanba.com/products/${p.slug}`,
+    mainEntityOfPage: { '@type': 'WebPage', '@id': `https://diginanba.com/products/${p.slug}` },
     offers: {
       '@type': 'Offer',
       url: `https://diginanba.com/products/${p.slug}`,
@@ -112,6 +113,7 @@ export default async function ProductPage({
       </section>
 
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
     </main>
   );
 }
