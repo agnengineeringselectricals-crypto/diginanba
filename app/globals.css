@@ -117,4 +117,4 @@
 .ref-featured-market{display:inline-flex;align-items:center;gap:4px}
 .ref-featured-market-flag{font-size:16px;line-height:1}
 .ref-cart{color:#4033c9}
-.ref-cart::first-letter{color:#4033c9}
+.ref-cart-icon{width:24px;height:24px;display:block;color:currentColor}
