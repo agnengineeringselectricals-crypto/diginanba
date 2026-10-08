@@ -100,3 +100,5 @@ export default function Settings() {
     </main>
   );
 }
+
+// Build verification: settings JSX is intentionally formatted for Turbopack parsing.
