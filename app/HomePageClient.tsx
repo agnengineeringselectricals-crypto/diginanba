@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import type { CatalogProduct } from '@/lib/catalog';
 import type { Market } from '@/lib/market';
 
@@ -129,7 +129,7 @@ export default function HomePageClient({ initialProducts }: Props) {
     chooseCategory(value);
   }
 
-  function runSearch(event?: React.FormEvent) {
+  function runSearch(event?: FormEvent) {
     event?.preventDefault();
     const params = new URLSearchParams({ market });
     if (heroQuery.trim()) params.set('q', heroQuery.trim());
