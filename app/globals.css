@@ -132,3 +132,9 @@
 .ref-language-flag-svg{width:24px;height:16px;display:block;flex:none;border-radius:2px;box-shadow:0 0 0 1px rgba(23,32,51,.12)}
 @media(max-width:900px){.ref-featured-grid{grid-template-columns:repeat(2,minmax(220px,1fr));max-height:480px}}
 @media(max-width:560px){.ref-featured-grid{grid-template-columns:repeat(2,minmax(180px,1fr));max-height:440px}}
+
+/* Account, seller and solution page cards */
+.account-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin:24px 0}
+.account-grid .panel,.account-grid>a{display:block;text-decoration:none}
+.account-grid .panel h3,.account-grid>a h3{margin:0 0 8px}
+@media(max-width:700px){.account-grid{grid-template-columns:1fr}}
