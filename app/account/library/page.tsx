@@ -1,5 +1,50 @@
 'use client';
-import Link from 'next/link';import {useEffect,useState} from 'react';
-type Item={slug:string;title:string;price:string;market:string};
-export default function Library(){const [items,setItems]=useState<Item[]>([]);useEffect(()=>{try{setItems(JSON.parse(localStorage.getItem('diginanba-library')||'[]'))}catch{}},[]);
-return <main className="wrap"><Link href="/account" className="muted">← Account</Link><div className="page-head"><div><div className="eyebrow">MY DIGITAL LIBRARY</div><h1>My DigiNanba Library</h1><p className="muted">Your purchased resources, licenses and future product updates.</p></div></div>{items.length?<div className="product-list-grid">{items.map(x=><article className="panel" key={x.slug}><span className="category">Purchased · {x.market}</span><h2>{x.title}</h2><p className="muted">License: Standard digital use</p><button className="btn primary">Download</button></article>)}</div>:<div className="panel"><h2>Your library is ready for your purchases</h2><p className="muted">After a successful checkout, digital downloads and future versions will appear here.</p><Link href="/explore" className="btn primary">Explore products</Link></div>}</main>
+
+import Link from 'next/link';
+import { useEffect, useState } from 'react';
+
+type Item = { slug: string; title: string; price: string; market: string };
+
+export default function Library() {
+  const [items, setItems] = useState<Item[]>([]);
+
+  useEffect(() => {
+    try {
+      setItems(JSON.parse(localStorage.getItem('diginanba-library') || '[]'));
+    } catch {
+      setItems([]);
+    }
+  }, []);
+
+  return (
+    <main className="wrap">
+      <Link href="/account" className="muted">← Account</Link>
+      <div className="page-head">
+        <div>
+          <div className="eyebrow">MY DIGITAL LIBRARY</div>
+          <h1>My DigiNanba Library</h1>
+          <p className="muted">Your purchased resources, licenses and future product updates.</p>
+        </div>
+      </div>
+
+      {items.length ? (
+        <div className="product-list-grid">
+          {items.map((x) => (
+            <article className="panel" key={x.slug}>
+              <span className="category">Purchased · {x.market}</span>
+              <h2>{x.title}</h2>
+              <p className="muted">License: Standard digital use</p>
+              <button className="btn primary" type="button">Download</button>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <div className="panel">
+          <h2>Your library is ready for your purchases</h2>
+          <p className="muted">After a successful checkout, digital downloads and future versions will appear here.</p>
+          <Link href="/explore" className="btn primary">Explore products</Link>
+        </div>
+      )}
+    </main>
+  );
+}
