@@ -182,7 +182,6 @@ export default function HomePageClient({ initialProducts }: Props) {
             </form>
             <h1>Find the digital tools that solve your problem.</h1>
             <div className="ref-category-panel" id="categories">
-              <div className="ref-section-head"><div><h2>Shop by category</h2><p>A broad marketplace taxonomy for practical digital products.</p></div></div>
               <div className="ref-categories">{categories.map(([icon, label]) => <button className="ref-category" key={label} onClick={() => chooseCategory(label)}><span className="ref-category-icon">{icon}</span><span><strong>{label}</strong><small>Explore products</small></span></button>)}</div>
             </div>
           </div>
