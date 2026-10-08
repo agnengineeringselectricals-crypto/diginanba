@@ -224,19 +224,6 @@ export default function HomePageClient({ initialProducts }: Props) {
         <div className="ref-needs">{needs.map(([icon, label, target]) => <button className="ref-need" key={label} onClick={() => chooseNeed(target)}>{icon} {label}</button>)}</div>
       </div></section>
 
-      <section id="explore" className="ref-section"><div className="ref-container">
-        <div className="ref-section-head"><div><h2>Explore digital products</h2><p>{visibleProducts.length} product{visibleProducts.length === 1 ? '' : 's'} available for {marketName} · {currency}</p></div></div>
-        <div className="ref-toolbar">
-          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search products…" aria-label="Filter products" />
-          <select value={category} onChange={(event) => setCategory(event.target.value)} aria-label="Filter by category"><option value="All">All categories</option>{categories.map(([, label]) => <option value={label} key={label}>{label}</option>)}</select>
-          <select value={sort} onChange={(event) => setSort(event.target.value)} aria-label="Sort products"><option value="featured">Featured</option><option value="low">Price: low to high</option><option value="high">Price: high to low</option></select>
-        </div>
-        {visibleProducts.length ? <div className="ref-products">{visibleProducts.map((product) => <article className="ref-product" key={product.id}>
-          <Link className="ref-product-art" href={`/products/${product.slug}?market=${market}`} aria-label={`View ${product.title}`}>{categories.find(([, , dbName]) => dbName === product.category)?.[0] ?? '✦'}</Link>
-          <div className="ref-product-body"><span className="ref-tag">{product.category}</span><h3><Link href={`/products/${product.slug}?market=${market}`}>{product.title}</Link></h3><p>{product.description}</p><div className="ref-price-row"><span className="ref-price">{product.price}</span><Link className="ref-view-product" href={`/products/${product.slug}?market=${market}`}>View product</Link></div></div>
-        </article>)}</div> : <div className="ref-empty">No products found for this category or search. Try another search or category.</div>}
-      </div></section>
-
       <section className="ref-section"><div className="ref-container"><div className="ref-banner"><div><h2>Ready-to-use. Localized. Download instantly.</h2><p>Your selected market controls currency, formatting and product edition.</p></div><a className="ref-primary" href="#explore">Explore products</a></div></div></section>
     </main>
 
