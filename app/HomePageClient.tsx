@@ -223,8 +223,6 @@ export default function HomePageClient({ initialProducts }: Props) {
         <div className="ref-section-head"><div><h2>What are you trying to do?</h2><p>Start with your goal instead of searching through hundreds of products.</p></div></div>
         <div className="ref-needs">{needs.map(([icon, label, target]) => <button className="ref-need" key={label} onClick={() => chooseNeed(target)}>{icon} {label}</button>)}</div>
       </div></section>
-
-      <section className="ref-section"><div className="ref-container"><div className="ref-banner"><div><h2>Ready-to-use. Localized. Download instantly.</h2><p>Your selected market controls currency, formatting and product edition.</p></div><a className="ref-primary" href="#explore">Explore products</a></div></div></section>
     </main>
 
     <footer className="ref-footer"><div className="ref-container ref-footer-grid">
