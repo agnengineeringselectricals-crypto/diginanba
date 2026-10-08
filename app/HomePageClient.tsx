@@ -133,6 +133,29 @@ export default function HomePageClient({ initialProducts }: Props) {
     setMarketOpen(false);
   }
 
+  function addToCart(product: CatalogProduct) {
+    try {
+      const existing = JSON.parse(localStorage.getItem('diginanba-cart') || '[]');
+      const next = Array.isArray(existing) ? [...existing, {
+        slug: product.slug,
+        title: product.title,
+        price: product.price,
+        amountMinor: product.amountMinor,
+        market,
+      }] : [{
+        slug: product.slug,
+        title: product.title,
+        price: product.price,
+        amountMinor: product.amountMinor,
+        market,
+      }];
+      localStorage.setItem('diginanba-cart', JSON.stringify(next));
+      setCartCount(next.length);
+    } catch {
+      setCartCount((count) => count + 1);
+    }
+  }
+
   return <>
     <header className="ref-header">
       <div className="ref-container ref-nav">
@@ -151,34 +174,47 @@ export default function HomePageClient({ initialProducts }: Props) {
 
     <main id="home">
       <section className="ref-hero">
-        <div className="ref-container ref-hero-grid">
-          <div>
-            <span className="ref-eyebrow">DIGITAL PRODUCTS FOR EVERYDAY WORK</span>
-            <h1>Find the digital tools that solve your problem.</h1>
-            <p>Discover ready-to-use templates, guides, spreadsheets, design assets, automation tools, learning resources and more — localized for your market.</p>
-            <form className="ref-searchbox" onSubmit={runSearch}>
+        <div className="ref-container ref-market-grid">
+          <div className="ref-market-left">
+            <form className="ref-searchbox ref-top-search" onSubmit={runSearch}>
               <input value={heroQuery} onChange={(event) => setHeroQuery(event.target.value)} placeholder="Search for a product, skill, problem or goal…" aria-label="Search products" />
               <button className="ref-primary" type="submit">Search</button>
             </form>
+            <h1>Find the digital tools that solve your problem.</h1>
+            <div className="ref-category-panel" id="categories">
+              <div className="ref-section-head"><div><h2>Shop by category</h2><p>A broad marketplace taxonomy for practical digital products.</p></div></div>
+              <div className="ref-categories">{categories.map(([icon, label]) => <button className="ref-category" key={label} onClick={() => chooseCategory(label)}><span className="ref-category-icon">{icon}</span><span><strong>{label}</strong><small>Explore products</small></span></button>)}</div>
+            </div>
           </div>
-          <div className="ref-hero-card">
-            <h3>Popular in the {marketName}</h3>
-            <div className="ref-mini"><div className="ref-icon">📊</div><div><b>Business &amp; Finance</b><br /><small>Templates that save time</small></div></div>
-            <div className="ref-mini"><div className="ref-icon">🤖</div><div><b>AI &amp; Automation</b><br /><small>Workflows and productivity tools</small></div></div>
-            <div className="ref-mini"><div className="ref-icon">📚</div><div><b>Guides &amp; Learning</b><br /><small>Learn faster with practical resources</small></div></div>
-            <div className="ref-mini"><div className="ref-icon">🎨</div><div><b>Creative Assets</b><br /><small>Design, content and media kits</small></div></div>
-          </div>
+
+          <aside className="ref-featured-panel" aria-label="Featured digital products">
+            <div className="ref-featured-head">
+              <div><h2>Featured digital products</h2><p>Ready to add to your cart.</p></div>
+              <span>{marketName}</span>
+            </div>
+            <div className="ref-featured-grid">
+              {products.slice(0, 6).map((product) => <article className="ref-featured-card" key={product.id}>
+                <Link className="ref-featured-art" href={`/products/${product.slug}?market=${market}`} aria-label={`View ${product.title}`}>
+                  {categories.find(([, , dbName]) => dbName === product.category)?.[0] ?? '✦'}
+                </Link>
+                <div className="ref-featured-body">
+                  <span className="ref-tag">{product.category}</span>
+                  <h3><Link href={`/products/${product.slug}?market=${market}`}>{product.title}</Link></h3>
+                  <p>{product.description}</p>
+                  <div className="ref-featured-footer">
+                    <span className="ref-price">{product.price}</span>
+                    <button className="ref-add-cart" onClick={() => addToCart(product)}>Add to cart</button>
+                  </div>
+                </div>
+              </article>)}
+            </div>
+          </aside>
         </div>
       </section>
 
       <section id="needs" className="ref-section"><div className="ref-container">
         <div className="ref-section-head"><div><h2>What are you trying to do?</h2><p>Start with your goal instead of searching through hundreds of products.</p></div></div>
         <div className="ref-needs">{needs.map(([icon, label, target]) => <button className="ref-need" key={label} onClick={() => chooseNeed(target)}>{icon} {label}</button>)}</div>
-      </div></section>
-
-      <section id="categories" className="ref-section"><div className="ref-container">
-        <div className="ref-section-head"><div><h2>Shop by category</h2><p>A broad marketplace taxonomy for practical digital products.</p></div></div>
-        <div className="ref-categories">{categories.map(([icon, label]) => <button className="ref-category" key={label} onClick={() => chooseCategory(label)}><span className="ref-category-icon">{icon}</span><span><strong>{label}</strong><small>Explore products</small></span></button>)}</div>
       </div></section>
 
       <section id="explore" className="ref-section"><div className="ref-container">
