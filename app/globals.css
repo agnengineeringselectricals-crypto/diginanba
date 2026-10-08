@@ -76,3 +76,8 @@
   .ref-category{min-height:64px}
   .ref-featured-art{height:70px}
 }
+
+/* Keep the marketplace headline compact on one line */
+.ref-market-left>h1{font-size:18px;white-space:nowrap;letter-spacing:-.25px}
+@media(max-width:700px){.ref-market-left>h1{font-size:15px;white-space:nowrap;letter-spacing:-.3px}}
+@media(max-width:420px){.ref-market-left>h1{font-size:13px}}
