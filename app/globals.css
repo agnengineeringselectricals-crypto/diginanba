@@ -118,3 +118,8 @@
 .ref-featured-market-flag{font-size:16px;line-height:1}
 .ref-cart{color:#4033c9}
 .ref-cart-icon{width:24px;height:24px;display:block;color:currentColor}
+
+/* Featured market flag and cart refinement */
+.ref-market-flag-svg{width:24px;height:16px;display:block;border-radius:2px;box-shadow:0 0 0 1px rgba(23,32,51,.12)}
+.ref-cart{color:#5b4df6}
+.ref-cart-icon{width:24px;height:24px;display:block;color:currentColor}
