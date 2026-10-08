@@ -173,7 +173,7 @@ export default function HomePageClient({ initialProducts }: Props) {
             <span className="ref-language-flag">{countryFlag}</span><span>{languageCode}</span>
           </button>
           <Link className="ref-signin" href="/login">Sign in / Sign up</Link>
-          <Link className="ref-cart" href="/cart" aria-label={`Cart, ${cartCount} items`}>🛒<span className="ref-count">{cartCount}</span></Link>
+          <Link className="ref-cart" href="/cart" aria-label={`Cart, ${cartCount} items`}><svg className="ref-cart-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h2l2.2 11.2a2 2 0 0 0 2 1.6h7.9a2 2 0 0 0 1.9-1.4L21 8H7" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><circle cx="10" cy="20" r="1.3" fill="currentColor"/><circle cx="18" cy="20" r="1.3" fill="currentColor"/></svg><span className="ref-count">{cartCount}</span></Link>
         </div>
       </div>
       <div className="ref-search-row">
@@ -199,7 +199,7 @@ export default function HomePageClient({ initialProducts }: Props) {
           <aside className="ref-featured-panel" aria-label="Featured digital products">
             <div className="ref-featured-head">
               <div><h2>Featured digital products</h2><p>Ready to add to your cart.</p></div>
-              <span className="ref-featured-market"><span className="ref-featured-market-flag">{countryFlag}</span> {marketName}</span>
+              <span className="ref-featured-market"><span className="ref-featured-market-flag">{countryFlag}</span></span>
             </div>
             <div className="ref-featured-grid">
               {products.slice(0, 6).map((product) => <article className="ref-featured-card" key={product.id}>
