@@ -217,3 +217,10 @@ a.ref-need:hover .ref-solution-link{text-decoration:underline}
   .ref-language-chevron{font-size:9px}
   .ref-language-static{width:34px}
 }
+
+
+/* Accessible DigiNanba brand mark in the header */
+.ref-logo{display:inline-flex;align-items:center;flex:0 0 auto;line-height:0}
+.ref-logo-image{display:block;width:168px;height:auto;max-width:100%;object-fit:contain}
+@media(max-width:700px){.ref-logo-image{width:140px}}
+@media(max-width:420px){.ref-logo-image{width:122px}}
