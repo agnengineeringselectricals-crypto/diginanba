@@ -181,7 +181,7 @@ export default function HomePageClient({ initialProducts }: Props) {
   return <>
     <header className="ref-header">
       <div className="ref-container ref-nav">
-        <Link href="/" className="ref-logo"><span>Digi</span>Nanba</Link>
+        <Link href="/" className="ref-logo" aria-label="DigiNanba home"><img src="/diginanba-logo.svg" alt="DigiNanba — Global Digital Marketplace" className="ref-logo-image" width="168" height="36" /></Link>
         <form className="ref-searchbox ref-header-inline-search" onSubmit={runSearch}>
           <input value={heroQuery} onChange={(event) => setHeroQuery(event.target.value)} placeholder="Search products, skills or solutions…" aria-label="Search products" />
           <button className="ref-primary" type="submit">Search</button>
