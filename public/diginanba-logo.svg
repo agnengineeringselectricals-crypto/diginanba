@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="224" height="48" viewBox="0 0 224 48" role="img" aria-labelledby="logo-title logo-desc">
+  <title id="logo-title">DigiNanba</title>
+  <desc id="logo-desc">DigiNanba global digital marketplace logo in deep navy and strong blue.</desc>
+  <g transform="translate(2 4)">
+    <path d="M20 2H8C4.7 2 2 4.7 2 8v24c0 3.3 2.7 6 6 6h12c10 0 18-8 18-18S30 2 20 2Zm0 29H11V9h9a11 11 0 0 1 0 22Z" fill="#0B1538"/>
+    <path d="M24 13h9v9h-9zM33 22h7v7h-7z" fill="#0B63CE"/>
+    <path d="M26 31h7v7h-7z" fill="#0B63CE"/>
+  </g>
+  <text x="49" y="31" font-family="Arial, Helvetica, sans-serif" font-size="27" font-weight="800" letter-spacing="-1.1" fill="#0B1538">Digi</text>
+  <text x="98" y="31" font-family="Arial, Helvetica, sans-serif" font-size="27" font-weight="800" letter-spacing="-1.1" fill="#0B63CE">Nanba</text>
+</svg>
