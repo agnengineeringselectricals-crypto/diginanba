@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="268" height="52" viewBox="0 0 268 52" role="img" aria-labelledby="logo-title logo-desc">
   <title id="logo-title">DigiNanba</title>
-  <desc id="logo-desc">DigiNanba wordmark with a navy D, cyan pixel accents, navy igi, and solid purple Nanba.</desc>
+  <desc id="logo-desc">Navy D with cyan pixel accents, followed by navy igi and uniform purple Nanba.</desc>
   <g transform="translate(2 4)">
     <path d="M17 2H34C45 2 52 10 52 22S45 42 34 42H17V2Z" fill="#0B0B68"/>
     <path d="M25 10H33C40 10 44 14 44 22S40 34 33 34H25V10Z" fill="#FFFFFF"/>
@@ -13,6 +13,6 @@
     <rect x="21" y="36" width="5" height="5" fill="#06C8E8"/>
     <rect x="21" y="29" width="5" height="5" fill="#06C8E8"/>
   </g>
-  <text x="59" y="34" font-family="Arial, Helvetica, sans-serif" font-size="29" font-weight="800" letter-spacing="-1.15" fill="#0B1538">Digi</text>
-  <text x="110" y="34" font-family="Arial, Helvetica, sans-serif" font-size="29" font-weight="800" letter-spacing="-1.15" fill="#6D28D9">Nanba</text>
+  <text x="59" y="34" font-family="Arial, Helvetica, sans-serif" font-size="29" font-weight="800" letter-spacing="-1.15" fill="#0B1538">igi</text>
+  <text x="109" y="34" font-family="Arial, Helvetica, sans-serif" font-size="29" font-weight="800" letter-spacing="-1.15" fill="#6D28D9">Nanba</text>
 </svg>
