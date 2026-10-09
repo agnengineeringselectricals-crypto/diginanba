@@ -74,10 +74,12 @@ export default function HomePageClient({ initialProducts }: Props) {
   const [heroQuery, setHeroQuery] = useState('');
   const [category, setCategory] = useState('All');
   const [sort, setSort] = useState('featured');
-  const [marketOpen, setMarketOpen] = useState(false);
+  const [languageOpen, setLanguageOpen] = useState(false);
+  const [countryCode, setCountryCode] = useState('US');
   const [cartCount, setCartCount] = useState(0);
   const [languageCode, setLanguageCode] = useState('EN');
   const [countryFlag, setCountryFlag] = useState('🇺🇸');
+  const [selectedLanguage, setSelectedLanguage] = useState('English');
 
   useEffect(() => {
     let selected = localStorage.getItem('diginanba-market') as Market | null;
@@ -91,7 +93,9 @@ export default function HomePageClient({ initialProducts }: Props) {
     const localeCountry = language.split('-')[1]?.toUpperCase() || (selected === 'UK' ? 'GB' : 'US');
     const languagePart = (language.split('-')[0] || 'en').toUpperCase().slice(0, 2);
     const flags: Record<string, string> = { US:'🇺🇸', GB:'🇬🇧', IN:'🇮🇳', CA:'🇨🇦', AU:'🇦🇺', DE:'🇩🇪', FR:'🇫🇷', ES:'🇪🇸', IT:'🇮🇹', JP:'🇯🇵', CN:'🇨🇳', BR:'🇧🇷', AE:'🇦🇪', SG:'🇸🇬' };
+    setCountryCode(localeCountry);
     setLanguageCode(languagePart);
+    setSelectedLanguage(({en:'English',hi:'हिन्दी',ta:'தமிழ்',te:'తెలుగు',bn:'বাংলা',mr:'मराठी',gu:'ગુજરાતી',kn:'ಕನ್ನಡ',ml:'മലയാളം',pa:'ਪੰਜਾਬੀ',ur:'اردو',fr:'Français',de:'Deutsch',es:'Español',zh:'中文',ja:'日本語',pt:'Português',ar:'العربية'} as Record<string,string>)[language.split('-')[0]] || 'English');
     setCountryFlag(flags[localeCountry] || (selected === 'UK' ? '🇬🇧' : '🇺🇸'));
     try {
       const cart = JSON.parse(localStorage.getItem('diginanba-cart') || '[]');
@@ -145,11 +149,11 @@ export default function HomePageClient({ initialProducts }: Props) {
     window.location.href = `/explore?${params.toString()}`;
   }
 
-  function setSelectedMarket(value: Market) {
-    setMarket(value);
-    localStorage.setItem('diginanba-market', value);
-    setMarketOpen(false);
-  }
+  const languagesByCountry: Record<string, { code: string; label: string }[]> = {
+    IN: [{code:'EN',label:'English'},{code:'HI',label:'हिन्दी'},{code:'TA',label:'தமிழ்'},{code:'TE',label:'తెలుగు'},{code:'BN',label:'বাংলা'},{code:'MR',label:'मराठी'},{code:'GU',label:'ગુજરાતી'},{code:'KN',label:'ಕನ್ನಡ'},{code:'ML',label:'മലയാളം'},{code:'PA',label:'ਪੰਜਾਬੀ'},{code:'UR',label:'اردو'}],
+    CA: [{code:'EN',label:'English'},{code:'FR',label:'Français'}], SG: [{code:'EN',label:'English'},{code:'ZH',label:'中文'},{code:'MS',label:'Bahasa Melayu'},{code:'TA',label:'தமிழ்'}], AE: [{code:'AR',label:'العربية'},{code:'EN',label:'English'}], CH: [{code:'DE',label:'Deutsch'},{code:'FR',label:'Français'},{code:'IT',label:'Italiano'}], ZA: [{code:'EN',label:'English'},{code:'AF',label:'Afrikaans'},{code:'ZU',label:'isiZulu'},{code:'XH',label:'isiXhosa'}]
+  };
+  const availableLanguages = languagesByCountry[countryCode] || [{code:languageCode,label:selectedLanguage}];
 
   function addToCart(product: CatalogProduct) {
     try {
@@ -183,11 +187,18 @@ export default function HomePageClient({ initialProducts }: Props) {
           <button className="ref-primary" type="submit">Search</button>
         </form>
         <div className="ref-actions">
-          <button className="ref-language" onClick={() => setMarketOpen(true)} aria-label="Choose language and country">
-            <span>{languageCode}</span>
-            {market === 'UK' ? <svg className="ref-language-flag-svg" viewBox="0 0 24 16" aria-label="United Kingdom flag"><rect width="24" height="16" fill="#012169"/><path d="M0 0l24 16M24 0L0 16" stroke="#fff" strokeWidth="3"/><path d="M0 0l24 16M24 0L0 16" stroke="#c8102e" strokeWidth="1.3"/><path d="M12 0v16M0 8h24" stroke="#fff" strokeWidth="5"/><path d="M12 0v16M0 8h24" stroke="#c8102e" strokeWidth="3"/></svg> : <svg className="ref-language-flag-svg" viewBox="0 0 24 16" aria-label="United States flag"><rect width="24" height="16" fill="#fff"/><path d="M0 1h24M0 4h24M0 7h24M0 10h24M0 13h24M0 16h24" stroke="#b22234" strokeWidth="1.7"/><rect width="10.5" height="8.6" fill="#3c3b6e"/></svg>}
-          </button>
-          <Link className="ref-signin" href="/login">Sign in / Sign up</Link>
+          <div className="ref-language-wrap">
+            {availableLanguages.length > 1 ? <button className="ref-language" onClick={() => setLanguageOpen((open) => !open)} aria-expanded={languageOpen} aria-label="Choose language">
+              <span>{languageCode}</span><span className="ref-language-flag">{countryFlag}</span><span className="ref-language-chevron">▾</span>
+            </button> : <div className="ref-language ref-language-static" aria-label={`Language: ${selectedLanguage}`}>
+              <span>{languageCode}</span><span className="ref-language-flag">{countryFlag}</span>
+            </div>}
+            {languageOpen && availableLanguages.length > 1 && <div className="ref-language-menu" role="menu" aria-label="Available languages">
+              {availableLanguages.map((language) => <button key={language.code} role="menuitem" className={language.code === languageCode ? 'active' : ''} onClick={() => { setLanguageCode(language.code); setSelectedLanguage(language.label); setLanguageOpen(false); }}>{language.label}</button>)}
+            </div>}
+          </div>
+          <Link className="ref-login" href="/login">Log in</Link>
+          <Link className="ref-signup" href="/signup">Sign up</Link>
           <Link className="ref-cart" href="/cart" aria-label={`Cart, ${cartCount} items`}><svg className="ref-cart-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h2l2.2 11.2a2 2 0 0 0 2 1.6h7.9a2 2 0 0 0 1.9-1.4L21 8H7" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><circle cx="10" cy="20" r="1.3" fill="currentColor"/><circle cx="18" cy="20" r="1.3" fill="currentColor"/></svg><span className="ref-count">{cartCount}</span></Link>
         </div>
       </div>
@@ -251,9 +262,6 @@ export default function HomePageClient({ initialProducts }: Props) {
       <div><h4>For creators</h4><Link href="/signup">Become a seller</Link><Link href="/explore">Seller resources</Link><Link href="/account">Help center</Link></div>
     </div></footer>
 
-    {marketOpen && <div className="ref-modal-backdrop" onClick={() => setMarketOpen(false)}><div className="ref-modal" role="dialog" aria-modal="true" aria-labelledby="market-title" onClick={(event) => event.stopPropagation()}>
-      <button className="ref-close" onClick={() => setMarketOpen(false)} aria-label="Close market selector">✕</button><h2 id="market-title">Choose your market</h2><p>Automatic detection selects a market. You can override it at any time.</p>
-      <div className="ref-market-options"><button className={`ref-market-option ${market === 'US' ? 'active' : ''}`} onClick={() => setSelectedMarket('US')}>🇺🇸 <b>United States</b><br /><small>USD · US-localized product editions</small></button><button className={`ref-market-option ${market === 'UK' ? 'active' : ''}`} onClick={() => setSelectedMarket('UK')}>🇬🇧 <b>United Kingdom</b><br /><small>GBP · UK-localized product editions</small></button></div>
-    </div></div>}
+
   </>;
 }
