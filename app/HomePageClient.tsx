@@ -178,6 +178,10 @@ export default function HomePageClient({ initialProducts }: Props) {
     <header className="ref-header">
       <div className="ref-container ref-nav">
         <Link href="/" className="ref-logo"><span>Digi</span>Nanba</Link>
+        <form className="ref-searchbox ref-header-inline-search" onSubmit={runSearch}>
+          <input value={heroQuery} onChange={(event) => setHeroQuery(event.target.value)} placeholder="Search products, skills or solutions…" aria-label="Search products" />
+          <button className="ref-primary" type="submit">Search</button>
+        </form>
         <div className="ref-actions">
           <button className="ref-language" onClick={() => setMarketOpen(true)} aria-label="Choose language and country">
             <span>{languageCode}</span>
@@ -193,10 +197,6 @@ export default function HomePageClient({ initialProducts }: Props) {
       <section className="ref-hero">
         <div className="ref-container ref-market-grid">
           <div className="ref-market-left">
-            <form className="ref-searchbox ref-top-search" onSubmit={runSearch}>
-              <input value={heroQuery} onChange={(event) => setHeroQuery(event.target.value)} placeholder="Search for a product, skill, problem or goal…" aria-label="Search products" />
-              <button className="ref-primary" type="submit">Search</button>
-            </form>
             <h1>Find the digital tools that solve your problem.</h1>
             <div className="ref-category-panel" id="categories">
               <div className="ref-categories">{categories.map(([icon, label]) => <button className="ref-category" key={label} onClick={() => chooseCategory(label)}><span className="ref-category-icon">{icon}</span><span><strong>{label}</strong><small>Explore products</small></span></button>)}</div>
