@@ -187,19 +187,19 @@ export default function HomePageClient({ initialProducts }: Props) {
           <button className="ref-primary" type="submit">Search</button>
         </form>
         <div className="ref-actions">
+          <Link className="ref-login" href="/login">Log in</Link>
+          <Link className="ref-signup" href="/signup">Sign up</Link>
+          <Link className="ref-cart" href="/cart" aria-label={`Cart, ${cartCount} items`}><svg className="ref-cart-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h2l2.2 11.2a2 2 0 0 0 2 1.6h7.9a2 2 0 0 0 1.9-1.4L21 8H7" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><circle cx="10" cy="20" r="1.3" fill="currentColor"/><circle cx="18" cy="20" r="1.3" fill="currentColor"/></svg><span className="ref-count">{cartCount}</span></Link>
           <div className="ref-language-wrap">
-            {availableLanguages.length > 1 ? <button className="ref-language" onClick={() => setLanguageOpen((open) => !open)} aria-expanded={languageOpen} aria-label="Choose language">
-              <span>{languageCode}</span><span className="ref-language-flag">{countryFlag}</span><span className="ref-language-chevron">▾</span>
-            </button> : <div className="ref-language ref-language-static" aria-label={`Language: ${selectedLanguage}`}>
-              <span>{languageCode}</span><span className="ref-language-flag">{countryFlag}</span>
+            {availableLanguages.length > 1 ? <button className="ref-language" onClick={() => setLanguageOpen((open) => !open)} aria-expanded={languageOpen} aria-label={`Choose language for ${countryCode}`} title={`Language: ${selectedLanguage}`}>
+              <span className="ref-language-flag">{countryFlag}</span><span className="ref-language-chevron">▾</span>
+            </button> : <div className="ref-language ref-language-static" aria-label={`Country: ${countryCode}; language: ${selectedLanguage}`} title={`Language: ${selectedLanguage}`}>
+              <span className="ref-language-flag">{countryFlag}</span>
             </div>}
             {languageOpen && availableLanguages.length > 1 && <div className="ref-language-menu" role="menu" aria-label="Available languages">
               {availableLanguages.map((language) => <button key={language.code} role="menuitem" className={language.code === languageCode ? 'active' : ''} onClick={() => { setLanguageCode(language.code); setSelectedLanguage(language.label); setLanguageOpen(false); }}>{language.label}</button>)}
             </div>}
           </div>
-          <Link className="ref-login" href="/login">Log in</Link>
-          <Link className="ref-signup" href="/signup">Sign up</Link>
-          <Link className="ref-cart" href="/cart" aria-label={`Cart, ${cartCount} items`}><svg className="ref-cart-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h2l2.2 11.2a2 2 0 0 0 2 1.6h7.9a2 2 0 0 0 1.9-1.4L21 8H7" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><circle cx="10" cy="20" r="1.3" fill="currentColor"/><circle cx="18" cy="20" r="1.3" fill="currentColor"/></svg><span className="ref-count">{cartCount}</span></Link>
         </div>
       </div>
     </header>
