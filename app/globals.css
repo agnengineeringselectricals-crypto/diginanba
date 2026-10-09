@@ -203,3 +203,17 @@ a.ref-need:hover .ref-solution-link{text-decoration:underline}
   .ref-actions{gap:4px}
   .ref-login,.ref-signup{padding:6px;font-size:10px}
 }
+
+
+/* Country flag selector sits after the cart and no longer displays EN/GB text. */
+.ref-actions{display:flex;align-items:center}
+.ref-language{min-width:0;width:42px;height:38px;padding:6px;gap:4px;background:#fff;border:1px solid #dfe3ec;color:#172033}
+.ref-language-flag{font-size:21px;line-height:1}
+.ref-language-chevron{font-size:10px;color:#5b4df6;margin-left:0}
+.ref-language-static{width:38px;cursor:default}
+@media(max-width:560px){
+  .ref-language{width:36px;height:34px;padding:4px;gap:2px}
+  .ref-language-flag{font-size:18px}
+  .ref-language-chevron{font-size:9px}
+  .ref-language-static{width:34px}
+}
