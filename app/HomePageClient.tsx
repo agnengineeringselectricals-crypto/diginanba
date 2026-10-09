@@ -37,6 +37,15 @@ const needs = [
   ['💻', 'Build an app', 'Software / Code'],
 ] as const;
 
+const advancedSolutions = [
+  ['⚙️', 'Automate end-to-end workflows', 'Connect repeatable tasks into a smarter AI-assisted process.', 'automate-work-with-ai'],
+  ['📊', 'Build a cash-flow forecasting system', 'Plan runway, monitor margins and make better financial decisions.', 'manage-business-finances'],
+  ['📈', 'Optimize your marketing funnel', 'Improve lead capture, campaign planning and conversion tracking.', 'grow-sales-and-marketing'],
+  ['🗂️', 'Create a scalable project operating system', 'Coordinate milestones, resources, budgets and delivery in one workflow.', 'manage-projects'],
+  ['🧩', 'Launch a digital product business', 'Organize your offer, operating plan and repeatable launch process.', 'start-a-small-business'],
+  ['💻', 'Plan and validate a software product', 'Structure requirements, development tasks and launch preparation.', 'build-software'],
+] as const;
+
 const categoryMatches: Record<string, string[]> = {
   'Ebooks & Guides': ['Ebooks & Guides'],
   'Excel / Google Sheets': ['Excel / Google Sheets', 'Excel & Sheets'],
@@ -222,7 +231,7 @@ export default function HomePageClient({ initialProducts }: Props) {
       </div></section>
       <section className="ref-section ref-discovery-row"><div className="ref-container">
         <div className="ref-section-head"><div><h2>Popular solutions</h2><p>Start with an outcome, then discover the tools that help you get there.</p></div><Link href="/solutions" className="ref-view-product">Explore solutions →</Link></div>
-        <div className="ref-needs">{needs.slice(0,6).map(([icon,label,target])=><button className="ref-need" key={'solution-'+label} onClick={()=>chooseNeed(target)}>{icon} {label}</button>)}</div>
+        <div className="ref-needs">{advancedSolutions.map(([icon,title,description,slug])=><Link className="ref-need" key={slug} href={'/solutions/'+slug}><span className="ref-solution-icon">{icon}</span><strong>{title}</strong><span className="ref-solution-description">{description}</span><span className="ref-solution-link">Explore solution →</span></Link>)}</div>
       </div></section>
       <section className="ref-section ref-discovery-row"><div className="ref-container">
         <div className="ref-section-head"><div><h2>New & useful</h2><p>Fresh resources across business, career, learning and everyday work.</p></div><Link href="/guides" className="ref-view-product">Read DigiNanba Guides →</Link></div>
