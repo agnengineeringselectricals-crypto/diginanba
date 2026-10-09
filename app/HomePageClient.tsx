@@ -178,20 +178,16 @@ export default function HomePageClient({ initialProducts }: Props) {
           <Link className="ref-cart" href="/cart" aria-label={`Cart, ${cartCount} items`}><svg className="ref-cart-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h2l2.2 11.2a2 2 0 0 0 2 1.6h7.9a2 2 0 0 0 1.9-1.4L21 8H7" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><circle cx="10" cy="20" r="1.3" fill="currentColor"/><circle cx="18" cy="20" r="1.3" fill="currentColor"/></svg><span className="ref-count">{cartCount}</span></Link>
         </div>
       </div>
-      <div className="ref-search-row">
-        <div className="ref-container">
-          <form className="ref-searchbox ref-header-search" onSubmit={runSearch}>
-            <input value={heroQuery} onChange={(event) => setHeroQuery(event.target.value)} placeholder="Search for a product, skill, problem or goal…" aria-label="Search products" />
-            <button className="ref-primary" type="submit">Search</button>
-          </form>
-        </div>
-      </div>
     </header>
 
     <main id="home">
       <section className="ref-hero">
         <div className="ref-container ref-market-grid">
           <div className="ref-market-left">
+            <form className="ref-searchbox ref-top-search" onSubmit={runSearch}>
+              <input value={heroQuery} onChange={(event) => setHeroQuery(event.target.value)} placeholder="Search for a product, skill, problem or goal…" aria-label="Search products" />
+              <button className="ref-primary" type="submit">Search</button>
+            </form>
             <h1>Find the digital tools that solve your problem.</h1>
             <div className="ref-category-panel" id="categories">
               <div className="ref-categories">{categories.map(([icon, label]) => <button className="ref-category" key={label} onClick={() => chooseCategory(label)}><span className="ref-category-icon">{icon}</span><span><strong>{label}</strong><small>Explore products</small></span></button>)}</div>
