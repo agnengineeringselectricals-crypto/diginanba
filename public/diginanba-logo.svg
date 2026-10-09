@@ -1,11 +1,25 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="224" height="48" viewBox="0 0 224 48" role="img" aria-labelledby="logo-title logo-desc">
+<svg xmlns="http://www.w3.org/2000/svg" width="268" height="52" viewBox="0 0 268 52" role="img" aria-labelledby="logo-title logo-desc">
   <title id="logo-title">DigiNanba</title>
-  <desc id="logo-desc">DigiNanba global digital marketplace logo in deep navy and strong blue.</desc>
-  <g transform="translate(2 4)">
-    <path d="M20 2H8C4.7 2 2 4.7 2 8v24c0 3.3 2.7 6 6 6h12c10 0 18-8 18-18S30 2 20 2Zm0 29H11V9h9a11 11 0 0 1 0 22Z" fill="#0B1538"/>
-    <path d="M24 13h9v9h-9zM33 22h7v7h-7z" fill="#0B63CE"/>
-    <path d="M26 31h7v7h-7z" fill="#0B63CE"/>
+  <desc id="logo-desc">Modern global digital marketplace logo with a dynamic navy D, blue and cyan digital motion accents, and a blue-purple gradient wordmark.</desc>
+  <defs>
+    <linearGradient id="nanba-gradient" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2563EB"/>
+      <stop offset="0.55" stop-color="#4F46E5"/>
+      <stop offset="1" stop-color="#7C3AED"/>
+    </linearGradient>
+    <linearGradient id="motion-gradient" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#06B6D4"/>
+      <stop offset="1" stop-color="#2563EB"/>
+    </linearGradient>
+  </defs>
+  <g transform="translate(2 5)">
+    <path d="M22 1H9C4.6 1 1 4.6 1 9v25c0 4.4 3.6 8 8 8h13c12 0 21-9 21-20.5S34 1 22 1Zm0 32H12V10h10c7 0 12 4.7 12 11.5S29 33 22 33Z" fill="#0B1538"/>
+    <path d="M24 7c8 1 14 6 17 13l-5 2c-2-5-6-8-12-9Z" fill="url(#motion-gradient)"/>
+    <path d="M37 26h10v5H37z" fill="#2563EB"/>
+    <path d="M33 33h8v5h-8z" fill="#06B6D4"/>
+    <path d="M27 40h7v4h-7z" fill="#7C3AED"/>
   </g>
-  <text x="49" y="31" font-family="Arial, Helvetica, sans-serif" font-size="27" font-weight="800" letter-spacing="-1.1" fill="#0B1538">Digi</text>
-  <text x="98" y="31" font-family="Arial, Helvetica, sans-serif" font-size="27" font-weight="800" letter-spacing="-1.1" fill="#0B63CE">Nanba</text>
+  <text x="54" y="34" font-family="Arial, Helvetica, sans-serif" font-size="29" font-weight="800" letter-spacing="-1.15" fill="#0B1538">Digi</text>
+  <text x="105" y="34" font-family="Arial, Helvetica, sans-serif" font-size="29" font-weight="800" letter-spacing="-1.15" fill="url(#nanba-gradient)">Nanba</text>
+  <path d="M106 40h103" stroke="url(#nanba-gradient)" stroke-width="2.2" stroke-linecap="round" opacity=".85"/>
 </svg>
