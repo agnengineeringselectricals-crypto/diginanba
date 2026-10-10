@@ -66,19 +66,7 @@ export default function CreatorEarningsShowcase() {
         <div className="dn-million-rows">{creatorRevenueScenario.map((item) => <div className="dn-million-row" key={item.category}>
           <div className="dn-million-label"><span aria-hidden="true">{item.icon}</span><strong>{item.category}</strong></div>
           <div className="dn-million-bar-track" aria-label={item.share + ' of scenario total'}><span style={{ width: item.share }} /></div>
-          <strong className="dn-million-amount">{'<div><span className="dn-creator-kicker">Made for more people</span><h3>There’s a place for your talent.</h3></div><Link href="/signup">Become a creator →</Link></div>
-      <div className="dn-audience-track" aria-label="Creator communities">
-        {audiences.map((audience) => <Link href={audience.href} className="dn-audience-card" key={audience.title}>
-          <span className="dn-audience-icon" aria-hidden="true">{audience.icon}</span>
-          <strong>{audience.title}</strong>
-          <span>{audience.copy}</span>
-          <em>Explore opportunities <b aria-hidden="true">↗</b></em>
-        </Link>)}
-      </div>
-    </div>
-  </section>;
-}
- + item.amount.toLocaleString('en-US')}</strong>
+          <strong className="dn-million-amount">{'$' + item.amount.toLocaleString('en-US')}</strong>
           <span className="dn-million-share">{item.share}</span>
         </div>)}</div>
         <div className="dn-million-foot"><span>Gross sales before creator expenses, platform fees, refunds and taxes.</span><span>Scenario total: <strong>$1,000,000</strong></span></div>
