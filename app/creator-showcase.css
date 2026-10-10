@@ -21,3 +21,10 @@
 @media(max-width:1050px){.dn-audience-track{grid-template-columns:repeat(7,minmax(180px,1fr))}}
 @media(max-width:700px){.dn-creator-showcase{padding:30px 0 34px}.dn-creator-wrap{padding:0 16px}.dn-creator-intro h2{font-size:29px;letter-spacing:-.8px}.dn-creator-intro>p{font-size:14px}.dn-possibility-strip{gap:7px;padding:10px 11px;font-size:12px}.dn-possibility-strip strong{min-width:0}.dn-possibility-dots{width:100%;margin-left:0}.dn-earnings-card{grid-template-columns:1fr;gap:14px;padding:18px;border-radius:16px}.dn-earnings-total,.dn-earnings-note,.dn-creator-cta{grid-column:1;grid-row:auto}.dn-earnings-total{border-left:0;border-top:1px solid #3b455e;padding:14px 0 0}.dn-earnings-total strong{font-size:32px}.dn-creator-cta{justify-self:stretch;justify-content:space-between}.dn-audience-heading{align-items:flex-start;flex-direction:column;margin-top:28px}.dn-audience-heading h3{font-size:22px}.dn-audience-track{grid-template-columns:repeat(7,minmax(190px,78vw));gap:10px}.dn-audience-card{min-height:176px}}
 @media(prefers-reduced-motion:reduce){.dn-possibility-strip strong,.dn-audience-card{animation:none;transition:none}}
+
+/* Creative Market-inspired social sharing ribbon */
+.dn-social-ribbon{display:flex;justify-content:space-between;align-items:center;gap:20px;padding-top:22px;margin-top:24px;border-top:1px solid #2b3348}
+.dn-social-copy{display:flex;flex-direction:column;gap:5px}.dn-social-copy strong{color:#fff;font-size:15px}.dn-social-copy span{color:#aeb7cc;font-size:12px}
+.dn-social-links{display:flex;align-items:center;gap:9px}.dn-social-links a{width:39px;height:39px;display:grid;place-items:center;border-radius:12px;background:#202a40;border:1px solid #35405a;color:#e8eaff;transition:transform .16s ease,background .16s ease,border-color .16s ease}
+.dn-social-links a:hover{transform:translateY(-3px);background:#5b4df6;border-color:#8177ff;color:#fff}.dn-social-links svg{width:18px;height:18px;fill:currentColor}
+@media(max-width:600px){.dn-social-ribbon{align-items:flex-start;flex-direction:column;gap:14px;padding-top:18px}.dn-social-links{gap:8px}.dn-social-links a{width:38px;height:38px}}
