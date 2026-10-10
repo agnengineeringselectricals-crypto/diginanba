@@ -1,6 +1,5 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import Link from 'next/link';
 
 const audiences = [
@@ -14,13 +13,13 @@ const audiences = [
 ];
 
 const creatorEarningExamples = [
-  { icon: '🧒', category: 'Kids & young creators', amount: '$450', detail: 'Digital art, printables & learning kits' },
-  { icon: '🏡', category: 'Homemakers', amount: '$1,250', detail: 'Recipes, planners & craft patterns' },
-  { icon: '🎓', category: 'Students', amount: '$780', detail: 'Study notes, guides & revision tools' },
-  { icon: '🧑‍💻', category: 'Freelancers', amount: '$3,600', detail: 'Templates, presets & professional kits' },
-  { icon: '🚀', category: 'Entrepreneurs', amount: '$5,200', detail: 'Business resources & digital products' },
-  { icon: '🏢', category: 'Businesses & enterprises', amount: '$8,900', detail: 'Team toolkits, licences & training' },
-  { icon: '🧑‍🏫', category: 'Teachers & educators', amount: '$1,850', detail: 'Courses, worksheets & lesson packs' },
+  { icon: '🧒', category: 'Kids & young creators', amount: '$25–$200', detail: 'Monthly scenario · supervised art, printables & learning projects' },
+  { icon: '🏡', category: 'Homemakers', amount: '$100–$800', detail: 'Monthly scenario · recipe ebooks, planners & craft patterns' },
+  { icon: '🎓', category: 'Students', amount: '$50–$500', detail: 'Monthly scenario · original study aids, notes & templates' },
+  { icon: '🧑‍💻', category: 'Freelancers', amount: '$300–$2,500', detail: 'Monthly scenario · design packs, presets & client toolkits' },
+  { icon: '🚀', category: 'Entrepreneurs', amount: '$500–$5,000+', detail: 'Monthly scenario · specialist guides, systems & business kits' },
+  { icon: '🏢', category: 'Businesses & enterprises', amount: '$1,000–$10,000+', detail: 'Monthly scenario · team licences, training & workflow tools' },
+  { icon: '🧑‍🏫', category: 'Teachers & educators', amount: '$100–$1,200', detail: 'Monthly scenario · lesson packs, worksheets & courses' },
 ];
 
 const possibilityRows = [
@@ -43,9 +42,9 @@ export default function CreatorEarningsShowcase() {
       </div>
 
       <div className="dn-earning-examples">
-        <div className="dn-earning-examples-heading"><div><span className="dn-creator-kicker">Creator paths</span><h3>Explore earning possibilities by creator type</h3></div><p>Example monthly earning scenarios for different creator journeys. Actual results vary with audience, product quality, pricing and demand.</p></div>
+        <div className="dn-earning-examples-heading"><div><span className="dn-creator-kicker">Creator paths</span><h3>Digital income possibilities by creator type</h3></div><p>The creator economy is growing, but earnings are uneven. These are planning scenarios calculated from possible sales volumes and prices—not verified averages or guaranteed income.</p></div>
         <div className="dn-earning-grid">{creatorEarningExamples.map((item) => <article className="dn-earning-example" key={item.category}><span className="dn-earning-example-icon" aria-hidden="true">{item.icon}</span><div className="dn-earning-example-copy"><strong>{item.category}</strong><small>{item.detail}</small></div><b>{item.amount}</b></article>)}</div>
-        <div className="dn-earning-examples-footer"><span>Explore a path that fits your skills</span><Link className="dn-creator-cta" href="/signup">Start your creator journey <span aria-hidden="true">→</span></Link></div>
+        <div className="dn-earning-examples-footer"><span>Research: CreatorIQ 2026 · NeoReach 2025 · Etsy Seller Census</span><Link className="dn-creator-cta" href="/signup">Start your creator journey <span aria-hidden="true">→</span></Link></div>
       </div>
 
       <div className="dn-audience-heading"><div><span className="dn-creator-kicker">Made for more people</span><h3>There’s a place for your talent.</h3></div><Link href="/signup">Become a creator →</Link></div>
