@@ -254,6 +254,8 @@ export default function HomePageClient({ initialProducts }: Props) {
         </div>
       </section>
 
+      <CreatorEarningsShowcase />
+
       <section className="ref-section ref-discovery-row"><div className="ref-container">
         <div className="ref-section-head"><div><h2>Trending digital products</h2><p>Popular practical resources shoppers are exploring now.</p></div><Link href="/explore" className="ref-view-product">View all →</Link></div>
         <div className="ref-products ref-horizontal">{products.slice(0,4).map((product)=><article className="ref-product" key={'trend-'+product.id}><div className="ref-product-body"><span className="ref-tag">Trending</span><h3><Link href={'/products/'+product.slug+'?market='+market}>{product.title}</Link></h3><p>{product.description}</p><div className="ref-price-row"><span className="ref-price">{product.price}</span><button className="ref-view-product" onClick={()=>addToCart(product)}>Add to cart</button></div></div></article>)}</div>
@@ -278,6 +280,15 @@ export default function HomePageClient({ initialProducts }: Props) {
       <div><h4>Marketplace</h4><Link href="/explore">Explore products</Link><Link href="/categories/ebooks-guides">Categories</Link><Link href="/solutions">Shop by goal</Link><Link href="/guides">DigiNanba Guides</Link></div>
       <div><h4>Account</h4><Link href="/login">Log in</Link><Link href="/signup">Create account</Link><Link href="/cart">Cart</Link></div>
       <div><h4>For creators</h4><Link href="/signup">Become a seller</Link><Link href="/explore">Seller resources</Link><Link href="/account">Help center</Link></div>
+    </div>
+    <div className="ref-container dn-social-ribbon">
+      <div className="dn-social-copy"><strong>Share DigiNanba</strong><span>Help more creators discover new possibilities.</span></div>
+      <div className="dn-social-links" aria-label="Share DigiNanba on social media">
+        <a href="https://www.facebook.com/sharer/sharer.php?u=https%3A%2F%2Fdiginanba.com" target="_blank" rel="noreferrer" aria-label="Share on Facebook" title="Share on Facebook"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13.5 21v-8h2.7l.4-3.1h-3.1v-2c0-.9.3-1.5 1.6-1.5h1.7V3.6c-.3 0-1.3-.1-2.5-.1-2.5 0-4.2 1.5-4.2 4.3v2.1H7.3V13h2.8v8z"/></svg></a>
+        <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fdiginanba.com" target="_blank" rel="noreferrer" aria-label="Share on LinkedIn" title="Share on LinkedIn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.2 3.5a1.8 1.8 0 1 0 0 3.6 1.8 1.8 0 0 0 0-3.6ZM3.6 9h3.2v11H3.6zm5.2 0h3.1v1.5h.1a3.4 3.4 0 0 1 3.1-1.7c3.3 0 3.9 2.1 3.9 4.8V20h-3.2v-5.7c0-1.4 0-3-1.9-3s-2.1 1.5-2.1 2.9V20H8.8z"/></svg></a>
+        <a href="https://twitter.com/intent/tweet?url=https%3A%2F%2Fdiginanba.com&text=Discover%20digital%20tools%20and%20creator%20resources%20on%20DigiNanba" target="_blank" rel="noreferrer" aria-label="Share on X" title="Share on X"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.9 3H22l-6.8 7.8L23.2 21h-6.3L12 14.8 6.5 21H3.4l7.3-8.4L2.8 3h6.4l4.5 5.9zm-1.1 16h1.7L8.2 4.9H6.4z"/></svg></a>
+        <a href="https://api.whatsapp.com/send?text=Discover%20DigiNanba%20digital%20products%20https%3A%2F%2Fdiginanba.com" target="_blank" rel="noreferrer" aria-label="Share on WhatsApp" title="Share on WhatsApp"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a9.7 9.7 0 0 0-8.3 14.8L2.4 22l5.4-1.4A9.8 9.8 0 1 0 12 2Zm0 17.8a8 8 0 0 1-4.1-1.1l-.3-.2-3.2.8.9-3.1-.2-.3A8 8 0 1 1 12 19.8Zm4.4-6c-.2-.1-1.4-.7-1.6-.8-.2-.1-.4-.1-.5.1s-.6.8-.8 1c-.1.2-.3.2-.5.1a6.5 6.5 0 0 1-1.9-1.2 7.1 7.1 0 0 1-1.3-1.6c-.1-.2 0-.3.1-.5l.4-.4.2-.4c.1-.1 0-.3 0-.4l-.7-1.7c-.2-.5-.4-.4-.5-.4h-.5c-.2 0-.4.1-.6.3s-.8.8-.8 2 .8 2.3.9 2.5a9.1 9.1 0 0 0 3.5 3.1c.5.2.9.4 1.2.4.5.1 1 .1 1.4-.1.4-.2 1.4-.6 1.6-1.2.2-.6.2-1.1.1-1.2s-.2-.2-.4-.3Z"/></svg></a>
+      </div>
     </div></footer>
 
 
