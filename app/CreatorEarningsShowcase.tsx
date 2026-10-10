@@ -14,12 +14,13 @@ const audiences = [
 ];
 
 const creatorEarningExamples = [
-  { icon: '📚', category: 'Ebooks & guides', amount: '$2,450', detail: 'Example monthly sales' },
-  { icon: '📊', category: 'Templates & spreadsheets', amount: '$1,980', detail: 'Example monthly sales' },
-  { icon: '🎨', category: 'Design assets', amount: '$1,760', detail: 'Example monthly sales' },
-  { icon: '🤖', category: 'AI tools & workflows', amount: '$2,890', detail: 'Example monthly sales' },
-  { icon: '🎓', category: 'Courses & learning', amount: '$3,240', detail: 'Example monthly sales' },
-  { icon: '💻', category: 'Software & code', amount: '$2,650', detail: 'Example monthly sales' },
+  { icon: '🧒', category: 'Kids & young creators', amount: '$450', detail: 'Digital art, printables & learning kits' },
+  { icon: '🏡', category: 'Homemakers', amount: '$1,250', detail: 'Recipes, planners & craft patterns' },
+  { icon: '🎓', category: 'Students', amount: '$780', detail: 'Study notes, guides & revision tools' },
+  { icon: '🧑‍💻', category: 'Freelancers', amount: '$3,600', detail: 'Templates, presets & professional kits' },
+  { icon: '🚀', category: 'Entrepreneurs', amount: '$5,200', detail: 'Business resources & digital products' },
+  { icon: '🏢', category: 'Businesses & enterprises', amount: '$8,900', detail: 'Team toolkits, licences & training' },
+  { icon: '🧑‍🏫', category: 'Teachers & educators', amount: '$1,850', detail: 'Courses, worksheets & lesson packs' },
 ];
 
 const possibilityRows = [
@@ -42,9 +43,9 @@ export default function CreatorEarningsShowcase() {
       </div>
 
       <div className="dn-earning-examples">
-        <div className="dn-earning-examples-heading"><div><span className="dn-creator-kicker">Ideas across categories</span><h3>What could your digital products earn?</h3></div><p>Illustrative monthly sales examples, not a promise of income. Results vary by product, pricing and demand.</p></div>
+        <div className="dn-earning-examples-heading"><div><span className="dn-creator-kicker">Creator paths</span><h3>Explore earning possibilities by creator type</h3></div><p>Example monthly earning scenarios for different creator journeys. Actual results vary with audience, product quality, pricing and demand.</p></div>
         <div className="dn-earning-grid">{creatorEarningExamples.map((item) => <article className="dn-earning-example" key={item.category}><span className="dn-earning-example-icon" aria-hidden="true">{item.icon}</span><div className="dn-earning-example-copy"><strong>{item.category}</strong><small>{item.detail}</small></div><b>{item.amount}</b></article>)}</div>
-        <div className="dn-earning-examples-footer"><span>Example figures for planning inspiration</span><Link className="dn-creator-cta" href="/signup">Start your creator journey <span aria-hidden="true">→</span></Link></div>
+        <div className="dn-earning-examples-footer"><span>Explore a path that fits your skills</span><Link className="dn-creator-cta" href="/signup">Start your creator journey <span aria-hidden="true">→</span></Link></div>
       </div>
 
       <div className="dn-audience-heading"><div><span className="dn-creator-kicker">Made for more people</span><h3>There’s a place for your talent.</h3></div><Link href="/signup">Become a creator →</Link></div>
