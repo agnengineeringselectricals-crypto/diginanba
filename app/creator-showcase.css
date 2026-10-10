@@ -28,3 +28,5 @@
 .dn-social-links{display:flex;align-items:center;gap:9px}.dn-social-links a{width:39px;height:39px;display:grid;place-items:center;border-radius:12px;background:#202a40;border:1px solid #35405a;color:#e8eaff;transition:transform .16s ease,background .16s ease,border-color .16s ease}
 .dn-social-links a:hover{transform:translateY(-3px);background:#5b4df6;border-color:#8177ff;color:#fff}.dn-social-links svg{width:18px;height:18px;fill:currentColor}
 @media(max-width:600px){.dn-social-ribbon{align-items:flex-start;flex-direction:column;gap:14px;padding-top:18px}.dn-social-links{gap:8px}.dn-social-links a{width:38px;height:38px}}
+
+.dn-demo-label{display:inline-flex;align-self:flex-start;margin-top:7px;padding:4px 7px;border-radius:5px;background:#3b455e;color:#e0e5f4;font-size:9px;letter-spacing:.06em;font-weight:900}
