@@ -204,6 +204,22 @@ export default function HomePageClient({ initialProducts }: Props) {
       </div>
     </header>
 
+    <nav className="ref-category-nav" aria-label="Browse digital product categories">
+      <div className="ref-category-nav-inner">
+        <Link href="/explore">Explore</Link>
+        <Link href="/explore?q=Templates">Templates</Link>
+        <Link href="/explore?q=Business">Business</Link>
+        <Link href="/explore?q=Finance">Finance &amp; Accounting</Link>
+        <Link href="/explore?q=AI">AI &amp; Automation</Link>
+        <Link href="/explore?q=Office">Office Productivity</Link>
+        <Link href="/explore?q=Learning">Learning</Link>
+        <Link href="/explore?q=Design">Design</Link>
+        <Link href="/explore?q=Marketing">Marketing</Link>
+        <Link href="/explore?q=Engineering">Engineering &amp; CAD</Link>
+        <Link href="/guides">Guides</Link>
+      </div>
+    </nav>
+
     <main id="home">
       <section className="ref-hero">
         <div className="ref-container ref-market-grid">
