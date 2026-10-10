@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import type { CatalogProduct } from '@/lib/catalog';
 import type { Market } from '@/lib/market';
+import CreatorEarningsShowcase from './CreatorEarningsShowcase';
+import './creator-showcase.css';
 
 const categories = [
   ['📚', 'Ebooks & Guides', 'Ebooks & Guides'],
