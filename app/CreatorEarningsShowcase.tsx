@@ -13,6 +13,15 @@ const audiences = [
   { icon: '🧒', title: 'Young creators', copy: 'Discover age-appropriate ways to learn and create.', href: '/explore?q=creative' },
 ];
 
+const creatorEarningExamples = [
+  { icon: '📚', category: 'Ebooks & guides', amount: '$2,450', detail: 'Example monthly sales' },
+  { icon: '📊', category: 'Templates & spreadsheets', amount: '$1,980', detail: 'Example monthly sales' },
+  { icon: '🎨', category: 'Design assets', amount: '$1,760', detail: 'Example monthly sales' },
+  { icon: '🤖', category: 'AI tools & workflows', amount: '$2,890', detail: 'Example monthly sales' },
+  { icon: '🎓', category: 'Courses & learning', amount: '$3,240', detail: 'Example monthly sales' },
+  { icon: '💻', category: 'Software & code', amount: '$2,650', detail: 'Example monthly sales' },
+];
+
 const possibilityRows = [
   [['📒','notion template'],['🧵','textures'],['🖌️','procreate'],['🧊','3d model'],['🎙️','hypnosis'],['🎵','music'],['📷','stock photos'],['🧩','digital planner'],['🎨','illustration'],['🧠','AI prompts']],
   [['💪','fitness'],['🚀','programming'],['🎲','sci-fi'],['🎮','vrchat'],['🔊','ableton'],['📚','certification exams'],['🎬','video presets'],['🧶','crochet'],['🗂️','notion dashboard'],['📈','business tools']],
@@ -32,14 +41,10 @@ export default function CreatorEarningsShowcase() {
         </div>)}
       </div>
 
-      <div className="dn-earnings-card">
-        <div className="dn-earnings-top">
-          <span className="dn-earnings-icon">↗</span>
-          <div><span className="dn-earnings-label">DigiNanba creator community</span><h3>Every creator’s progress matters.</h3></div>
-        </div>
-        <div className="dn-earnings-total"><span>Creator earnings · illustrative demo</span><strong>$12,840+</strong><small className="dn-demo-label">SAMPLE DISPLAY · NOT LIVE EARNINGS</small></div>
-        <p className="dn-earnings-note">Example figure shown to preview how creator earnings could look. This is not actual DigiNanba sales or verified creator income; live totals will replace it when real sales reporting is connected.</p>
-        <Link className="dn-creator-cta" href="/signup">Start your creator journey <span aria-hidden="true">→</span></Link>
+      <div className="dn-earning-examples">
+        <div className="dn-earning-examples-heading"><div><span className="dn-creator-kicker">Ideas across categories</span><h3>What could your digital products earn?</h3></div><p>Illustrative monthly sales examples, not a promise of income. Results vary by product, pricing and demand.</p></div>
+        <div className="dn-earning-grid">{creatorEarningExamples.map((item) => <article className="dn-earning-example" key={item.category}><span className="dn-earning-example-icon" aria-hidden="true">{item.icon}</span><div className="dn-earning-example-copy"><strong>{item.category}</strong><small>{item.detail}</small></div><b>{item.amount}</b></article>)}</div>
+        <div className="dn-earning-examples-footer"><span>Example figures for planning inspiration</span><Link className="dn-creator-cta" href="/signup">Start your creator journey <span aria-hidden="true">→</span></Link></div>
       </div>
 
       <div className="dn-audience-heading"><div><span className="dn-creator-kicker">Made for more people</span><h3>There’s a place for your talent.</h3></div><Link href="/signup">Become a creator →</Link></div>
