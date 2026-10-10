@@ -22,6 +22,16 @@ const creatorEarningExamples = [
   { icon: '🧑‍🏫', category: 'Teachers & educators', amount: '$100–$1,200', detail: 'Monthly scenario · lesson packs, worksheets & courses' },
 ];
 
+const creatorRevenueScenario = [
+  { icon: '🏢', category: 'Businesses & enterprises', amount: 320000, share: '32%' },
+  { icon: '🚀', category: 'Entrepreneurs & startups', amount: 240000, share: '24%' },
+  { icon: '🧑‍💻', category: 'Freelancers & consultants', amount: 160000, share: '16%' },
+  { icon: '🧑‍🏫', category: 'Teachers & educators', amount: 100000, share: '10%' },
+  { icon: '🎓', category: 'Students & young creators', amount: 70000, share: '7%' },
+  { icon: '🏡', category: 'Homemakers & hobby creators', amount: 60000, share: '6%' },
+  { icon: '🎨', category: 'Designers & other creators', amount: 50000, share: '5%' },
+];
+
 const possibilityRows = [
   [['📒','notion template'],['🧵','textures'],['🖌️','procreate'],['🧊','3d model'],['🎙️','hypnosis'],['🎵','music'],['📷','stock photos'],['🧩','digital planner'],['🎨','illustration'],['🧠','AI prompts']],
   [['💪','fitness'],['🚀','programming'],['🎲','sci-fi'],['🎮','vrchat'],['🔊','ableton'],['📚','certification exams'],['🎬','video presets'],['🧶','crochet'],['🗂️','notion dashboard'],['📈','business tools']],
@@ -46,6 +56,33 @@ export default function CreatorEarningsShowcase() {
         <div className="dn-earning-grid">{creatorEarningExamples.map((item) => <article className="dn-earning-example" key={item.category}><span className="dn-earning-example-icon" aria-hidden="true">{item.icon}</span><div className="dn-earning-example-copy"><strong>{item.category}</strong><small>{item.detail}</small></div><b>{item.amount}</b></article>)}</div>
         <div className="dn-earning-examples-footer"><div className="dn-earning-sources"><span>Market research:</span><a href="https://www.creatoriq.com/press/releases/state-of-creator-compensation-" target="_blank" rel="noreferrer">CreatorIQ creator compensation</a><a href="https://neoreach.com/reports/creator-earnings-report-2025/" target="_blank" rel="noreferrer">NeoReach earnings report</a><a href="https://investors.etsy.com/sec-filings/all-sec-filings/content/0001370637-25-000017/etsy-20241231.htm" target="_blank" rel="noreferrer">Etsy seller census</a></div><Link className="dn-creator-cta" href="/signup">Start your creator journey <span aria-hidden="true">→</span></Link></div>
       </div>
+
+      <section className="dn-million-scenario" aria-labelledby="dn-million-title">
+        <div className="dn-million-heading">
+          <div><span className="dn-creator-kicker">Marketplace growth scenario</span><h3 id="dn-million-title">What $1 million in creator sales could look like</h3></div>
+          <div className="dn-million-total"><small>Illustrative annual gross sales</small><strong>$1,000,000</strong><span>100% of scenario total</span></div>
+        </div>
+        <p className="dn-million-note">A planning example showing how annual sales could be distributed across creator communities. These are illustrative figures, not actual DigiNanba transaction data, verified earnings, or a promise of income.</p>
+        <div className="dn-million-rows">{creatorRevenueScenario.map((item) => <div className="dn-million-row" key={item.category}>
+          <div className="dn-million-label"><span aria-hidden="true">{item.icon}</span><strong>{item.category}</strong></div>
+          <div className="dn-million-bar-track" aria-label={item.share + ' of scenario total'}><span style={{ width: item.share }} /></div>
+          <strong className="dn-million-amount">{'<div><span className="dn-creator-kicker">Made for more people</span><h3>There’s a place for your talent.</h3></div><Link href="/signup">Become a creator →</Link></div>
+      <div className="dn-audience-track" aria-label="Creator communities">
+        {audiences.map((audience) => <Link href={audience.href} className="dn-audience-card" key={audience.title}>
+          <span className="dn-audience-icon" aria-hidden="true">{audience.icon}</span>
+          <strong>{audience.title}</strong>
+          <span>{audience.copy}</span>
+          <em>Explore opportunities <b aria-hidden="true">↗</b></em>
+        </Link>)}
+      </div>
+    </div>
+  </section>;
+}
+ + item.amount.toLocaleString('en-US')}</strong>
+          <span className="dn-million-share">{item.share}</span>
+        </div>)}</div>
+        <div className="dn-million-foot"><span>Gross sales before creator expenses, platform fees, refunds and taxes.</span><span>Scenario total: <strong>$1,000,000</strong></span></div>
+      </section>
 
       <div className="dn-audience-heading"><div><span className="dn-creator-kicker">Made for more people</span><h3>There’s a place for your talent.</h3></div><Link href="/signup">Become a creator →</Link></div>
       <div className="dn-audience-track" aria-label="Creator communities">
