@@ -75,3 +75,25 @@
 .dn-earning-sources a{color:#d8d3ff;text-decoration:underline;text-underline-offset:3px;font-size:11px}
 .dn-earning-sources a:hover{color:#fff}
 @media(max-width:520px){.dn-earning-sources{align-items:flex-start;flex-direction:column;gap:9px}}
+
+
+/* Illustrative $1M creator sales scenario */
+.dn-million-scenario{margin:18px 0 32px;padding:25px;background:#fff;border:1px solid #e7e4df;border-radius:18px;color:#151515}
+.dn-million-heading{display:flex;justify-content:space-between;align-items:center;gap:20px}
+.dn-million-heading h3{font-size:clamp(22px,2.4vw,31px);letter-spacing:-.8px;line-height:1.15;margin:7px 0 0}
+.dn-million-total{display:flex;flex-direction:column;align-items:flex-end;gap:3px;white-space:nowrap}
+.dn-million-total small,.dn-million-total span{font-size:11px;color:#666}
+.dn-million-total strong{font-size:clamp(28px,3.2vw,42px);letter-spacing:-1.5px;color:#4f46e5;line-height:1.1}
+.dn-million-note{margin:15px 0 22px;max-width:880px;color:#626262;font-size:12px;line-height:1.6}
+.dn-million-rows{display:flex;flex-direction:column;gap:15px}
+.dn-million-row{display:grid;grid-template-columns:minmax(200px,1.05fr) minmax(100px,1fr) 110px 42px;align-items:center;gap:15px}
+.dn-million-label{display:flex;align-items:center;gap:10px;min-width:0}
+.dn-million-label>span{width:34px;height:34px;display:grid;place-items:center;background:#f1efff;border-radius:10px;font-size:19px;flex:none}
+.dn-million-label strong{font-size:13px;line-height:1.3}
+.dn-million-bar-track{height:9px;background:#efefef;border-radius:999px;overflow:hidden}
+.dn-million-bar-track span{display:block;height:100%;min-width:4px;border-radius:999px;background:linear-gradient(90deg,#6257ef,#a39bff)}
+.dn-million-amount{font-size:14px;text-align:right;font-variant-numeric:tabular-nums}
+.dn-million-share{font-size:11px;color:#666;text-align:right;font-variant-numeric:tabular-nums}
+.dn-million-foot{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:20px;padding-top:15px;border-top:1px solid #ececec;color:#666;font-size:11px;line-height:1.5}
+.dn-million-foot strong{color:#171717}
+@media(max-width:700px){.dn-million-scenario{padding:17px;margin-top:14px;border-radius:15px}.dn-million-heading{align-items:flex-start;flex-direction:column;gap:14px}.dn-million-total{align-items:flex-start}.dn-million-row{grid-template-columns:minmax(0,1fr) auto;gap:8px 12px;padding:11px 0;border-bottom:1px solid #f0f0f0}.dn-million-label{grid-column:1;grid-row:1}.dn-million-amount{grid-column:2;grid-row:1;font-size:14px}.dn-million-bar-track{grid-column:1;grid-row:2}.dn-million-share{grid-column:2;grid-row:2}.dn-million-label strong{font-size:12px}.dn-million-foot{flex-direction:column;gap:7px}}
