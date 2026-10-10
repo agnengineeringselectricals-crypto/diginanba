@@ -234,3 +234,39 @@ a.ref-need:hover .ref-solution-link{text-decoration:underline}
 @media(max-width:900px){.ref-category-nav{top:116px}.ref-category-nav-inner{justify-content:flex-start;gap:24px;padding:0 18px}}
 @media(max-width:700px){.ref-category-nav{top:108px}.ref-category-nav-inner{min-height:44px;gap:20px;padding:0 14px}.ref-category-nav-inner a{font-size:13px;padding:13px 0 11px}}
 @media(max-width:420px){.ref-category-nav{top:104px}.ref-category-nav-inner{gap:18px}}
+
+
+/* Full-width homepage rows: use the available viewport width without fixed-width grid overflow. */
+@media(min-width:1201px){
+  .ref-container{max-width:1440px;width:100%}
+}
+.ref-section>.ref-container,
+.ref-hero>.ref-container{width:100%}
+.ref-products,
+.ref-horizontal,
+.ref-needs,
+.ref-categories,
+.ref-market-grid,
+.ref-featured-grid{width:100%;min-width:0;box-sizing:border-box}
+.ref-horizontal{grid-template-columns:repeat(4,minmax(0,1fr));overflow:visible}
+.ref-products{grid-template-columns:repeat(3,minmax(0,1fr))}
+.ref-needs{grid-template-columns:repeat(4,minmax(0,1fr))}
+.ref-featured-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+.ref-product,.ref-need,.ref-category,.ref-featured-card{min-width:0;max-width:100%;box-sizing:border-box}
+@media(max-width:900px){
+  .ref-horizontal{grid-template-columns:repeat(2,minmax(0,1fr));overflow:visible}
+  .ref-products{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .ref-needs{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .ref-featured-grid{grid-template-columns:repeat(2,minmax(0,1fr));max-height:none}
+}
+@media(max-width:560px){
+  .ref-horizontal{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .ref-products{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .ref-needs{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+  .ref-categories{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .ref-featured-grid{grid-template-columns:repeat(2,minmax(0,1fr));max-height:none;gap:9px}
+  .ref-container{padding-left:14px;padding-right:14px}
+}
+@media(max-width:360px){
+  .ref-horizontal,.ref-products,.ref-needs{grid-template-columns:minmax(0,1fr)}
+}
