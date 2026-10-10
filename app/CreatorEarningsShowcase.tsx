@@ -13,32 +13,23 @@ const audiences = [
   { icon: '🧒', title: 'Young creators', copy: 'Discover age-appropriate ways to learn and create.', href: '/explore?q=creative' },
 ];
 
-const possibilities = [
-  'Templates', 'Ebooks & guides', 'Spreadsheets', 'Design assets', 'Online courses',
-  'AI workflows', 'Printables', 'Code & software', 'Business kits', 'Audio & video',
-  'Engineering tools', 'Learning resources',
-];
+const possibilityRows = [
+  [['📒','notion template'],['🧵','textures'],['🖌️','procreate'],['🧊','3d model'],['🎙️','hypnosis'],['🎵','music'],['📷','stock photos'],['🧩','digital planner'],['🎨','illustration'],['🧠','AI prompts']],
+  [['💪','fitness'],['🚀','programming'],['🎲','sci-fi'],['🎮','vrchat'],['🔊','ableton'],['📚','certification exams'],['🎬','video presets'],['🧶','crochet'],['🗂️','notion dashboard'],['📈','business tools']],
+  [['🎧','singles'],['💻','software'],['📐','CAD models'],['🖨️','printable'],['🎹','jazz'],['📊','spreadsheets'],['✍️','ebooks'],['🧒','kids activities'],['🧾','invoice template'],['🤖','AI workflow']],
+] as const;
 
 export default function CreatorEarningsShowcase() {
-  const [tickerIndex, setTickerIndex] = useState(0);
-
-  useEffect(() => {
-    const timer = window.setInterval(() => setTickerIndex((index) => (index + 1) % possibilities.length), 2600);
-    return () => window.clearInterval(timer);
-  }, []);
-
   return <section className="dn-creator-showcase" aria-labelledby="dn-creator-title">
     <div className="dn-creator-wrap">
-      <div className="dn-creator-intro">
-        <span className="dn-creator-kicker">A marketplace for every kind of creator</span>
-        <h2 id="dn-creator-title">Your skills can become someone’s next big idea.</h2>
-        <p>From a student with brilliant notes to a growing enterprise, DigiNanba is built for people who have something useful to share.</p>
-        <div className="dn-possibility-strip" aria-live="polite">
-          <span className="dn-possibility-spark">✦</span>
-          <span>Unlimited possibilities</span>
-          <strong key={possibilities[tickerIndex]}>{possibilities[tickerIndex]}</strong>
-          <span className="dn-possibility-dots" aria-hidden="true">{possibilities.map((item, index) => <i key={item} className={index === tickerIndex ? 'active' : ''} />)}</span>
-        </div>
+      <div className="dn-possibilities-hero">
+        <h2 id="dn-creator-title">Unlimited possibilities</h2>
+        <p>Discover digital products and creators on DigiNanba</p>
+      </div>
+      <div className="dn-marquee" aria-label="Explore digital product types">
+        {possibilityRows.map((row, rowIndex) => <div className={`dn-marquee-row dn-marquee-row-${rowIndex + 1}`} key={rowIndex}>
+          <div className="dn-marquee-track">{[...row, ...row].map(([icon, label], index) => <span className="dn-marquee-item" key={`${label}-${index}`}><span className="dn-marquee-icon" aria-hidden="true">{icon}</span><span className="dn-marquee-pill">{label}</span></span>)}</div>
+        </div>)}
       </div>
 
       <div className="dn-earnings-card">
