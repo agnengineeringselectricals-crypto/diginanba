@@ -46,8 +46,8 @@ export default function CreatorEarningsShowcase() {
           <span className="dn-earnings-icon">↗</span>
           <div><span className="dn-earnings-label">DigiNanba creator community</span><h3>Every creator’s progress matters.</h3></div>
         </div>
-        <div className="dn-earnings-total"><span>Verified creator earnings</span><strong>—</strong></div>
-        <p className="dn-earnings-note">Real marketplace-wide totals will appear here once verified sales reporting is connected. We never invent earnings figures.</p>
+        <div className="dn-earnings-total"><span>Creator earnings · illustrative demo</span><strong>$12,840+</strong><small className="dn-demo-label">SAMPLE DISPLAY · NOT LIVE EARNINGS</small></div>
+        <p className="dn-earnings-note">Example figure shown to preview how creator earnings could look. This is not actual DigiNanba sales or verified creator income; live totals will replace it when real sales reporting is connected.</p>
         <Link className="dn-creator-cta" href="/signup">Start your creator journey <span aria-hidden="true">→</span></Link>
       </div>
 
