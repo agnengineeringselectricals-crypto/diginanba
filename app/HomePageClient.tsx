@@ -228,14 +228,14 @@ export default function HomePageClient({ initialProducts }: Props) {
           <div className="ref-market-left">
             <h1>Find the digital tools that solve your problem.</h1>
             <div className="ref-category-panel" id="categories">
-              <div className="ref-categories">{categories.map(([icon, label]) => <button className="ref-category" key={label} onClick={() => chooseCategory(label)}><span className="ref-category-icon">{icon}</span><span><strong>{label}</strong><small>Explore products</small></span></button>)}</div>
+              <div className="ref-category-scroll" aria-label="Scroll to browse all product categories"><div className="ref-categories">{categories.map(([icon, label]) => <button className="ref-category" key={label} onClick={() => chooseCategory(label)}><span className="ref-category-icon">{icon}</span><span className="ref-category-copy"><strong>{label}</strong><small>Explore products</small></span></button>)}</div></div>
             </div>
           </div>
 
           <aside className="ref-featured-panel" aria-label="Featured digital products">
             <div className="ref-featured-head"><div></div></div>
             <div className="ref-featured-grid">
-              {products.slice(0, 6).map((product) => <article className="ref-featured-card" key={product.id}>
+              {products.map((product) => <article className="ref-featured-card" key={product.id}>
                 <Link className="ref-featured-art" href={`/products/${product.slug}?market=${market}`} aria-label={`View ${product.title}`}>
                   {categories.find(([, , dbName]) => dbName === product.category)?.[0] ?? '✦'}
                 </Link>
