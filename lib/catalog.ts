@@ -17,7 +17,31 @@ const fallback = [
   ['client-onboarding-system','Client Onboarding System','A reusable workflow for collecting requirements and starting projects.','Templates & Documents',1099,899]
 ] as const;
 
+const categorySearchAliases: Record<string, string[]> = {
+  'ebooks & guides': ['ebooks & guides'],
+  'excel & sheets': ['excel & sheets', 'excel / google sheets'],
+  'excel / google sheets': ['excel & sheets', 'excel / google sheets'],
+  'templates & documents': ['templates & documents'],
+  'design assets': ['design assets'],
+  'marketing & sales': ['marketing & sales'],
+  'ai & automation': ['ai & automation'],
+  'business & entrepreneurship': ['business & entrepreneurship'],
+  'education & learning': ['education & learning'],
+  'software / code': ['software / code'],
+  'cad & engineering': ['cad & engineering', 'cad / engineering'],
+  'cad / engineering': ['cad & engineering', 'cad / engineering'],
+  'finance & accounting': ['finance & accounting'],
+  'career & professional': ['career & professional'],
+  'video & audio': ['video & audio', 'video / audio'],
+  'video / audio': ['video & audio', 'video / audio'],
+  'photography': ['photography'],
+  'printables': ['printables'],
+  'personal & lifestyle': ['personal & lifestyle', 'personal / lifestyle'],
+  'personal / lifestyle': ['personal & lifestyle', 'personal / lifestyle'],
+};
+
 export async function getProducts(market: Market, q=''): Promise<CatalogProduct[]> {
+  const categoryAliases = categorySearchAliases[q.trim().toLowerCase()] ?? [];
   try {
     const { rows } = await db.query(`
       SELECT p.id,p.slug,p.title,p.description,c.name category, pe.market_code, pr.currency_code, pr.amount_minor
@@ -25,8 +49,8 @@ export async function getProducts(market: Market, q=''): Promise<CatalogProduct[
       JOIN product_editions pe ON pe.product_id=p.id AND pe.market_code=$1 AND pe.status='published'
       JOIN prices pr ON pr.product_edition_id=pe.id AND pr.valid_to IS NULL
       LEFT JOIN categories c ON c.id=p.category_id
-      WHERE p.status='published' AND ($2='' OR p.title ILIKE '%'||$2||'%' OR p.description ILIKE '%'||$2||'%' OR COALESCE(c.name,'') ILIKE '%'||$2||'%')
-      ORDER BY p.created_at DESC`, [market, q]);
+      WHERE p.status='published' AND ($2='' OR p.title ILIKE '%'||$2||'%' OR p.description ILIKE '%'||$2||'%' OR COALESCE(c.name,'') ILIKE '%'||$2||'%' OR lower(COALESCE(c.name,'')) = ANY($3::text[]))
+      ORDER BY p.created_at DESC`, [market, q, categoryAliases]);
     if (rows.length) return rows.map((r:any)=>formatRow(r, market));
   } catch {}
   return fallback.filter(x => !q || `${x[1]} ${x[2]} ${x[3]}`.toLowerCase().includes(q.toLowerCase()) || x[3].toLowerCase().includes(q.toLowerCase())).map(x => ({
