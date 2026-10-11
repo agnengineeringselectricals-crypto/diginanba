@@ -698,3 +698,33 @@ a.ref-need:hover .ref-solution-link{text-decoration:underline}
  .dn-feature-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
  .dn-feature-grid>a{padding:12px}
 }
+
+
+/* Stage 5: clearer product details and responsive buyer-confidence layout. */
+.product-breadcrumb{display:flex;flex-wrap:wrap;align-items:center;gap:9px;margin:8px 0 18px;color:#68738a;font-size:13px}
+.product-breadcrumb a{color:#4f46e5;text-decoration:none;font-weight:700}
+.product-breadcrumb a:hover{text-decoration:underline}
+.product-breadcrumb [aria-current="page"]{color:#354156;overflow-wrap:anywhere}
+.product-main-copy{min-width:0;background:#fff;border:1px solid #e7e8ee;border-radius:20px;padding:clamp(20px,3.2vw,38px)}
+.product-main-copy h1{overflow-wrap:anywhere;margin:14px 0}
+.product-purchase-note{font-size:12px;line-height:1.55;color:#667085;margin-top:12px}
+.preview-card h2{font-size:22px;margin:8px 0 18px}
+.preview-card p{line-height:1.55;margin:12px 0}
+.product-buying-guide{margin-top:24px}
+.product-buying-guide h2{margin-top:0}
+.product-buying-guide h3{font-size:16px;margin:0 0 8px}
+.product-buying-guide .product-detail-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px}
+.product-buying-guide .product-detail-grid>div{min-width:0}
+.product-buying-guide .muted{line-height:1.65}
+.product-related{padding-top:24px}
+@media(max-width:700px){
+ .product-breadcrumb{font-size:12px;gap:6px}
+ .product-hero{gap:14px;margin-top:18px}
+ .product-main-copy{padding:20px}
+ .product-hero h1{font-size:clamp(30px,8vw,38px);line-height:1.12}
+ .lead{font-size:16px;line-height:1.6}
+ .buybox{margin-top:22px;padding-top:18px}
+ .preview-card{padding:22px}
+ .product-buying-guide{padding:20px}
+ .product-buying-guide .product-detail-grid{grid-template-columns:minmax(0,1fr);gap:16px}
+}
