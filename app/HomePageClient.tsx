@@ -292,19 +292,6 @@ export default function HomePageClient({ initialProducts }: Props) {
         </div>
       </div></section>
 
-      <section className="ref-section ref-discovery-row"><div className="ref-container">
-        <div className="ref-section-head"><div><h2>Explore digital products</h2><p>Browse practical resources and open product pages for details before choosing.</p></div><Link href="/explore" className="ref-view-product">View all →</Link></div>
-        <div className="ref-products ref-horizontal">{products.slice(0,4).map((product)=><article className="ref-product" key={'trend-'+product.id}><div className="ref-product-body"><span className="ref-tag">Featured</span><h3><Link href={'/products/'+product.slug+'?market='+market}>{product.title}</Link></h3><p>{product.description}</p><div className="ref-price-row"><span className="ref-price">{product.price}</span><button className="ref-view-product" onClick={()=>addToCart(product)}>Add to cart</button></div></div></article>)}</div>
-      </div></section>
-      <section className="ref-section ref-discovery-row"><div className="ref-container">
-        <div className="ref-section-head"><div><h2>Popular solutions</h2><p>Start with an outcome, then discover the tools that help you get there.</p></div><Link href="/solutions" className="ref-view-product">Explore solutions →</Link></div>
-        <div className="ref-needs">{advancedSolutions.map(([icon,title,description,slug])=><Link className="ref-need" key={slug} href={'/solutions/'+slug}><span className="ref-solution-icon">{icon}</span><strong>{title}</strong><span className="ref-solution-description">{description}</span><span className="ref-solution-link">Explore solution →</span></Link>)}</div>
-      </div></section>
-      <section className="ref-section ref-discovery-row"><div className="ref-container">
-        <div className="ref-section-head"><div><h2>More digital products</h2><p>Explore more resources across business, career, learning and everyday work.</p></div><Link href="/guides" className="ref-view-product">Read DigiNanba Guides →</Link></div>
-        <div className="ref-products ref-horizontal">{products.slice(4,8).map((product)=><article className="ref-product" key={'new-'+product.id}><div className="ref-product-body"><span className="ref-tag">Explore</span><h3><Link href={'/products/'+product.slug+'?market='+market}>{product.title}</Link></h3><p>{product.description}</p><div className="ref-price-row"><span className="ref-price">{product.price}</span><Link className="ref-view-product" href={'/products/'+product.slug+'?market='+market}>View →</Link></div></div></article>)}</div>
-      </div></section>
-
       <section id="needs" className="ref-section"><div className="ref-container">
         <div className="ref-section-head"><div><h2>What are you trying to do?</h2><p>Choose a goal or browse a category to find resources relevant to your work.</p></div></div>
         <div className="ref-needs">{needs.map(([icon, label, target]) => <button className="ref-need" key={label} onClick={() => chooseNeed(target)}>{icon} {label}</button>)}</div>
@@ -330,3 +317,17 @@ export default function HomePageClient({ initialProducts }: Props) {
 
   </>;
 }
+
+      <section className="ref-section ref-discovery-row"><div className="ref-container">
+        <div className="ref-section-head"><div><h2>Trending digital products</h2><p>Discover practical digital tools for work, learning and everyday tasks.</p></div><Link href="/explore" className="ref-view-product">View all →</Link></div>
+        <div className="ref-products ref-horizontal">{products.slice(0,4).map((product)=><article className="ref-product" key={'trend-'+product.id}><div className="ref-product-body"><span className="ref-tag">Featured</span><h3><Link href={'/products/'+product.slug+'?market='+market}>{product.title}</Link></h3><p>{product.description}</p><div className="ref-price-row"><span className="ref-price">{product.price}</span><button className="ref-view-product" onClick={()=>addToCart(product)}>Add to cart</button></div></div></article>)}</div>
+      </div></section>
+      <section className="ref-section ref-discovery-row"><div className="ref-container">
+        <div className="ref-section-head"><div><h2>Popular solutions</h2><p>Start with an outcome, then discover the tools that help you get there.</p></div><Link href="/solutions" className="ref-view-product">Explore solutions →</Link></div>
+        <div className="ref-needs">{advancedSolutions.map(([icon,title,description,slug])=><Link className="ref-need" key={slug} href={'/solutions/'+slug}><span className="ref-solution-icon">{icon}</span><strong>{title}</strong><span className="ref-solution-description">{description}</span><span className="ref-solution-link">Explore solution →</span></Link>)}</div>
+      </div></section>
+      <section className="ref-section ref-discovery-row"><div className="ref-container">
+        <div className="ref-section-head"><div><h2>More useful digital products</h2><p>Explore additional resources across business, career, learning and everyday work.</p></div><Link href="/explore" className="ref-view-product">View all products →</Link></div>
+        <div className="ref-products ref-horizontal">{products.slice(4,8).map((product)=><article className="ref-product" key={'new-'+product.id}><div className="ref-product-body"><span className="ref-tag">Explore</span><h3><Link href={'/products/'+product.slug+'?market='+market}>{product.title}</Link></h3><p>{product.description}</p><div className="ref-price-row"><span className="ref-price">{product.price}</span><Link className="ref-view-product" href={'/products/'+product.slug+'?market='+market}>View →</Link></div></div></article>)}</div>
+      </div></section>
+
