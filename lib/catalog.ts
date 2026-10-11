@@ -25,11 +25,11 @@ export async function getProducts(market: Market, q=''): Promise<CatalogProduct[
       JOIN product_editions pe ON pe.product_id=p.id AND pe.market_code=$1 AND pe.status='published'
       JOIN prices pr ON pr.product_edition_id=pe.id AND pr.valid_to IS NULL
       LEFT JOIN categories c ON c.id=p.category_id
-      WHERE p.status='published' AND ($2='' OR p.title ILIKE '%'||$2||'%' OR p.description ILIKE '%'||$2||'%')
+      WHERE p.status='published' AND ($2='' OR p.title ILIKE '%'||$2||'%' OR p.description ILIKE '%'||$2||'%' OR COALESCE(c.name,'') ILIKE '%'||$2||'%')
       ORDER BY p.created_at DESC`, [market, q]);
     if (rows.length) return rows.map((r:any)=>formatRow(r, market));
   } catch {}
-  return fallback.filter(x => !q || `${x[1]} ${x[2]} ${x[3]}`.toLowerCase().includes(q.toLowerCase())).map(x => ({
+  return fallback.filter(x => !q || `${x[1]} ${x[2]} ${x[3]}`.toLowerCase().includes(q.toLowerCase()) || x[3].toLowerCase().includes(q.toLowerCase())).map(x => ({
     id:x[0], slug:x[0], title:x[1], description:x[2], category:x[3], market,
     currency:market==='US'?'USD':'GBP', symbol:market==='US'?'$':'£', amountMinor:market==='US'?x[4]:x[5], price:formatMoney(market==='US'?x[4]:x[5], market)
   }));
