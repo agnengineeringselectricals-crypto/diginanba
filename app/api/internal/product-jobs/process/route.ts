@@ -16,7 +16,7 @@ export async function POST(request: Request) {
   let job: any;
   try {
     await client.query('BEGIN');
-    const claimed = await client.query(`SELECT id, job_type, market_code, locale, category_id, input_json
+    const claimed = await client.query(`SELECT id, job_type, market_code, locale, category_id, input_json, attempt_count, max_attempts
       FROM product_factory_jobs WHERE status='queued' AND available_at <= now()
       ORDER BY created_at ASC FOR UPDATE SKIP LOCKED LIMIT 1`);
     job = claimed.rows[0];
@@ -74,12 +74,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, processed: true, job: saved.rows[0] });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Job failed';
-    await db.query(`UPDATE product_factory_jobs SET status='failed',last_error=$2,
-      locked_at=NULL,locked_by=NULL,completed_at=now(),updated_at=now()
-      WHERE id=$1 AND status='researching'`, [job.id, message.slice(0, 4000)]).catch(() => undefined);
+    const retry = Number(job.attempt_count) + 1 < Number(job.max_attempts);
+    const nextStatus = retry ? 'queued' : 'failed';
+    await db.query(`UPDATE product_factory_jobs SET status=$2,last_error=$3,
+      available_at=CASE WHEN $2='queued' THEN now()+interval '5 minutes' ELSE available_at END,
+      locked_at=NULL,locked_by=NULL,completed_at=CASE WHEN $2='failed' THEN now() ELSE NULL END,
+      updated_at=now() WHERE id=$1 AND status='researching'`,
+      [job.id, nextStatus, message.slice(0, 4000)]).catch(() => undefined);
     await db.query(`INSERT INTO product_factory_job_events(job_id,from_status,to_status,event_type,details_json)
-      VALUES ($1,'researching','failed','worker_failed',$2::jsonb)`,
-      [job.id, JSON.stringify({ message: message.slice(0, 500) })]).catch(() => undefined);
-    return NextResponse.json({ error: 'Job failed; inspect job events' }, { status: 502 });
+      VALUES ($1,'researching',$2,'worker_failed',$3::jsonb)`,
+      [job.id, nextStatus, JSON.stringify({ message: message.slice(0, 500), retryScheduled: retry })]).catch(() => undefined);
+    return NextResponse.json({ error: retry ? 'Job failed; retry scheduled' : 'Job failed; maximum attempts reached', retryScheduled: retry }, { status: 502 });
   }
 }
