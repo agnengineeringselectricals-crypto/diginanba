@@ -68,6 +68,18 @@ export default function ProductEngagement({ product }: { product: { slug: string
     }
   }
 
+  function addToCompare() {
+    try {
+      const stored = JSON.parse(localStorage.getItem('diginanba-compare') || '[]');
+      const current: string[] = Array.isArray(stored) ? stored : [];
+      const next = current.includes(product.slug) ? current : [...current, product.slug].slice(-4);
+      localStorage.setItem('diginanba-compare', JSON.stringify(next));
+      setReviewMessage(next.length < 2 ? 'Added to comparison. Add at least one more product to compare.' : 'Added to comparison.');
+    } catch {
+      setReviewMessage('Unable to save comparison in this browser.');
+    }
+  }
+
   async function publishReview(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!text.trim() || submitting) return;
@@ -103,6 +115,8 @@ export default function ProductEngagement({ product }: { product: { slug: string
       <div className="product-actions">
         <button className="btn" onClick={toggleWishlist}>{saved ? '♥ Saved to wishlist' : '♡ Save to wishlist'}</button>
         <Link className="btn" href={'/explore?q=' + encodeURIComponent(product.category)}>More in {product.category}</Link>
+        <button className="btn" onClick={addToCompare}>Add to compare</button>
+        <Link className="btn" href="/compare">Compare selected</Link>
       </div>
       <section className="panel product-detail-grid">
         <div>
