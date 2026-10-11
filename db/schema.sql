@@ -63,3 +63,20 @@ SELECT pe.id,'GBP',v.amount FROM product_editions pe JOIN (VALUES
 CREATE TABLE IF NOT EXISTS payments (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE, provider TEXT NOT NULL, provider_payment_id TEXT UNIQUE, currency_code CHAR(3) NOT NULL, amount_minor BIGINT NOT NULL, status TEXT NOT NULL DEFAULT 'pending', raw_reference JSONB, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), updated_at TIMESTAMPTZ NOT NULL DEFAULT now());
 CREATE TABLE IF NOT EXISTS payment_events (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), payment_id UUID REFERENCES payments(id) ON DELETE SET NULL, provider TEXT NOT NULL, event_id TEXT NOT NULL UNIQUE, event_type TEXT NOT NULL, payload JSONB NOT NULL, received_at TIMESTAMPTZ NOT NULL DEFAULT now());
 CREATE TABLE IF NOT EXISTS entitlements (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE, order_item_id UUID NOT NULL REFERENCES order_items(id) ON DELETE CASCADE, status TEXT NOT NULL DEFAULT 'active', granted_at TIMESTAMPTZ NOT NULL DEFAULT now(), UNIQUE(user_id, order_item_id));
+
+
+-- Stage 1: verified-purchase product reviews
+CREATE TABLE IF NOT EXISTS product_reviews (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  product_id UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+  rating SMALLINT NOT NULL CHECK (rating BETWEEN 1 AND 5),
+  review_text TEXT NOT NULL CHECK (char_length(review_text) BETWEEN 1 AND 2000),
+  status TEXT NOT NULL DEFAULT 'published' CHECK (status IN ('pending','published','rejected')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE(product_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS product_reviews_product_status_created_idx
+  ON product_reviews(product_id, status, created_at DESC);
