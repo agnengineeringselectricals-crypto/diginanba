@@ -97,3 +97,12 @@
 .dn-million-foot{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:20px;padding-top:15px;border-top:1px solid #ececec;color:#666;font-size:11px;line-height:1.5}
 .dn-million-foot strong{color:#171717}
 @media(max-width:700px){.dn-million-scenario{padding:17px;margin-top:14px;border-radius:15px}.dn-million-heading{align-items:flex-start;flex-direction:column;gap:14px}.dn-million-total{align-items:flex-start}.dn-million-row{grid-template-columns:minmax(0,1fr) auto;gap:8px 12px;padding:11px 0;border-bottom:1px solid #f0f0f0}.dn-million-label{grid-column:1;grid-row:1}.dn-million-amount{grid-column:2;grid-row:1;font-size:14px}.dn-million-bar-track{grid-column:1;grid-row:2}.dn-million-share{grid-column:2;grid-row:2}.dn-million-label strong{font-size:12px}.dn-million-foot{flex-direction:column;gap:7px}}
+
+
+/* Stage 2: bring goal-based discovery into the first screen of the homepage. */
+.dn-hero-goal-search{display:flex;gap:8px;margin:0 0 12px;padding:4px;background:#fff;border:1px solid #dfe3ec;border-radius:12px;box-shadow:0 5px 16px rgba(24,32,56,.05)}
+.dn-hero-goal-search input{flex:1;min-width:0;border:0;outline:0;padding:10px 11px;font:inherit;font-size:13px;color:#172033;background:transparent}
+.dn-hero-goal-search input::placeholder{color:#7b8497}
+.dn-hero-goal-search .ref-primary{white-space:nowrap;padding:9px 12px;font-size:12px}
+@media(max-width:700px){.dn-hero-goal-search{gap:5px}.dn-hero-goal-search input{font-size:12px;padding:9px 7px}.dn-hero-goal-search .ref-primary{font-size:11px;padding:8px 9px}}
+@media(max-width:380px){.dn-hero-goal-search input{font-size:11px}.dn-hero-goal-search .ref-primary{padding:8px 7px}}
