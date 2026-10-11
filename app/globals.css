@@ -525,3 +525,48 @@ a.ref-need:hover .ref-solution-link{text-decoration:underline}
   .ref-featured-footer{flex-direction:column!important;align-items:stretch!important;gap:6px!important}
   .ref-add-cart{width:100%!important}
 }
+
+
+/* Homepage hero: keep both panels compact; scroll inside each panel instead of pushing lower rows down. */
+.ref-market-grid{align-items:start!important;grid-template-columns:minmax(0,3fr) minmax(0,2fr)!important;gap:18px!important}
+.ref-market-left,.ref-featured-panel{height:auto!important;min-height:0!important;align-self:start!important;overflow:hidden!important;padding:18px!important}
+.ref-category-scroll{display:block!important;width:100%!important;max-width:100%!important;height:190px!important;max-height:190px!important;overflow-x:auto!important;overflow-y:hidden!important;padding:2px 1px 9px!important;scrollbar-width:thin;overscroll-behavior-x:contain}
+.ref-categories{display:grid!important;grid-auto-flow:column!important;grid-template-columns:none!important;grid-template-rows:repeat(2,88px)!important;grid-auto-columns:calc((100% - 36px)/4)!important;grid-auto-rows:88px!important;gap:12px!important;width:max-content!important;min-width:100%!important;align-items:stretch!important}
+.ref-category{height:88px!important;min-height:88px!important;max-width:none!important;padding:17px!important;gap:12px!important}
+.ref-category-icon{font-size:25px!important}
+.ref-category strong{font-size:14px!important}
+.ref-category small{font-size:12px!important}
+.ref-featured-grid{display:flex!important;flex-wrap:nowrap!important;gap:12px!important;width:100%!important;max-width:100%!important;min-width:0!important;max-height:none!important;height:280px!important;overflow-x:auto!important;overflow-y:hidden!important;align-items:stretch!important;align-content:stretch!important;padding:2px 1px 9px!important;scrollbar-width:thin;overscroll-behavior-x:contain}
+.ref-featured-card{display:flex!important;flex:0 0 calc((100% - 12px)/2)!important;width:calc((100% - 12px)/2)!important;max-width:calc((100% - 12px)/2)!important;height:100%!important;min-height:0!important;align-self:stretch!important;overflow:hidden!important}
+.ref-featured-art{height:72px!important;flex:0 0 72px!important;font-size:30px!important}
+.ref-featured-body{padding:10px!important;display:flex!important;flex:1 1 auto!important;flex-direction:column!important;min-width:0!important}
+.ref-featured-body h3{font-size:13px!important;line-height:1.25!important;min-height:32px!important;margin:7px 0 5px!important}
+.ref-featured-body p{font-size:11px!important;line-height:1.35!important;min-height:31px!important;margin:0!important;overflow:hidden!important}
+.ref-featured-footer{margin-top:auto!important;padding-top:9px!important;display:flex!important;flex-direction:row!important;align-items:center!important;justify-content:space-between!important;gap:6px!important}
+.ref-featured-footer .ref-price{font-size:15px!important}
+.ref-add-cart{width:auto!important;min-height:0!important;padding:7px 8px!important;font-size:10px!important;flex:0 1 auto!important}
+@media(max-width:900px){
+ .ref-market-grid{grid-template-columns:minmax(0,1fr)!important;gap:14px!important}
+ .ref-category-scroll{height:190px!important;max-height:190px!important}
+ .ref-categories{grid-auto-columns:calc((100% - 36px)/4)!important;grid-template-rows:repeat(2,82px)!important;grid-auto-rows:82px!important}
+ .ref-category{height:82px!important;min-height:82px!important;padding:13px!important}
+ .ref-featured-panel{padding:16px!important}
+ .ref-featured-grid{height:280px!important}
+}
+@media(max-width:560px){
+ .ref-market-left,.ref-featured-panel{padding:12px!important}
+ .ref-category-scroll{height:292px!important;max-height:292px!important}
+ .ref-categories{grid-auto-columns:calc((100% - 10px)/2)!important;grid-template-rows:repeat(4,68px)!important;grid-auto-rows:68px!important;gap:10px!important}
+ .ref-category{height:68px!important;min-height:68px!important;padding:10px!important;gap:8px!important}
+ .ref-category-icon{font-size:21px!important}
+ .ref-category strong{font-size:12px!important}
+ .ref-category small{font-size:10px!important}
+ .ref-featured-grid{height:290px!important;gap:10px!important}
+ .ref-featured-card{flex-basis:calc((100% - 10px)/2)!important;width:calc((100% - 10px)/2)!important;max-width:calc((100% - 10px)/2)!important}
+ .ref-featured-art{height:62px!important;flex-basis:62px!important;font-size:26px!important}
+ .ref-featured-body{padding:8px!important}
+ .ref-featured-body h3{font-size:12px!important;min-height:30px!important}
+ .ref-featured-body p{font-size:10px!important;min-height:28px!important}
+ .ref-featured-footer{flex-direction:column!important;align-items:stretch!important;gap:6px!important}
+ .ref-add-cart{width:100%!important}
+}
