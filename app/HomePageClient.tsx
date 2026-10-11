@@ -134,7 +134,8 @@ export default function HomePageClient({ initialProducts }: Props) {
 
   function chooseCategory(value: string) {
     setCategory(value);
-    const params = new URLSearchParams({ market, q: value });
+    const categoryName = categories.find(([, label]) => label === value)?.[2] ?? value;
+    const params = new URLSearchParams({ market, q: categoryName });
     window.location.href = `/explore?${params.toString()}`;
   }
 
