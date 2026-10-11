@@ -256,6 +256,25 @@ export default function HomePageClient({ initialProducts }: Props) {
         </div>
       </section>
 
+      <section className="dn-buyer-confidence" aria-labelledby="dn-buyer-confidence-title">
+        <div className="ref-container dn-buyer-confidence-inner">
+          <div className="dn-buyer-confidence-intro">
+            <span className="dn-buyer-confidence-eyebrow">BUY WITH CLARITY</span>
+            <h2 id="dn-buyer-confidence-title">Know what you’re choosing before you buy.</h2>
+            <p>Open a product page to review its details and check the guidance on intended use, license, file compatibility and access.</p>
+          </div>
+          <div className="dn-buyer-confidence-points">
+            <div><span aria-hidden="true">ⓘ</span><strong>Product details</strong><small>Understand what each resource is designed to help you do.</small></div>
+            <div><span aria-hidden="true">✓</span><strong>Before-you-buy guidance</strong><small>Review license, file compatibility and delivery notes where provided.</small></div>
+            <div><span aria-hidden="true">↗</span><strong>Compare your options</strong><small>Explore alternatives before deciding which tool fits your needs.</small></div>
+          </div>
+          <div className="dn-buyer-confidence-actions">
+            <Link href="/explore" className="ref-primary">Explore products →</Link>
+            <Link href="/compare" className="dn-buyer-compare-link">Compare products</Link>
+          </div>
+        </div>
+      </section>
+
       <CreatorEarningsShowcase />
 
       <section className="ref-section dn-feature-map"><div className="ref-container">
@@ -274,16 +293,16 @@ export default function HomePageClient({ initialProducts }: Props) {
       </div></section>
 
       <section className="ref-section ref-discovery-row"><div className="ref-container">
-        <div className="ref-section-head"><div><h2>Trending digital products</h2><p>Popular practical resources shoppers are exploring now.</p></div><Link href="/explore" className="ref-view-product">View all →</Link></div>
-        <div className="ref-products ref-horizontal">{products.slice(0,4).map((product)=><article className="ref-product" key={'trend-'+product.id}><div className="ref-product-body"><span className="ref-tag">Trending</span><h3><Link href={'/products/'+product.slug+'?market='+market}>{product.title}</Link></h3><p>{product.description}</p><div className="ref-price-row"><span className="ref-price">{product.price}</span><button className="ref-view-product" onClick={()=>addToCart(product)}>Add to cart</button></div></div></article>)}</div>
+        <div className="ref-section-head"><div><h2>Explore digital products</h2><p>Browse practical resources and open product pages for details before choosing.</p></div><Link href="/explore" className="ref-view-product">View all →</Link></div>
+        <div className="ref-products ref-horizontal">{products.slice(0,4).map((product)=><article className="ref-product" key={'trend-'+product.id}><div className="ref-product-body"><span className="ref-tag">Featured</span><h3><Link href={'/products/'+product.slug+'?market='+market}>{product.title}</Link></h3><p>{product.description}</p><div className="ref-price-row"><span className="ref-price">{product.price}</span><button className="ref-view-product" onClick={()=>addToCart(product)}>Add to cart</button></div></div></article>)}</div>
       </div></section>
       <section className="ref-section ref-discovery-row"><div className="ref-container">
         <div className="ref-section-head"><div><h2>Popular solutions</h2><p>Start with an outcome, then discover the tools that help you get there.</p></div><Link href="/solutions" className="ref-view-product">Explore solutions →</Link></div>
         <div className="ref-needs">{advancedSolutions.map(([icon,title,description,slug])=><Link className="ref-need" key={slug} href={'/solutions/'+slug}><span className="ref-solution-icon">{icon}</span><strong>{title}</strong><span className="ref-solution-description">{description}</span><span className="ref-solution-link">Explore solution →</span></Link>)}</div>
       </div></section>
       <section className="ref-section ref-discovery-row"><div className="ref-container">
-        <div className="ref-section-head"><div><h2>New & useful</h2><p>Fresh resources across business, career, learning and everyday work.</p></div><Link href="/guides" className="ref-view-product">Read DigiNanba Guides →</Link></div>
-        <div className="ref-products ref-horizontal">{products.slice(4,8).map((product)=><article className="ref-product" key={'new-'+product.id}><div className="ref-product-body"><span className="ref-tag">New & useful</span><h3><Link href={'/products/'+product.slug+'?market='+market}>{product.title}</Link></h3><p>{product.description}</p><div className="ref-price-row"><span className="ref-price">{product.price}</span><Link className="ref-view-product" href={'/products/'+product.slug+'?market='+market}>View →</Link></div></div></article>)}</div>
+        <div className="ref-section-head"><div><h2>More digital products</h2><p>Explore more resources across business, career, learning and everyday work.</p></div><Link href="/guides" className="ref-view-product">Read DigiNanba Guides →</Link></div>
+        <div className="ref-products ref-horizontal">{products.slice(4,8).map((product)=><article className="ref-product" key={'new-'+product.id}><div className="ref-product-body"><span className="ref-tag">Explore</span><h3><Link href={'/products/'+product.slug+'?market='+market}>{product.title}</Link></h3><p>{product.description}</p><div className="ref-price-row"><span className="ref-price">{product.price}</span><Link className="ref-view-product" href={'/products/'+product.slug+'?market='+market}>View →</Link></div></div></article>)}</div>
       </div></section>
 
       <section id="needs" className="ref-section"><div className="ref-container">
