@@ -256,6 +256,27 @@ export default function HomePageClient({ initialProducts }: Props) {
 
       <CreatorEarningsShowcase />
 
+      <section className="ref-section dn-ai-hub" aria-labelledby="dn-ai-hub-title"><div className="ref-container">
+        <div className="dn-ai-hub-panel">
+          <div className="dn-ai-hub-copy"><span className="dn-eyebrow">YOUR AI-POWERED MARKETPLACE</span><h2 id="dn-ai-hub-title">Tell DigiNanba what you want to accomplish.</h2><p>Find practical digital tools for your work, business, learning or everyday life. Start with a goal and explore products selected for that need.</p>
+          <form className="dn-goal-search" onSubmit={(event)=>{event.preventDefault();const input=event.currentTarget.elements.namedItem('goal') as HTMLInputElement;const value=input.value.trim();if(value)window.location.href='/explore?q='+encodeURIComponent(value);}}><input name="goal" aria-label="Describe what you want to accomplish" placeholder="e.g. plan my budget, grow sales, automate reports…" /><button className="ref-primary" type="submit">Find my tools →</button></form>
+          <div className="dn-trust-points"><span>✓ Practical digital resources</span><span>✓ Browse by outcome</span><span>✓ New tools added over time</span></div></div>
+          <div className="dn-ai-hub-links"><Link href="/explore?q=Templates"><span>📊</span><strong>Templates & spreadsheets</strong><small>Organize work and make better decisions</small></Link><Link href="/explore?q=AI"><span>🤖</span><strong>AI & automation</strong><small>Streamline repeatable tasks</small></Link><Link href="/solutions"><span>🎯</span><strong>Solutions by goal</strong><small>Start with the outcome you need</small></Link><Link href="/guides"><span>📚</span><strong>Guides & learning</strong><small>Learn before you choose</small></Link></div>
+        </div>
+      </div></section>
+
+      <section className="ref-section dn-feature-map"><div className="ref-container">
+        <div className="ref-section-head"><div><h2>Everything you need in one digital marketplace</h2><p>Discover products, make confident choices, and manage your digital purchases.</p></div></div>
+        <div className="dn-feature-grid">
+          <Link href="/explore"><span>🔎</span><strong>Discover</strong><small>Search, browse categories and explore practical products.</small></Link>
+          <Link href="/solutions"><span>🧠</span><strong>Choose with confidence</strong><small>Start from a problem and compare relevant solutions.</small></Link>
+          <Link href="/explore?q=Bundles"><span>🧰</span><strong>Build your toolkit</strong><small>Find complementary resources for your workflow.</small></Link>
+          <Link href="/account"><span>📥</span><strong>Your digital library</strong><small>Visit your account to manage purchases and downloads.</small></Link>
+          <Link href="/signup"><span>✨</span><strong>Create and sell</strong><small>Join DigiNanba as a creator and explore selling opportunities.</small></Link>
+          <Link href="/guides"><span>🌍</span><strong>Learn and grow</strong><small>Read helpful guides and discover new ways to work.</small></Link>
+        </div>
+      </div></section>
+
       <section className="ref-section ref-discovery-row"><div className="ref-container">
         <div className="ref-section-head"><div><h2>Trending digital products</h2><p>Popular practical resources shoppers are exploring now.</p></div><Link href="/explore" className="ref-view-product">View all →</Link></div>
         <div className="ref-products ref-horizontal">{products.slice(0,4).map((product)=><article className="ref-product" key={'trend-'+product.id}><div className="ref-product-body"><span className="ref-tag">Trending</span><h3><Link href={'/products/'+product.slug+'?market='+market}>{product.title}</Link></h3><p>{product.description}</p><div className="ref-price-row"><span className="ref-price">{product.price}</span><button className="ref-view-product" onClick={()=>addToCart(product)}>Add to cart</button></div></div></article>)}</div>
