@@ -42,17 +42,29 @@ export default function ProductEngagement({ product }: { product: { slug: string
     return () => { active = false; };
   }, [product.slug]);
 
-  function toggleWishlist() {
+  async function toggleWishlist() {
+    const nextSaved = !saved;
     try {
       const current = JSON.parse(localStorage.getItem('diginanba-wishlist') || '[]');
       const wishlist = Array.isArray(current) ? current : [];
-      const next = saved
-        ? wishlist.filter((item: { slug?: string }) => item.slug !== product.slug)
-        : [...wishlist.filter((item: { slug?: string }) => item.slug !== product.slug), product];
+      const next = nextSaved
+        ? [...wishlist.filter((item: { slug?: string }) => item.slug !== product.slug), product]
+        : wishlist.filter((item: { slug?: string }) => item.slug !== product.slug);
       localStorage.setItem('diginanba-wishlist', JSON.stringify(next));
-      setSaved(!saved);
+      setSaved(nextSaved);
+      setReviewMessage('');
+
+      // Guests retain a browser-local wishlist; signed-in customers also sync to PostgreSQL.
+      const response = await fetch('/api/wishlist', {
+        method: nextSaved ? 'POST' : 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slug: product.slug }),
+      });
+      if (response.status === 503) {
+        setReviewMessage('Saved on this device. Account sync is temporarily unavailable.');
+      }
     } catch {
-      setReviewMessage('Your browser could not update the wishlist. Please check storage settings.');
+      setReviewMessage('Saved on this device, but account sync could not be reached.');
     }
   }
 
