@@ -209,16 +209,16 @@ export default function HomePageClient({ initialProducts }: Props) {
 
     <nav className="ref-category-nav" aria-label="Browse digital product categories">
       <div className="ref-category-nav-inner">
-        <Link href="/explore">Explore</Link>
-        <Link href="/explore?q=Templates">Templates</Link>
-        <Link href="/explore?q=Business">Business</Link>
-        <Link href="/explore?q=Finance">Finance &amp; Accounting</Link>
-        <Link href="/explore?q=AI">AI &amp; Automation</Link>
-        <Link href="/explore?q=Office">Office Productivity</Link>
-        <Link href="/explore?q=Learning">Learning</Link>
-        <Link href="/explore?q=Design">Design</Link>
-        <Link href="/explore?q=Marketing">Marketing</Link>
-        <Link href="/explore?q=Engineering">Engineering &amp; CAD</Link>
+        <Link href={`/explore?market=${market}`}>Explore</Link>
+        <Link href={`/explore?market=${market}&q=Templates`}>Templates</Link>
+        <Link href={`/explore?market=${market}&q=Business`}>Business</Link>
+        <Link href={`/explore?market=${market}&q=Finance`}>Finance &amp; Accounting</Link>
+        <Link href={`/explore?market=${market}&q=AI`}>AI &amp; Automation</Link>
+        <Link href={`/explore?market=${market}&q=Office`}>Office Productivity</Link>
+        <Link href={`/explore?market=${market}&q=Learning`}>Learning</Link>
+        <Link href={`/explore?market=${market}&q=Design`}>Design</Link>
+        <Link href={`/explore?market=${market}&q=Marketing`}>Marketing</Link>
+        <Link href={`/explore?market=${market}&q=Engineering`}>Engineering &amp; CAD</Link>
         <Link href="/guides">Guides</Link>
       </div>
     </nav>
@@ -227,7 +227,7 @@ export default function HomePageClient({ initialProducts }: Props) {
       <section className="ref-hero">
         <div className="ref-container ref-market-grid">
           <div className="ref-market-left">
-            <form className="dn-goal-search dn-hero-goal-search" onSubmit={(event)=>{event.preventDefault();const input=event.currentTarget.elements.namedItem('goal') as HTMLInputElement;const value=input.value.trim();if(value)window.location.href='/explore?q='+encodeURIComponent(value);}}><input name="goal" aria-label="Describe what you want to accomplish" placeholder="What do you want to do? e.g. plan a budget, grow sales…" /><button className="ref-primary" type="submit">Find tools →</button></form>
+            <form className="dn-goal-search dn-hero-goal-search" onSubmit={(event)=>{event.preventDefault();const input=event.currentTarget.elements.namedItem('goal') as HTMLInputElement;const value=input.value.trim();if(value){const params=new URLSearchParams({market,q:value});window.location.href='/explore?'+params.toString();}}}><input name="goal" aria-label="Describe what you want to accomplish" placeholder="What do you want to do? e.g. plan a budget, grow sales…" /><button className="ref-primary" type="submit">Find tools →</button></form>
             <h1>Find the digital tools that solve your problem.</h1>
             <div className="ref-category-panel" id="categories">
               <div className="ref-category-scroll" aria-label="Scroll to browse all product categories"><div className="ref-categories">{categories.map(([icon, label]) => <button className="ref-category" key={label} onClick={() => chooseCategory(label)}><span className="ref-category-icon">{icon}</span><span className="ref-category-copy"><strong>{label}</strong><small>Explore products</small></span></button>)}</div></div>
@@ -282,11 +282,11 @@ export default function HomePageClient({ initialProducts }: Props) {
         <div className="dn-feature-grid">
           <Link href="/explore"><span>🔎</span><strong>Discover digital tools</strong><small>Search, browse categories and find resources for your goals.</small></Link>
           <Link href="/compare"><span>⚖️</span><strong>Compare products</strong><small>Review features, descriptions and prices side by side before choosing.</small></Link>
-          <Link href="/bundles"><span>🧰</span><strong>Curated bundles</strong><small>Explore goal-based collections of complementary tools.</small></Link>
+          <Link href="/bundles"><span>🧰</span><strong>Curated bundles</strong><small>Browse collections of complementary digital resources.</small></Link>
           <Link href="/account/wishlist"><span>♡</span><strong>Save your favorites</strong><small>Keep a wishlist and access it again when you are ready.</small></Link>
-          <Link href="/explore"><span>⭐</span><strong>Verified-purchase reviews</strong><small>Look for customer feedback tied to completed purchases on product pages.</small></Link>
+          <Link href="/explore"><span>ⓘ</span><strong>Review product details</strong><small>Check descriptions, prices and product information before choosing.</small></Link>
           <Link href="/account/orders"><span>🧾</span><strong>Orders & purchases</strong><small>View your order history from your signed-in account.</small></Link>
-          <Link href="/account/library"><span>📚</span><strong>Customer library</strong><small>Check your account for available purchase access and digital items.</small></Link>
+          <Link href="/account/library"><span>📚</span><strong>Customer library</strong><small>Find digital items made available to your account after an eligible order is fulfilled.</small></Link>
           <Link href="/signup"><span>✨</span><strong>Creator opportunities</strong><small>Join DigiNanba and explore options for selling digital products.</small></Link>
           <Link href="/guides"><span>🌍</span><strong>Learn and grow</strong><small>Read practical guides and discover new ways to work.</small></Link>
         </div>
@@ -306,7 +306,7 @@ export default function HomePageClient({ initialProducts }: Props) {
       </div></section>
 
       <section id="needs" className="ref-section"><div className="ref-container">
-        <div className="ref-section-head"><div><h2>What are you trying to do?</h2><p>Start with your goal instead of searching through hundreds of products.</p></div></div>
+        <div className="ref-section-head"><div><h2>What are you trying to do?</h2><p>Choose a goal or browse a category to find resources relevant to your work.</p></div></div>
         <div className="ref-needs">{needs.map(([icon, label, target]) => <button className="ref-need" key={label} onClick={() => chooseNeed(target)}>{icon} {label}</button>)}</div>
       </div></section>
     </main>
