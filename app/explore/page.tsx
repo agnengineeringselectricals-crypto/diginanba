@@ -31,12 +31,32 @@ export default async function Explore({
         <button className="btn primary" type="submit">Search</button>
       </form>
 
-      <div className="quick-links">
-        <Link href="/explore?q=AI">AI &amp; Automation</Link>
-        <Link href="/explore?q=business">Business</Link>
-        <Link href="/explore?q=template">Templates</Link>
-        <Link href="/explore?q=finance">Finance</Link>
-        <Link href="/explore?q=career">Career</Link>
+      <div className="quick-links" aria-label="Browse categories">
+        {[
+          ['Ebooks & Guides', 'Ebooks & Guides'],
+          ['Excel & Sheets', 'Excel & Sheets'],
+          ['Templates & Documents', 'Templates & Documents'],
+          ['Design Assets', 'Design Assets'],
+          ['Marketing & Sales', 'Marketing & Sales'],
+          ['AI & Automation', 'AI & Automation'],
+          ['Business & Entrepreneurship', 'Business & Entrepreneurship'],
+          ['Education & Learning', 'Education & Learning'],
+          ['Software / Code', 'Software / Code'],
+          ['CAD & Engineering', 'CAD & Engineering'],
+          ['Finance & Accounting', 'Finance & Accounting'],
+          ['Career & Professional', 'Career & Professional'],
+          ['Video & Audio', 'Video & Audio'],
+          ['Photography', 'Photography'],
+          ['Printables', 'Printables'],
+          ['Personal & Lifestyle', 'Personal & Lifestyle'],
+        ].map(([label, query]) => (
+          <Link key={label} href={'/explore?q=' + encodeURIComponent(query) + '&market=' + market}>{label}</Link>
+        ))}
+      </div>
+
+      <div className="catalog-result-summary" aria-live="polite">
+        <p className="muted">{products.length} {products.length === 1 ? 'product' : 'products'} found{p.q ? ` for “${p.q}”` : ''}.</p>
+        {p.q ? <Link className="btn" href={'/explore?market=' + market}>Clear search</Link> : null}
       </div>
 
       <div className="catalog-grid">
