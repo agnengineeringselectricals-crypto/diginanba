@@ -8,39 +8,36 @@ const bundleDefinitions = [
     title: 'Small Business Starter Kit',
     description: 'Plan the business, organize daily operations and keep the numbers visible.',
     categories: ['Business & Entrepreneurship', 'Templates & Documents', 'Finance & Accounting'],
-    terms: ['business', 'startup', 'invoice', 'cashflow', 'client onboarding'],
+    keywords: ['business', 'startup', 'invoice', 'cashflow', 'client onboarding'],
   },
   {
     slug: 'creator-growth-toolkit',
     title: 'Creator Growth Toolkit',
     description: 'Build a repeatable content and marketing workflow with reusable AI support.',
     categories: ['Marketing & Sales', 'AI & Automation', 'Career & Professional'],
-    terms: ['creator', 'content', 'marketing', 'ai prompt', 'freelance'],
+    keywords: ['creator', 'content', 'marketing', 'ai prompt', 'freelance'],
   },
   {
     slug: 'planning-and-productivity-pack',
     title: 'Planning & Productivity Pack',
     description: 'Bring project planning, cost estimation and repeatable processes together.',
     categories: ['Excel & Sheets', 'Templates & Documents', 'Business & Entrepreneurship'],
-    terms: ['project', 'planner', 'cost', 'operations', 'spreadsheet'],
+    keywords: ['project', 'planner', 'cost', 'operations', 'spreadsheet'],
   },
 ];
 
 export default async function BundlesPage() {
   const products = await getProducts('US');
   const bundles = bundleDefinitions.map((definition) => {
-    const chosen = definition.terms
-      .map((term) => products.find((product) =>
-        !definition.terms.slice(0, definition.terms.indexOf(term)).some((previous) =>
-          products.find((candidate) => candidate.slug === product?.slug && (candidate.title + ' ' + candidate.description).toLowerCase().includes(previous))
-        ) &&
-        (product.title + ' ' + product.description + ' ' + product.category).toLowerCase().includes(term)
-      ))
-      .filter((product, index, list) => product && list.findIndex((item) => item?.slug === product.slug) === index)
-      .slice(0, 3);
-    const items = chosen.length >= 2 ? chosen : products.filter((product) =>
-      definition.categories.some((category) => product.category.toLowerCase().includes(category.toLowerCase().split(' ')[0]))
-    ).slice(0, 3);
+    const selected = products.filter((product) => {
+      const searchable = (product.title + ' ' + product.description + ' ' + product.category).toLowerCase();
+      return definition.keywords.some((keyword) => searchable.includes(keyword));
+    }).slice(0, 3);
+    const items = selected.length >= 2
+      ? selected
+      : products.filter((product) =>
+          definition.categories.some((category) => product.category.toLowerCase().includes(category.toLowerCase().split(' ')[0]))
+        ).slice(0, 3);
     return { ...definition, items, totalMinor: items.reduce((sum, product) => sum + product.amountMinor, 0) };
   });
 
