@@ -613,3 +613,49 @@ a.ref-need:hover .ref-solution-link{text-decoration:underline}
   }
   .ref-category{height:68px!important;min-height:68px!important;padding:9px!important}
 }
+
+
+/* Match the featured-products panel height to the category panel; show three compact product cards with horizontal scrolling. */
+.ref-market-grid{align-items:stretch!important}
+.ref-market-left,.ref-featured-panel{align-self:stretch!important;height:auto!important}
+.ref-featured-panel{display:flex!important;flex-direction:column!important;min-height:0!important}
+.ref-featured-grid{
+  flex:1 1 auto!important;
+  height:100%!important;
+  min-height:0!important;
+  max-height:none!important;
+  overflow-x:auto!important;
+  overflow-y:hidden!important;
+  align-items:stretch!important;
+}
+.ref-featured-card{
+  flex:0 0 calc((100% - 24px)/3)!important;
+  width:calc((100% - 24px)/3)!important;
+  max-width:calc((100% - 24px)/3)!important;
+  height:100%!important;
+  min-height:0!important;
+}
+.ref-featured-art{height:54px!important;flex:0 0 54px!important;font-size:25px!important}
+.ref-featured-body{padding:8px!important;min-height:0!important}
+.ref-featured-body h3{font-size:12px!important;line-height:1.25!important;min-height:0!important;margin:5px 0!important}
+.ref-featured-body p{font-size:10px!important;line-height:1.3!important;min-height:0!important;margin:0!important}
+.ref-featured-footer{margin-top:auto!important;padding-top:6px!important;gap:5px!important}
+.ref-featured-footer .ref-price{font-size:13px!important}
+.ref-add-cart{min-height:28px!important;padding:6px 6px!important;font-size:9px!important}
+@media(max-width:900px){
+  .ref-market-grid{align-items:stretch!important}
+  .ref-featured-panel{height:auto!important}
+  .ref-featured-grid{height:230px!important;flex:0 0 230px!important}
+  .ref-featured-card{height:100%!important}
+}
+@media(max-width:560px){
+  .ref-featured-grid{height:250px!important;flex:0 0 250px!important;gap:10px!important}
+  .ref-featured-card{flex-basis:calc((100% - 20px)/3)!important;width:calc((100% - 20px)/3)!important;max-width:calc((100% - 20px)/3)!important}
+  .ref-featured-art{height:44px!important;flex-basis:44px!important;font-size:21px!important}
+  .ref-featured-body{padding:6px!important}
+  .ref-featured-body h3{font-size:11px!important}
+  .ref-featured-body p{font-size:9px!important}
+  .ref-featured-footer{flex-direction:column!important;align-items:stretch!important}
+  .ref-featured-footer .ref-price{font-size:12px!important}
+  .ref-add-cart{width:100%!important;font-size:9px!important;padding:5px 4px!important}
+}
