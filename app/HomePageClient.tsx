@@ -228,7 +228,7 @@ export default function HomePageClient({ initialProducts }: Props) {
           <div className="ref-market-left">
             <h1>Find the digital tools that solve your problem.</h1>
             <div className="ref-category-panel" id="categories">
-              <div className="ref-categories">{categories.map(([icon, label]) => <button className="ref-category" key={label} onClick={() => chooseCategory(label)}><span className="ref-category-icon">{icon}</span><span className="ref-category-copy"><strong>{label}</strong><small>Explore products</small></span></button>)}</div>
+              <div className="ref-category-scroll" aria-label="Scroll to browse all product categories"><div className="ref-categories">{categories.map(([icon, label]) => <button className="ref-category" key={label} onClick={() => chooseCategory(label)}><span className="ref-category-icon">{icon}</span><span className="ref-category-copy"><strong>{label}</strong><small>Explore products</small></span></button>)}</div></div>
             </div>
           </div>
 
