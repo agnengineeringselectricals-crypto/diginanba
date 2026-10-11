@@ -287,7 +287,7 @@ export default function HomePageClient({ initialProducts }: Props) {
           <Link href="/explore"><span>ⓘ</span><strong>Review product details</strong><small>Check descriptions, prices and product information before choosing.</small></Link>
           <Link href="/account/orders"><span>🧾</span><strong>Orders & purchases</strong><small>View your order history from your signed-in account.</small></Link>
           <Link href="/account/library"><span>📚</span><strong>Customer library</strong><small>Find digital items made available to your account after an eligible order is fulfilled.</small></Link>
-          <Link href="/signup"><span>✨</span><strong>Creator opportunities</strong><small>Join DigiNanba and explore options for selling digital products.</small></Link>
+          <Link href="/signup"><span>✨</span><strong>Creator opportunities</strong><small>Explore ways to bring your original digital resources to the DigiNanba marketplace.</small></Link>
           <Link href="/guides"><span>🌍</span><strong>Learn and grow</strong><small>Read practical guides and discover new ways to work.</small></Link>
         </div>
       </div></section>
