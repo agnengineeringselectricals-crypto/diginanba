@@ -233,7 +233,7 @@ export default function HomePageClient({ initialProducts }: Props) {
           </div>
 
           <aside className="ref-featured-panel" aria-label="Featured digital products">
-            <div className="ref-featured-head"><div></div></div>
+            <div className="ref-featured-head"><div><h2>Featured digital tools</h2><p>Practical resources to help you get things done.</p></div><Link href="/explore" className="ref-view-product">Explore all →</Link></div>
             <div className="ref-featured-grid">
               {products.slice(0, 6).map((product) => <article className="ref-featured-card" key={product.id}>
                 <Link className="ref-featured-art" href={`/products/${product.slug}?market=${market}`} aria-label={`View ${product.title}`}>
@@ -266,14 +266,17 @@ export default function HomePageClient({ initialProducts }: Props) {
       </div></section>
 
       <section className="ref-section dn-feature-map"><div className="ref-container">
-        <div className="ref-section-head"><div><h2>Everything you need in one digital marketplace</h2><p>Discover products, make confident choices, and manage your digital purchases.</p></div></div>
+        <div className="ref-section-head"><div><h2>Shop smarter with DigiNanba</h2><p>Discover useful products, compare your options, save favorites and keep track of your purchases.</p></div></div>
         <div className="dn-feature-grid">
-          <Link href="/explore"><span>🔎</span><strong>Discover</strong><small>Search, browse categories and explore practical products.</small></Link>
-          <Link href="/compare"><span>⚖️</span><strong>Compare products</strong><small>Compare features, descriptions and prices side by side.</small></Link>
-          <Link href="/bundles"><span>🧰</span><strong>Curated bundles</strong><small>Shop goal-based collections of complementary tools.</small></Link>
-          <Link href="/account"><span>📥</span><strong>Your digital library</strong><small>Visit your account to manage purchases and downloads.</small></Link>
-          <Link href="/signup"><span>✨</span><strong>Create and sell</strong><small>Join DigiNanba as a creator and explore selling opportunities.</small></Link>
-          <Link href="/guides"><span>🌍</span><strong>Learn and grow</strong><small>Read helpful guides and discover new ways to work.</small></Link>
+          <Link href="/explore"><span>🔎</span><strong>Discover digital tools</strong><small>Search, browse categories and find resources for your goals.</small></Link>
+          <Link href="/compare"><span>⚖️</span><strong>Compare products</strong><small>Review features, descriptions and prices side by side before choosing.</small></Link>
+          <Link href="/bundles"><span>🧰</span><strong>Curated bundles</strong><small>Explore goal-based collections of complementary tools.</small></Link>
+          <Link href="/account/wishlist"><span>♡</span><strong>Save your favorites</strong><small>Keep a wishlist and access it again when you are ready.</small></Link>
+          <Link href="/explore"><span>⭐</span><strong>Verified-purchase reviews</strong><small>Look for customer feedback tied to completed purchases on product pages.</small></Link>
+          <Link href="/account/orders"><span>🧾</span><strong>Orders & purchases</strong><small>View your order history from your signed-in account.</small></Link>
+          <Link href="/account/library"><span>📚</span><strong>Customer library</strong><small>Check your account for available purchase access and digital items.</small></Link>
+          <Link href="/signup"><span>✨</span><strong>Creator opportunities</strong><small>Join DigiNanba and explore options for selling digital products.</small></Link>
+          <Link href="/guides"><span>🌍</span><strong>Learn and grow</strong><small>Read practical guides and discover new ways to work.</small></Link>
         </div>
       </div></section>
 
