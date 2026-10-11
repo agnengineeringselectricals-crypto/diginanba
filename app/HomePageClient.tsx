@@ -269,8 +269,8 @@ export default function HomePageClient({ initialProducts }: Props) {
         <div className="ref-section-head"><div><h2>Everything you need in one digital marketplace</h2><p>Discover products, make confident choices, and manage your digital purchases.</p></div></div>
         <div className="dn-feature-grid">
           <Link href="/explore"><span>🔎</span><strong>Discover</strong><small>Search, browse categories and explore practical products.</small></Link>
-          <Link href="/solutions"><span>🧠</span><strong>Choose with confidence</strong><small>Start from a problem and compare relevant solutions.</small></Link>
-          <Link href="/explore?q=Bundles"><span>🧰</span><strong>Build your toolkit</strong><small>Find complementary resources for your workflow.</small></Link>
+          <Link href="/compare"><span>⚖️</span><strong>Compare products</strong><small>Compare features, descriptions and prices side by side.</small></Link>
+          <Link href="/bundles"><span>🧰</span><strong>Curated bundles</strong><small>Shop goal-based collections of complementary tools.</small></Link>
           <Link href="/account"><span>📥</span><strong>Your digital library</strong><small>Visit your account to manage purchases and downloads.</small></Link>
           <Link href="/signup"><span>✨</span><strong>Create and sell</strong><small>Join DigiNanba as a creator and explore selling opportunities.</small></Link>
           <Link href="/guides"><span>🌍</span><strong>Learn and grow</strong><small>Read helpful guides and discover new ways to work.</small></Link>
@@ -298,8 +298,8 @@ export default function HomePageClient({ initialProducts }: Props) {
 
     <footer className="ref-footer"><div className="ref-container ref-footer-grid">
       <div><h3>DigiNanba</h3><p>A global marketplace for practical digital products.</p><div className="ref-note">Checkout requires sign-in. Payments remain in demo mode until a provider is configured.</div></div>
-      <div><h4>Marketplace</h4><Link href="/explore">Explore products</Link><Link href="/categories/ebooks-guides">Categories</Link><Link href="/solutions">Shop by goal</Link><Link href="/guides">DigiNanba Guides</Link></div>
-      <div><h4>Account</h4><Link href="/login">Log in</Link><Link href="/signup">Create account</Link><Link href="/cart">Cart</Link></div>
+      <div><h4>Marketplace</h4><Link href="/explore">Explore products</Link><Link href="/categories/ebooks-guides">Categories</Link><Link href="/solutions">Shop by goal</Link><Link href="/bundles">Product bundles</Link><Link href="/compare">Compare products</Link><Link href="/guides">DigiNanba Guides</Link></div>
+      <div><h4>Account</h4><Link href="/login">Log in</Link><Link href="/signup">Create account</Link><Link href="/cart">Cart</Link><Link href="/account/orders">Orders &amp; purchases</Link><Link href="/account/wishlist">Wishlist</Link></div>
       <div><h4>For creators</h4><Link href="/signup">Become a seller</Link><Link href="/explore">Seller resources</Link><Link href="/account">Help center</Link></div>
     </div>
     <div className="ref-container dn-social-ribbon">
