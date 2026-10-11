@@ -226,6 +226,7 @@ export default function HomePageClient({ initialProducts }: Props) {
       <section className="ref-hero">
         <div className="ref-container ref-market-grid">
           <div className="ref-market-left">
+            <form className="dn-goal-search dn-hero-goal-search" onSubmit={(event)=>{event.preventDefault();const input=event.currentTarget.elements.namedItem('goal') as HTMLInputElement;const value=input.value.trim();if(value)window.location.href='/explore?q='+encodeURIComponent(value);}}><input name="goal" aria-label="Describe what you want to accomplish" placeholder="What do you want to do? e.g. plan a budget, grow sales…" /><button className="ref-primary" type="submit">Find tools →</button></form>
             <h1>Find the digital tools that solve your problem.</h1>
             <div className="ref-category-panel" id="categories">
               <div className="ref-category-scroll" aria-label="Scroll to browse all product categories"><div className="ref-categories">{categories.map(([icon, label]) => <button className="ref-category" key={label} onClick={() => chooseCategory(label)}><span className="ref-category-icon">{icon}</span><span className="ref-category-copy"><strong>{label}</strong><small>Explore products</small></span></button>)}</div></div>
@@ -255,15 +256,6 @@ export default function HomePageClient({ initialProducts }: Props) {
       </section>
 
       <CreatorEarningsShowcase />
-
-      <section className="ref-section dn-ai-hub" aria-labelledby="dn-ai-hub-title"><div className="ref-container">
-        <div className="dn-ai-hub-panel">
-          <div className="dn-ai-hub-copy"><span className="dn-eyebrow">YOUR AI-POWERED MARKETPLACE</span><h2 id="dn-ai-hub-title">Tell DigiNanba what you want to accomplish.</h2><p>Find practical digital tools for your work, business, learning or everyday life. Start with a goal and explore products selected for that need.</p>
-          <form className="dn-goal-search" onSubmit={(event)=>{event.preventDefault();const input=event.currentTarget.elements.namedItem('goal') as HTMLInputElement;const value=input.value.trim();if(value)window.location.href='/explore?q='+encodeURIComponent(value);}}><input name="goal" aria-label="Describe what you want to accomplish" placeholder="e.g. plan my budget, grow sales, automate reports…" /><button className="ref-primary" type="submit">Find my tools →</button></form>
-          <div className="dn-trust-points"><span>✓ Practical digital resources</span><span>✓ Browse by outcome</span><span>✓ New tools added over time</span></div></div>
-          <div className="dn-ai-hub-links"><Link href="/explore?q=Templates"><span>📊</span><strong>Templates & spreadsheets</strong><small>Organize work and make better decisions</small></Link><Link href="/explore?q=AI"><span>🤖</span><strong>AI & automation</strong><small>Streamline repeatable tasks</small></Link><Link href="/solutions"><span>🎯</span><strong>Solutions by goal</strong><small>Start with the outcome you need</small></Link><Link href="/guides"><span>📚</span><strong>Guides & learning</strong><small>Learn before you choose</small></Link></div>
-        </div>
-      </div></section>
 
       <section className="ref-section dn-feature-map"><div className="ref-container">
         <div className="ref-section-head"><div><h2>Shop smarter with DigiNanba</h2><p>Discover useful products, compare your options, save favorites and keep track of your purchases.</p></div></div>
