@@ -570,3 +570,46 @@ a.ref-need:hover .ref-solution-link{text-decoration:underline}
  .ref-featured-footer{flex-direction:column!important;align-items:stretch!important;gap:6px!important}
  .ref-add-cart{width:100%!important}
 }
+
+
+/* Fix category viewport: exactly four compact tiles per row (eight visible), remaining tiles scroll horizontally. */
+.ref-category-scroll{
+  container-type:inline-size!important;
+  width:100%!important;
+  max-width:100%!important;
+  overflow-x:auto!important;
+  overflow-y:hidden!important;
+}
+.ref-categories{
+  grid-auto-flow:column!important;
+  grid-template-columns:none!important;
+  grid-template-rows:repeat(2, minmax(72px, auto))!important;
+  grid-auto-columns:calc((100cqw - 36px)/4)!important;
+  grid-auto-rows:auto!important;
+  width:max-content!important;
+  min-width:100%!important;
+  max-width:none!important;
+  gap:12px!important;
+}
+.ref-category{
+  width:100%!important;
+  min-width:0!important;
+  max-width:100%!important;
+  padding:12px!important;
+  gap:8px!important;
+  overflow:hidden!important;
+}
+.ref-category-copy{min-width:0!important;flex:1 1 auto!important}
+.ref-category-icon{font-size:23px!important}
+.ref-category strong{font-size:12px!important;line-height:1.25!important;overflow-wrap:anywhere!important}
+.ref-category small{font-size:10px!important;line-height:1.2!important}
+@media(max-width:560px){
+  .ref-category-scroll{height:292px!important;max-height:292px!important}
+  .ref-categories{
+    grid-template-rows:repeat(4,68px)!important;
+    grid-auto-columns:calc((100cqw - 10px)/2)!important;
+    grid-auto-rows:68px!important;
+    gap:10px!important;
+  }
+  .ref-category{height:68px!important;min-height:68px!important;padding:9px!important}
+}
