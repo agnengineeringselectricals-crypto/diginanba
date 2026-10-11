@@ -1,2 +1,19 @@
 import { NextResponse } from 'next/server';
-export async function GET(){return NextResponse.json({ok:true,service:'diginanba-web',environment:process.env.NODE_ENV,version:'0.2.0'});}
+import { db } from '@/lib/db';
+
+export async function GET() {
+  try {
+    await db.query('SELECT 1');
+    return NextResponse.json({
+      ok: true,
+      service: 'diginanba-web',
+      database: 'connected',
+      environment: process.env.NODE_ENV,
+    });
+  } catch {
+    return NextResponse.json(
+      { ok: false, service: 'diginanba-web', database: 'unavailable' },
+      { status: 503 },
+    );
+  }
+}
