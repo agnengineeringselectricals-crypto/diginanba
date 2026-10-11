@@ -69,7 +69,7 @@ export async function transitionProductFactoryJob(
   try {
     await client.query('BEGIN');
     const currentResult = await client.query(
-      'SELECT id, status, attempt_count, max_attempts FROM product_factory_jobs WHERE id = $1 FOR UPDATE',
+      'SELECT id, status, attempt_count, max_attempts, started_at FROM product_factory_jobs WHERE id = $1 FOR UPDATE',
       [jobId],
     );
     const current = currentResult.rows[0];
