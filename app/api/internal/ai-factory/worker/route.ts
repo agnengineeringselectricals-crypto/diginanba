@@ -10,7 +10,7 @@ export const maxDuration = 60;
 function authorized(request: Request): boolean {
   const expected = process.env.FACTORY_WORKER_SECRET;
   if (!expected || expected.length < 32) return false;
-  const supplied = request.headers.get('authorization')?.replace(/^Bearer\\s+/i, '') ?? '';
+  const supplied = request.headers.get('authorization')?.replace(/^Bearer\s+/i, '') ?? '';
   const a = Buffer.from(expected, 'utf8');
   const b = Buffer.from(supplied, 'utf8');
   return a.length === b.length && timingSafeEqual(a, b);
