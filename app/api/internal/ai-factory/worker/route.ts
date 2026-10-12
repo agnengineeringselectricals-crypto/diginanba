@@ -5,7 +5,7 @@ import { generateFactoryOutput, type FactoryJob } from '@/lib/server/ai-factory-
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-export const maxDuration = 70;
+export const maxDuration = 60;
 
 function authorized(request: Request): boolean {
   const expected = process.env.FACTORY_WORKER_SECRET;
