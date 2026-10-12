@@ -20,6 +20,16 @@ const createJobSchema = z.object({
   input: z.record(z.string(), z.unknown()).default({}),
 }).strict();
 
+function containsSensitiveKey(value: unknown, depth = 0): boolean {
+  if (depth > 12) return true;
+  if (Array.isArray(value)) return value.some(item => containsSensitiveKey(item, depth + 1));
+  if (!value || typeof value !== 'object') return false;
+  return Object.entries(value as Record<string, unknown>).some(([key, nested]) =>
+    /(?:api.?key|secret|password|credential|authorization|access.?token|refresh.?token|private.?key)/i.test(key)
+    || containsSensitiveKey(nested, depth + 1),
+  );
+}
+
 const allowedStatuses = new Set([
   'queued', 'running', 'needs_review', 'completed', 'failed', 'cancelled',
 ]);
@@ -91,6 +101,9 @@ export async function POST(request: Request) {
   }
 
   // Keep queued input bounded; never accept API credentials or executable instructions as config.
+  if (containsSensitiveKey(parsed.data.input)) {
+    return NextResponse.json({ error: 'Job input must not contain secrets, credentials, or token fields' }, { status: 400 });
+  }
   const inputText = JSON.stringify(parsed.data.input);
   if (Buffer.byteLength(inputText, 'utf8') > 32_000) {
     return NextResponse.json({ error: 'Job input exceeds the 32 KB limit' }, { status: 413 });
@@ -125,10 +138,14 @@ export async function POST(request: Request) {
       [parsed.data.idempotencyKey],
     );
 
-    return NextResponse.json(
-      { job: existing.rows[0] ?? null, deduplicated: true },
-      { status: 200 },
-    );
+    const existingJob = existing.rows[0];
+    if (!existingJob) {
+      return NextResponse.json({ error: 'Idempotency conflict; retry with a new key' }, { status: 409 });
+    }
+    if (existingJob.job_type !== parsed.data.jobType) {
+      return NextResponse.json({ error: 'Idempotency key is already used by a different job type' }, { status: 409 });
+    }
+    return NextResponse.json({ job: existingJob, deduplicated: true }, { status: 200 });
   } catch (error) {
     console.error('AI factory job enqueue failed', error);
     return NextResponse.json(
