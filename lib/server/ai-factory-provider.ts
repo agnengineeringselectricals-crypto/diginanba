@@ -66,7 +66,7 @@ export async function generateFactoryOutput(job: FactoryJob): Promise<FactoryGen
         },
       ],
     }),
-    signal: AbortSignal.timeout(60_000),
+    signal: AbortSignal.timeout(45_000),
     cache: 'no-store',
   });
 
