@@ -64,6 +64,10 @@ async function processOne(request: Request) {
     client.release();
   }
 
+  if (!job) {
+    return NextResponse.json({ error: 'No job was claimed' }, { status: 500 });
+  }
+
   try {
     const generated = await generateFactoryOutput(job);
     const output = {
