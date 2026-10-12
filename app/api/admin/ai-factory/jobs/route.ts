@@ -106,11 +106,16 @@ export async function POST(request: Request) {
     );
 
     if (result.rowCount) {
-      await db.query(
-        `INSERT INTO audit_logs (actor_user_id, action, resource_type, resource_id, after_json)
-         VALUES ($1, 'ai_factory.job_queued', 'ai_factory_job', $2, $3::jsonb)`,
-        [access.userId, result.rows[0].id, JSON.stringify({ jobType: parsed.data.jobType })],
-      );
+      try {
+        await db.query(
+          `INSERT INTO audit_logs (actor_user_id, action, resource_type, resource_id, after_json)
+           VALUES ($1, 'ai_factory.job_queued', 'ai_factory_job', $2, $3::jsonb)`,
+          [access.userId, result.rows[0].id, JSON.stringify({ jobType: parsed.data.jobType })],
+        );
+      } catch (auditError) {
+        // Do not report enqueue failure after the queue insert has already succeeded.
+        console.error('AI factory enqueue audit record failed', auditError);
+      }
       return NextResponse.json({ job: result.rows[0], deduplicated: false }, { status: 201 });
     }
 
