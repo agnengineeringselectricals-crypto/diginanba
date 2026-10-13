@@ -121,4 +121,25 @@ SELECT r.id, p.id FROM roles r CROSS JOIN permissions p
 WHERE r.name = 'Super Admin'
 ON CONFLICT DO NOTHING;
 
+
+-- Team leaders can review work in their own team; staff receive task-level
+-- permissions. Publishing and settlement execution are not granted by default.
+INSERT INTO role_permissions (role_id, permission_id)
+SELECT r.id, p.id FROM roles r JOIN permissions p ON
+  (r.name = 'Customer Care Team Leader' AND p.key IN ('admin.dashboard.view','support.tickets.view','support.tickets.manage'))
+  OR (r.name = 'Customer Care Staff' AND p.key IN ('admin.dashboard.view','support.tickets.view','support.tickets.manage'))
+  OR (r.name = 'Products Team Leader' AND p.key IN ('admin.dashboard.view','catalog.products.view','catalog.products.edit','catalog.products.approve'))
+  OR (r.name = 'Products Staff' AND p.key IN ('admin.dashboard.view','catalog.products.view','catalog.products.edit'))
+  OR (r.name = 'Users & Creators Team Leader' AND p.key IN ('admin.dashboard.view','users.creators.view','users.creators.review'))
+  OR (r.name = 'Users & Creators Staff' AND p.key IN ('admin.dashboard.view','users.creators.view'))
+  OR (r.name = 'AI Factory Team Leader' AND p.key IN ('admin.dashboard.view','ai_factory.jobs.view','ai_factory.jobs.manage','ai_factory.drafts.review'))
+  OR (r.name = 'AI Factory Staff' AND p.key IN ('admin.dashboard.view','ai_factory.jobs.view'))
+  OR (r.name = 'Finance Team Leader' AND p.key IN ('admin.dashboard.view','finance.records.view','finance.refunds.approve'))
+  OR (r.name = 'Finance Staff' AND p.key IN ('admin.dashboard.view','finance.records.view'))
+  OR (r.name = 'Marketing Team Leader' AND p.key IN ('admin.dashboard.view','marketing.campaigns.manage'))
+  OR (r.name = 'Marketing Staff' AND p.key IN ('admin.dashboard.view','marketing.campaigns.manage'))
+  OR (r.name = 'Localization Team Leader' AND p.key IN ('admin.dashboard.view','markets.localization.manage'))
+  OR (r.name = 'Localization Staff' AND p.key IN ('admin.dashboard.view','markets.localization.manage'))
+ON CONFLICT DO NOTHING;
+
 COMMIT;
