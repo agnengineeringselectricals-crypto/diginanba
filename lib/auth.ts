@@ -4,6 +4,8 @@ import { compare } from 'bcryptjs';
 import { db } from './db';
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  // Explicitly trust Vercel's forwarded host headers for Auth.js v5.
+  trustHost: true,
   session: { strategy: 'jwt' },
   pages: { signIn: '/login' },
   providers: [Credentials({
