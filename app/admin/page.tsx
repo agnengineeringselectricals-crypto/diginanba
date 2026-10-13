@@ -1,6 +1,6 @@
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
-import { redirect } from 'next/navigation';
+import { redirect } from 'next/navigation';\nimport Link from 'next/link';
 
 async function countRows(table: 'users' | 'products' | 'orders' | 'categories') {
   try {
@@ -12,10 +12,10 @@ async function countRows(table: 'users' | 'products' | 'orders' | 'categories') 
 }
 
 const adminAreas = [
-  { icon: '▦', number: '01', title: 'Catalog management', description: 'Review product records, editions, pricing and publishing status.', detail: 'PRODUCTS & CATEGORIES', color: '#6757f5', tint: '#f0edff' },
-  { icon: '♙', number: '02', title: 'Users & access', description: 'Manage administrator access and review role assignments.', detail: 'ACCOUNTS & PERMISSIONS', color: '#087f8c', tint: '#e6f7f7' },
-  { icon: '↗', number: '03', title: 'Orders & finance', description: 'Monitor order activity and prepare for payment operations.', detail: 'ORDERS & SETTLEMENTS', color: '#b76b12', tint: '#fff4e4' },
-  { icon: '✦', number: '04', title: 'AI Product Factory', description: 'Review private product-generation operations and factory readiness.', detail: 'AUTOMATION & AI', color: '#a044b5', tint: '#faedff' },
+  { href: '/admin/catalog', icon: '▦', number: '01', title: 'Catalog management', description: 'Review product records, editions, pricing and publishing status.', detail: 'PRODUCTS & CATEGORIES', color: '#6757f5', tint: '#f0edff' },
+  { href: '/admin/users', icon: '♙', number: '02', title: 'Users & access', description: 'Manage administrator access and review role assignments.', detail: 'ACCOUNTS & PERMISSIONS', color: '#087f8c', tint: '#e6f7f7' },
+  { href: '/admin/orders', icon: '↗', number: '03', title: 'Orders & finance', description: 'Monitor order activity and prepare for payment operations.', detail: 'ORDERS & SETTLEMENTS', color: '#b76b12', tint: '#fff4e4' },
+  { href: '/admin/factory', icon: '✦', number: '04', title: 'AI Product Factory', description: 'Review private product-generation operations and factory readiness.', detail: 'AUTOMATION & AI', color: '#a044b5', tint: '#faedff' },
 ];
 
 export default async function AdminPage() {
@@ -69,11 +69,11 @@ export default async function AdminPage() {
           <div className="dn-admin-user"><div className="dn-admin-avatar">{(session.user.name ?? session.user.email ?? 'A').slice(0, 1).toUpperCase()}</div><div style={{ minWidth: 0 }}><div style={{ fontSize: 13, fontWeight: 750, overflowWrap: 'anywhere' }}>{session.user.name ?? session.user.email ?? 'Administrator'}</div><div style={{ fontSize: 11, color: '#778095', marginTop: 3 }}>Access role: <span style={{ color: '#087f65', fontWeight: 750 }}>{roleName}</span></div></div><span aria-hidden="true" style={{ color: '#7c8497', paddingLeft: 4 }}>●</span></div>
         </header>
 
-        <section style={{ borderRadius: 26, padding: 'clamp(24px,4vw,42px)', color: '#fff', background: 'radial-gradient(circle at 85% 15%, #7669ff 0, transparent 34%), linear-gradient(120deg,#211b58 0%,#4033a7 58%,#5b4df6 100%)', position: 'relative', overflow: 'hidden' }}>
+        <section style={{ borderRadius: 26, padding: 'clamp(18px,2.5vw,28px)', color: '#fff', background: 'radial-gradient(circle at 85% 15%, #7669ff 0, transparent 34%), linear-gradient(120deg,#211b58 0%,#4033a7 58%,#5b4df6 100%)', position: 'relative', overflow: 'hidden' }}>
           <div style={{ position: 'relative', zIndex: 1, maxWidth: 740 }}>
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, border: '1px solid #ffffff35', background: '#ffffff12', padding: '7px 11px', borderRadius: 999, fontSize: 11, fontWeight: 800, letterSpacing: 1.3 }}><span style={{ width: 7, height: 7, borderRadius: '50%', background: '#6ee7b7' }} /> PRIVATE ADMINISTRATION</div>
-            <h1 style={{ fontSize: 'clamp(30px,4vw,44px)', letterSpacing: '-1.5px', lineHeight: 1.08, margin: '20px 0 12px' }}>Your marketplace,<br />at a glance.</h1>
-            <p style={{ color: '#e0ddff', fontSize: 15, lineHeight: 1.7, maxWidth: 560, margin: 0 }}>Manage the foundations of DigiNanba from one clear workspace. Monitor activity, review your catalog and keep operations moving.</p>
+            <h1 style={{ fontSize: 'clamp(25px,3vw,34px)', letterSpacing: '-1.5px', lineHeight: 1.08, margin: '12px 0 8px' }}>Your marketplace,<br />at a glance.</h1>
+            <p style={{ color: '#e0ddff', fontSize: 15, lineHeight: 1.7, maxWidth: 560, margin: 0 }}>Your control center for products, users, orders and AI-powered marketplace operations.</p>
           </div>
           <div aria-hidden="true" style={{ position: 'absolute', right: '-32px', bottom: '-95px', width: 280, height: 280, border: '1px solid #ffffff26', borderRadius: '50%' }}><div style={{ position: 'absolute', inset: 28, border: '1px solid #ffffff26', borderRadius: '50%' }}><div style={{ position: 'absolute', inset: 28, border: '1px solid #ffffff26', borderRadius: '50%' }} /></div></div>
         </section>
@@ -95,7 +95,7 @@ export default async function AdminPage() {
         <section>
           <div className="dn-admin-sectionhead"><div><div style={{ color: '#6c5af2', fontSize: 11, fontWeight: 850, letterSpacing: 1.5 }}>WORKSPACE</div><h2 style={{ margin: '7px 0 0', fontSize: 23, letterSpacing: '-.5px' }}>Administration areas</h2><p style={{ color: '#788196', margin: '7px 0 0', fontSize: 14 }}>Choose an area to review its current capabilities.</p></div></div>
           <div className="dn-admin-areas">
-            {adminAreas.map((area) => <article key={area.number} className="dn-admin-area">
+            {adminAreas.map((area) => <article key={area.number} href={area.href} className="dn-admin-area">
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 14 }}>
                 <div style={{ width: 48, height: 48, display: 'grid', placeItems: 'center', borderRadius: 15, background: area.tint, color: area.color, fontSize: 25, fontWeight: 750 }}>{area.icon}</div>
                 <span style={{ fontSize: 12, color: '#a0a6b5', fontWeight: 800, letterSpacing: 1 }}>{area.number}</span>
