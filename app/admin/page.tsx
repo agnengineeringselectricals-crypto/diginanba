@@ -58,8 +58,8 @@ export default async function AdminPage() {
         .dn-admin-statgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin:24px 0 36px}
         .dn-admin-stat{background:#fff;border:1px solid #e8eaf2;border-radius:20px;padding:21px;box-shadow:0 4px 18px #1b24400a;min-width:0}
         .dn-admin-areas{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
-        .dn-admin-area{display:block;text-decoration:none;color:inherit;background:#fff;border:1px solid #e8eaf2;border-radius:20px;padding:23px;min-width:0;cursor:pointer;position:relative;transition:transform .18s ease,box-shadow .18s ease}.dn-admin-area:focus-visible{outline:3px solid #6757f5;outline-offset:3px}.dn-admin-open{display:inline-flex;align-items:center;gap:7px;margin-top:14px;padding:10px 13px;border-radius:10px;background:#f0edff;color:#5141d8;font-size:12px;font-weight:800}
-        .dn-admin-area:hover{transform:translateY(-3px);box-shadow:0 14px 32px #1b244012}
+        .dn-admin-area{display:block;text-decoration:none;color:inherit;background:#fff;border:1px solid #e8eaf2;border-radius:20px;padding:23px;min-width:0;position:relative;transition:transform .18s ease,box-shadow .18s ease}.dn-admin-open{display:inline-flex;align-items:center;justify-content:center;gap:7px;margin-top:14px;padding:12px 15px;min-height:44px;max-width:100%;border-radius:10px;background:#f0edff;color:#5141d8;font-size:12px;font-weight:800;text-decoration:none;position:relative;z-index:2}.dn-admin-open:focus-visible{outline:3px solid #6757f5;outline-offset:3px}
+        .dn-admin-area:hover{box-shadow:0 14px 32px #1b244012}.dn-admin-open:hover{background:#e3ddff}
         .dn-admin-sectionhead{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:17px}
         @media(max-width:1000px){.dn-admin-shell{padding:26px 22px}.dn-admin-statgrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
         @media(max-width:620px){.dn-admin-shell{padding:18px 14px 32px}.dn-admin-top{align-items:flex-start;flex-direction:column;margin-bottom:24px}.dn-admin-statgrid{gap:10px;margin:18px 0 28px}.dn-admin-stat{padding:15px;border-radius:16px}.dn-admin-areas{grid-template-columns:1fr}.dn-admin-area{padding:19px}.dn-admin-sectionhead{align-items:flex-start;flex-direction:column}.dn-admin-user{width:100%}}
@@ -96,15 +96,15 @@ export default async function AdminPage() {
         <section>
           <div className="dn-admin-sectionhead"><div><div style={{ color: '#6c5af2', fontSize: 11, fontWeight: 850, letterSpacing: 1.5 }}>WORKSPACE</div><h2 style={{ margin: '7px 0 0', fontSize: 23, letterSpacing: '-.5px' }}>Administration areas</h2><p style={{ color: '#788196', margin: '7px 0 0', fontSize: 14 }}>Choose an area to review its current capabilities.</p></div></div>
           <div className="dn-admin-areas">
-            {adminAreas.map((area) => <Link href={area.href} key={area.number} className="dn-admin-area">
+            {adminAreas.map((area) => <article key={area.number} className="dn-admin-area">
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 14 }}>
                 <div style={{ width: 48, height: 48, display: 'grid', placeItems: 'center', borderRadius: 15, background: area.tint, color: area.color, fontSize: 25, fontWeight: 750 }}>{area.icon}</div>
                 <span style={{ fontSize: 12, color: '#a0a6b5', fontWeight: 800, letterSpacing: 1 }}>{area.number}</span>
               </div>
               <h3 style={{ fontSize: 19, letterSpacing: '-.3px', margin: '20px 0 8px' }}>{area.title}</h3>
               <p style={{ fontSize: 13, lineHeight: 1.65, color: '#70798e', margin: '0 0 20px', minHeight: 43 }}>{area.description}</p>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, borderTop: '1px solid #eef0f5', paddingTop: 15 }}><span style={{ color: area.color, fontSize: 10, fontWeight: 850, letterSpacing: 1 }}>{area.detail}</span><span aria-hidden="true" style={{ color: area.color, fontSize: 20 }}>↗</span></div><span className="dn-admin-open">Open {area.title} <span aria-hidden="true">→</span></span>
-            </Link>)}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, borderTop: '1px solid #eef0f5', paddingTop: 15 }}><span style={{ color: area.color, fontSize: 10, fontWeight: 850, letterSpacing: 1 }}>{area.detail}</span><span aria-hidden="true" style={{ color: area.color, fontSize: 20 }}>↗</span></div><Link href={area.href} className="dn-admin-open" aria-label={`Open ${area.title}`}>Open {area.title} <span aria-hidden="true">→</span></Link>
+            </article>)}
           </div>
         </section>
         <footer style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, borderTop: '1px solid #e5e8f0', marginTop: 30, paddingTop: 18, color: '#8a92a4', fontSize: 11, lineHeight: 1.6 }}><span>© DigiNanba · Private administration</span><span>Summary counts come from the production database. A dash means a table could not be queried.</span></footer>
