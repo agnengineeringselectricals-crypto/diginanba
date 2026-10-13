@@ -95,7 +95,7 @@ export default async function AdminPage() {
         <section>
           <div className="dn-admin-sectionhead"><div><div style={{ color: '#6c5af2', fontSize: 11, fontWeight: 850, letterSpacing: 1.5 }}>WORKSPACE</div><h2 style={{ margin: '7px 0 0', fontSize: 23, letterSpacing: '-.5px' }}>Administration areas</h2><p style={{ color: '#788196', margin: '7px 0 0', fontSize: 14 }}>Choose an area to review its current capabilities.</p></div></div>
           <div className="dn-admin-areas">
-            {adminAreas.map((area) => <article key={area.number} href={area.href} className="dn-admin-area">
+            {adminAreas.map((area) => <Link href={area.href} key={area.number} className="dn-admin-area">
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 14 }}>
                 <div style={{ width: 48, height: 48, display: 'grid', placeItems: 'center', borderRadius: 15, background: area.tint, color: area.color, fontSize: 25, fontWeight: 750 }}>{area.icon}</div>
                 <span style={{ fontSize: 12, color: '#a0a6b5', fontWeight: 800, letterSpacing: 1 }}>{area.number}</span>
@@ -103,7 +103,7 @@ export default async function AdminPage() {
               <h3 style={{ fontSize: 19, letterSpacing: '-.3px', margin: '20px 0 8px' }}>{area.title}</h3>
               <p style={{ fontSize: 13, lineHeight: 1.65, color: '#70798e', margin: '0 0 20px', minHeight: 43 }}>{area.description}</p>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, borderTop: '1px solid #eef0f5', paddingTop: 15 }}><span style={{ color: area.color, fontSize: 10, fontWeight: 850, letterSpacing: 1 }}>{area.detail}</span><span aria-hidden="true" style={{ color: area.color, fontSize: 20 }}>↗</span></div>
-            </article>)}
+            </Link>)}
           </div>
         </section>
         <footer style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, borderTop: '1px solid #e5e8f0', marginTop: 30, paddingTop: 18, color: '#8a92a4', fontSize: 11, lineHeight: 1.6 }}><span>© DigiNanba · Private administration</span><span>Summary counts come from the production database. A dash means a table could not be queried.</span></footer>
