@@ -1,0 +1,33 @@
+name: DigiNanba foundation checks
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [feature/private-ai-factory-foundation]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Type check
+        run: npx tsc --noEmit
+      - name: Build application
+        run: npm run build
+        env:
+          AUTH_SECRET: foundation-build-only-secret-not-for-deployment-000000000000
+          NEXTAUTH_SECRET: foundation-build-only-secret-not-for-deployment-000000000000
+          AUTH_URL: http://localhost:3000
+          NEXTAUTH_URL: http://localhost:3000
+          DATABASE_URL: postgres://build:build@127.0.0.1:5432/build
+          DATABASE_SSL: "false"
