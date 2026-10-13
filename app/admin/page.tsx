@@ -1,6 +1,7 @@
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
-import { redirect } from 'next/navigation';\nimport Link from 'next/link';
+import { redirect } from 'next/navigation';
+import Link from 'next/link';
 
 async function countRows(table: 'users' | 'products' | 'orders' | 'categories') {
   try {
