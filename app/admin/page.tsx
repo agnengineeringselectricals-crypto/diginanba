@@ -58,7 +58,7 @@ export default async function AdminPage() {
         .dn-admin-statgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin:24px 0 36px}
         .dn-admin-stat{background:#fff;border:1px solid #e8eaf2;border-radius:20px;padding:21px;box-shadow:0 4px 18px #1b24400a;min-width:0}
         .dn-admin-areas{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
-        .dn-admin-area{display:block;text-decoration:none;color:inherit;background:#fff;border:1px solid #e8eaf2;border-radius:20px;padding:23px;min-width:0;transition:transform .18s ease,box-shadow .18s ease}
+        .dn-admin-area{display:block;text-decoration:none;color:inherit;background:#fff;border:1px solid #e8eaf2;border-radius:20px;padding:23px;min-width:0;cursor:pointer;position:relative;transition:transform .18s ease,box-shadow .18s ease}.dn-admin-area:focus-visible{outline:3px solid #6757f5;outline-offset:3px}.dn-admin-open{display:inline-flex;align-items:center;gap:7px;margin-top:14px;padding:10px 13px;border-radius:10px;background:#f0edff;color:#5141d8;font-size:12px;font-weight:800}
         .dn-admin-area:hover{transform:translateY(-3px);box-shadow:0 14px 32px #1b244012}
         .dn-admin-sectionhead{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:17px}
         @media(max-width:1000px){.dn-admin-shell{padding:26px 22px}.dn-admin-statgrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
@@ -103,7 +103,7 @@ export default async function AdminPage() {
               </div>
               <h3 style={{ fontSize: 19, letterSpacing: '-.3px', margin: '20px 0 8px' }}>{area.title}</h3>
               <p style={{ fontSize: 13, lineHeight: 1.65, color: '#70798e', margin: '0 0 20px', minHeight: 43 }}>{area.description}</p>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, borderTop: '1px solid #eef0f5', paddingTop: 15 }}><span style={{ color: area.color, fontSize: 10, fontWeight: 850, letterSpacing: 1 }}>{area.detail}</span><span aria-hidden="true" style={{ color: area.color, fontSize: 20 }}>↗</span></div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, borderTop: '1px solid #eef0f5', paddingTop: 15 }}><span style={{ color: area.color, fontSize: 10, fontWeight: 850, letterSpacing: 1 }}>{area.detail}</span><span aria-hidden="true" style={{ color: area.color, fontSize: 20 }}>↗</span></div><span className="dn-admin-open">Open {area.title} <span aria-hidden="true">→</span></span>
             </Link>)}
           </div>
         </section>
