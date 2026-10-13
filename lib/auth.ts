@@ -4,6 +4,11 @@ import { compare } from 'bcryptjs';
 import { db } from './db';
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  // Explicitly set the secret so Preview and Production do not depend on
+  // provider-specific environment-variable inference.
+  secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
+  // Enable Auth.js diagnostic logs only on non-production deployments.
+  debug: process.env.VERCEL_ENV !== 'production',
   // Explicitly trust Vercel's forwarded host headers for Auth.js v5.
   trustHost: true,
   session: { strategy: 'jwt' },
