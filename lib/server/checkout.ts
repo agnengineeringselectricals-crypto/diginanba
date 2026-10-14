@@ -3,9 +3,9 @@ import { db } from '@/lib/db';
 
 export type CheckoutLine = { slug: string; quantity: number };
 
-export async function createPendingOrder(userId: string, market: 'US'|'UK', lines: CheckoutLine[]) {
+export async function createPendingOrder(userId: string, market: 'US'|'UK'|'IN', lines: CheckoutLine[]) {
   if (!lines.length) throw new Error('Cart is empty');
-  const currency = market === 'US' ? 'USD' : 'GBP';
+  const currency = market === 'US' ? 'USD' : market === 'UK' ? 'GBP' : 'INR';
   const client = await db.connect();
   try {
     await client.query('BEGIN');
