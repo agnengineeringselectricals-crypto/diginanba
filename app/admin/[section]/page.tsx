@@ -22,8 +22,8 @@ const sections: Record<SectionKey, { title: string; eyebrow: string; description
   orders: {
     title: 'Orders & finance', eyebrow: 'ORDERS & SETTLEMENTS',
     description: 'Review recent orders and recorded payment statuses. Totals are stored in minor currency units; no live payment or refund action is exposed until provider reconciliation is implemented.',
-    columns: [{key:'id',label:'Order ID'}, {key:'status',label:'Order status'}, {key:'currency_code',label:'Currency'}, {key:'total_minor',label:'Total (minor units)'}, {key:'created_at',label:'Created'}],
-    query: 'SELECT id, status, currency_code, total_minor, created_at FROM orders ORDER BY created_at DESC LIMIT 50',
+    columns: [{key:'id',label:'Order ID'}, {key:'status',label:'Order status'}, {key:'payment_status',label:'Payment status'}, {key:'provider',label:'Provider'}, {key:'currency_code',label:'Currency'}, {key:'total_minor',label:'Total (minor units)'}, {key:'created_at',label:'Created'}],
+    query: `SELECT o.id, o.status, COALESCE(p.status, 'no payment record') AS payment_status, p.provider, o.currency_code, o.total_minor, o.created_at FROM orders o LEFT JOIN LATERAL (SELECT status, provider FROM payments WHERE order_id = o.id ORDER BY created_at DESC LIMIT 1) p ON true ORDER BY o.created_at DESC LIMIT 50`,
   },
   factory: {
     title: 'AI Product Factory', eyebrow: 'AUTOMATION & AI',
@@ -41,7 +41,7 @@ const sections: Record<SectionKey, { title: string; eyebrow: string; description
     title: 'Analytics & reports', eyebrow: 'MARKETPLACE PERFORMANCE',
     description: 'Database-backed operational totals. Pending orders are shown separately and are not represented as paid revenue.',
     columns: [{key:'metric',label:'Metric'}, {key:'value',label:'Value'}],
-    query: "SELECT 'Registered users' AS metric, COUNT(*)::text AS value FROM users UNION ALL SELECT 'Products' AS metric, COUNT(*)::text AS value FROM products UNION ALL SELECT 'Orders' AS metric, COUNT(*)::text AS value FROM orders UNION ALL SELECT 'Paid orders' AS metric, COUNT(*)::text AS value FROM orders WHERE status = 'paid' UNION ALL SELECT 'Pending orders' AS metric, COUNT(*)::text AS value FROM orders WHERE status = 'pending'",
+    query: `SELECT 'Registered users' AS metric, COUNT(*)::text AS value FROM users UNION ALL SELECT 'Products' AS metric, COUNT(*)::text AS value FROM products UNION ALL SELECT 'Orders' AS metric, COUNT(*)::text AS value FROM orders UNION ALL SELECT 'Paid orders' AS metric, COUNT(*)::text AS value FROM orders WHERE status = 'paid' UNION ALL SELECT 'Pending orders' AS metric, COUNT(*)::text AS value FROM orders WHERE status = 'pending' UNION ALL SELECT 'Paid gross by currency (minor units)' AS metric, COALESCE(string_agg(currency_code || ': ' || amount::text, ', ' ORDER BY currency_code), '—') AS value FROM (SELECT currency_code, SUM(total_minor)::bigint AS amount FROM orders WHERE status = 'paid' GROUP BY currency_code) paid_totals`,
   },
   activity: {
     title: 'Audit & activity', eyebrow: 'SECURITY & CHANGE HISTORY',
