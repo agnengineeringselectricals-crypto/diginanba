@@ -738,3 +738,10 @@ a.ref-need:hover .ref-solution-link{text-decoration:underline}
 .ref-featured-card:hover,.ref-product:hover{border-color:#c8c3fa;box-shadow:0 12px 30px rgba(35,30,90,.12);transform:translateY(-2px)}
 .ref-featured-card,.ref-product{transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease}
 @media(prefers-reduced-motion:reduce){.dn-clickable-card,.ref-featured-card,.ref-product{transition:none}}
+
+/* Native full-card links: work without relying on React click hydration. */
+.dn-clickable-card{position:relative;isolation:isolate;cursor:pointer}
+.dn-clickable-card a.dn-card-hit-area{position:absolute;inset:0;z-index:1;display:block;border-radius:inherit;outline-offset:3px}
+.dn-clickable-card a.dn-card-hit-area:focus-visible{outline:3px solid #6757f5;box-shadow:0 0 0 5px #6757f51c}
+.dn-clickable-card a:not(.dn-card-hit-area){position:relative;z-index:2}
+.dn-clickable-card button{position:relative;z-index:3}
