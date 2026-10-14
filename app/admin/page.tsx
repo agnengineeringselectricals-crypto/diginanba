@@ -49,6 +49,7 @@ export default async function AdminPage() {
   return (
     <main style={{ minHeight: '100vh', background: '#f5f6fb', color: '#182033', fontFamily: 'Arial, Helvetica, sans-serif' }}>
       <style>{`
+
         .dn-admin-shell{max-width:1440px;margin:0 auto;padding:32px 42px 48px}
         .dn-admin-top{display:flex;align-items:center;justify-content:space-between;gap:18px;margin-bottom:30px}
         .dn-admin-brand{display:flex;align-items:center;gap:12px;font-size:20px;font-weight:850;letter-spacing:-.5px}
@@ -56,13 +57,18 @@ export default async function AdminPage() {
         .dn-admin-user{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid #e7e9f1;border-radius:15px;padding:9px 14px;max-width:100%}
         .dn-admin-avatar{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:#eeeaff;color:#5848d8;font-weight:800;flex-shrink:0}
         .dn-admin-statgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin:24px 0 36px}
-        .dn-admin-stat{background:#fff;border:1px solid #e8eaf2;border-radius:20px;padding:21px;box-shadow:0 4px 18px #1b24400a;min-width:0}
+        .dn-admin-stat{background:#fff;border:1px solid #e8eaf2;border-radius:18px;padding:21px;box-shadow:0 4px 18px #1b24400a;min-width:0;transition:transform .18s,box-shadow .18s}
         .dn-admin-areas{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
-        .dn-admin-area{display:block;text-decoration:none;color:inherit;background:#fff;border:1px solid #e8eaf2;border-radius:20px;padding:23px;min-width:0;position:relative;transition:transform .18s ease,box-shadow .18s ease}.dn-admin-open{display:inline-flex;align-items:center;justify-content:center;gap:7px;margin-top:14px;padding:12px 15px;min-height:44px;max-width:100%;border-radius:10px;background:#f0edff;color:#5141d8;font-size:12px;font-weight:800;text-decoration:none;position:relative;z-index:2}.dn-admin-open:focus-visible{outline:3px solid #6757f5;outline-offset:3px}
-        .dn-admin-area:hover{box-shadow:0 14px 32px #1b244012}.dn-admin-open:hover{background:#e3ddff}
+        .dn-admin-area{display:block;text-decoration:none;color:inherit;background:#fff;border:1px solid #e8eaf2;border-radius:20px;padding:23px;min-width:0;position:relative;transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease}
+        .dn-admin-open{display:inline-flex;align-items:center;justify-content:center;gap:7px;margin-top:14px;padding:12px 15px;min-height:44px;max-width:100%;border-radius:10px;background:#f0edff;color:#5141d8;font-size:12px;font-weight:800;text-decoration:none;position:relative;z-index:2}
+        .dn-admin-open:focus-visible{outline:3px solid #6757f5;outline-offset:3px}
+        .dn-admin-area:hover{box-shadow:0 14px 32px #1b244012;border-color:#c9c3ff;transform:translateY(-2px)}
+        .dn-admin-open:hover{background:#e3ddff}
         .dn-admin-sectionhead{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:17px}
+        .dn-admin-stat:focus-within{outline:2px solid #c9c3ff}
         @media(max-width:1000px){.dn-admin-shell{padding:26px 22px}.dn-admin-statgrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
         @media(max-width:620px){.dn-admin-shell{padding:18px 14px 32px}.dn-admin-top{align-items:flex-start;flex-direction:column;margin-bottom:24px}.dn-admin-statgrid{gap:10px;margin:18px 0 28px}.dn-admin-stat{padding:15px;border-radius:16px}.dn-admin-areas{grid-template-columns:1fr}.dn-admin-area{padding:19px}.dn-admin-sectionhead{align-items:flex-start;flex-direction:column}.dn-admin-user{width:100%}}
+        @media(prefers-reduced-motion:reduce){.dn-admin-area,.dn-admin-stat{transition:none}}
       `}</style>
       <div className="dn-admin-shell">
         <header className="dn-admin-top">

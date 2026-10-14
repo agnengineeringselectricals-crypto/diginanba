@@ -237,7 +237,7 @@ export default function HomePageClient({ initialProducts }: Props) {
           <aside className="ref-featured-panel" aria-label="Featured digital products">
             <div className="ref-featured-head"><div><h2>Featured digital tools</h2><p>Practical resources to help you get things done.</p></div><Link href="/explore" className="ref-view-product">Explore all →</Link></div>
             <div className="ref-featured-grid">
-              {products.slice(0, 6).map((product) => <article className="ref-featured-card" key={product.id}>
+              {products.slice(0, 6).map((product) => <article className="ref-featured-card dn-clickable-card" key={product.id} role="link" tabIndex={0} aria-label={`View ${product.title}`} onClick={() => { window.location.href = `/products/${product.slug}?market=${market}`; }} onKeyDown={(event) => { if (event.target !== event.currentTarget) return; if (event.key === "Enter" || event.key === " ") { event.preventDefault(); window.location.href = `/products/${product.slug}?market=${market}`; } }}>
                 <Link className="ref-featured-art" href={`/products/${product.slug}?market=${market}`} aria-label={`View ${product.title}`}>
                   {categories.find(([, , dbName]) => dbName === product.category)?.[0] ?? '✦'}
                 </Link>
@@ -247,7 +247,7 @@ export default function HomePageClient({ initialProducts }: Props) {
                   <p>{product.description}</p>
                   <div className="ref-featured-footer">
                     <span className="ref-price">{product.price}</span>
-                    <button className="ref-add-cart" onClick={() => addToCart(product)}>Add to cart</button>
+                    <button className="ref-add-cart" onClick={(event) => { event.stopPropagation(); addToCart(product); }}>Add to cart</button>
                   </div>
                 </div>
               </article>)}
@@ -306,7 +306,7 @@ export default function HomePageClient({ initialProducts }: Props) {
       </div></section>
       <section className="ref-section ref-discovery-row"><div className="ref-container">
         <div className="ref-section-head"><div><h2>More useful digital products</h2><p>Explore additional resources across business, career, learning and everyday work.</p></div><Link href="/explore" className="ref-view-product">View all products →</Link></div>
-        <div className="ref-products ref-horizontal">{products.slice(4,8).map((product)=><article className="ref-product" key={'new-'+product.id}><div className="ref-product-body"><span className="ref-tag">Explore</span><h3><Link href={'/products/'+product.slug+'?market='+market}>{product.title}</Link></h3><p>{product.description}</p><div className="ref-price-row"><span className="ref-price">{product.price}</span><Link className="ref-view-product" href={'/products/'+product.slug+'?market='+market}>View →</Link></div></div></article>)}</div>
+        <div className="ref-products ref-horizontal">{products.slice(4,8).map((product)=><article className="ref-product dn-clickable-card" key={'new-'+product.id} role="link" tabIndex={0} aria-label={`View ${product.title}`} onClick={() => { window.location.href = `/products/${product.slug}?market=${market}`; }} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); window.location.href = `/products/${product.slug}?market=${market}`; } }}><div className="ref-product-body"><span className="ref-tag">Explore</span><h3><Link href={'/products/'+product.slug+'?market='+market}>{product.title}</Link></h3><p>{product.description}</p><div className="ref-price-row"><span className="ref-price">{product.price}</span><Link className="ref-view-product" href={'/products/'+product.slug+'?market='+market}>View →</Link></div></div></article>)}</div>
       </div></section>
 
 

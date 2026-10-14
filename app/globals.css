@@ -728,3 +728,13 @@ a.ref-need:hover .ref-solution-link{text-decoration:underline}
  .product-buying-guide{padding:20px}
  .product-buying-guide .product-detail-grid{grid-template-columns:minmax(0,1fr);gap:16px}
 }
+
+
+/* Accessible full-card navigation and international admin-console refinements. */
+.dn-clickable-card{cursor:pointer;position:relative;outline-offset:3px}
+.dn-clickable-card:focus-visible{outline:3px solid #6757f5;box-shadow:0 0 0 5px #6757f51c}
+.dn-clickable-card a{position:relative;z-index:2}
+.dn-clickable-card button{position:relative;z-index:3;cursor:pointer}
+.ref-featured-card:hover,.ref-product:hover{border-color:#c8c3fa;box-shadow:0 12px 30px rgba(35,30,90,.12);transform:translateY(-2px)}
+.ref-featured-card,.ref-product{transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease}
+@media(prefers-reduced-motion:reduce){.dn-clickable-card,.ref-featured-card,.ref-product{transition:none}}
