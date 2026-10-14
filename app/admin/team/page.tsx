@@ -31,11 +31,11 @@ export default async function AdminTeamPage() {
   if (!roleResult.rowCount) redirect('/account');
 
   let dbReady = true;
-  let deptRows: { code: string; name: string; status: string; teams: number; members: number; leaders: number }[] = [];
+  let deptRows: { code: string; name: string; status: string; teams: number; team_names: string | null; members: number; leaders: number }[] = [];
   let hierarchyCounts = { chief: 0, subAdmins: 0, leaders: 0, staff: 0, invited: 0 };
   try {
     const [deptResult, memberResult] = await Promise.all([
-      db.query(`SELECT d.code,d.name,COALESCE(to_jsonb(d)->>'status','active') AS status,COUNT(DISTINCT t.id)::int AS teams,
+      db.query(`SELECT d.code,d.name,COALESCE(to_jsonb(d)->>'status','active') AS status,COUNT(DISTINCT t.id)::int AS teams,STRING_AGG(DISTINCT t.name, ', ' ORDER BY t.name) AS team_names,
         COUNT(DISTINCT CASE WHEN m.status='active' THEN m.id END)::int AS members,
         COUNT(DISTINCT CASE WHEN m.status='active' AND m.role_code='team_leader' THEN m.id END)::int AS leaders
         FROM admin_departments d LEFT JOIN admin_teams t ON t.department_id=d.id
@@ -89,12 +89,12 @@ export default async function AdminTeamPage() {
         </div>
       </section>
       <section>
-        <div style={{marginBottom:14}}><h2 style={{fontSize:21,margin:'0 0 6px'}}>Departments & team structure</h2><p style={{fontSize:13,color:'#778095',margin:0}}>Eight functional departments, each able to contain multiple teams, leaders and staff.</p></div>
+        <div style={{marginBottom:14}}><h2 style={{fontSize:21,margin:'0 0 6px'}}>Departments & team structure</h2><p style={{fontSize:13,color:'#778095',margin:0}}>Eight functional departments with seeded operating teams. Team leaders and staff are counted after real user accounts are assigned.</p></div>
         <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(260px,1fr))',gap:14}}>
           {departments.map((dept)=>{const found=deptRows.find(d=>d.code===dept.code);return <article key={dept.code} style={{background:'#fff',border:'1px solid #e7e9f1',borderRadius:16,padding:18}}>
             <div style={{display:'flex',justifyContent:'space-between',gap:10,alignItems:'start'}}><h3 style={{fontSize:16,margin:0}}>{dept.name}</h3><span style={{fontSize:10,fontWeight:800,color:found?.status==='active'?'#087f65':'#8991a3',background:found?.status==='active'?'#e6f7f0':'#f0f2f6',borderRadius:999,padding:'5px 8px'}}>{found?.status ?? (dbReady?'Not seeded':'Pending setup')}</span></div>
             <p style={{fontSize:12,color:'#778095',lineHeight:1.6,minHeight:38}}>{dept.desc}</p>
-            <div style={{display:'flex',gap:14,flexWrap:'wrap',fontSize:12,color:'#596276'}}><span><b>{found?.teams ?? 0}</b> teams</span><span><b>{found?.leaders ?? 0}</b> leaders</span><span><b>{found?.members ?? 0}</b> active members</span></div>
+            <div style={{display:'flex',gap:14,flexWrap:'wrap',fontSize:12,color:'#596276'}}><span><b>{found?.teams ?? 0}</b> teams</span><span><b>{found?.leaders ?? 0}</b> leaders</span><span><b>{found?.members ?? 0}</b> active members</span></div>{found?.team_names && <p style={{fontSize:11,color:'#687187',lineHeight:1.6,margin:'12px 0 0',paddingTop:10,borderTop:'1px solid #edf0f5'}}><b>Teams:</b> {found.team_names}</p>}
           </article>})}
         </div>
       </section>
@@ -106,8 +106,8 @@ export default async function AdminTeamPage() {
           <li><b>Team Leader:</b> assigned team members, task allocation and escalation.</li>
           <li><b>Staff:</b> assigned tasks and minimum required permissions.</li>
         </ul>
-        <p style={{fontSize:12,color:'#778095',lineHeight:1.6,marginBottom:0}}>This first dashboard stage establishes the hierarchy and database structure. Staff invitation, assigning team leaders, and fine-grained API permission enforcement must be connected before granting real operational access.</p>
-        <p style={{fontSize:12,marginBottom:0,marginTop:12}}><Link href="https://github.com/agnengineeringselectricals-crypto/diginanba/blob/main/db/migrations/20261014_admin_organization_hierarchy.sql" style={{color:'#5143d8',fontWeight:800}}>Open organization hierarchy migration for Neon →</Link></p>
+        <p style={{fontSize:12,color:'#778095',lineHeight:1.6,marginBottom:0}}>Default operating teams are seeded by the follow-up migration. Team-leader and staff counts remain zero until real user accounts are assigned; this avoids creating fictitious employees. Staff invitations, membership assignment and fine-grained API permission enforcement still need to be connected before granting operational access.</p>
+        <p style={{fontSize:12,marginBottom:0,marginTop:12}}><Link href="https://github.com/agnengineeringselectricals-crypto/diginanba/blob/main/db/migrations/20261014_seed_default_admin_teams.sql" style={{color:'#5143d8',fontWeight:800}}>Open default teams migration for Neon →</Link></p>
       </section>
       <footer style={{marginTop:18,color:'#8991a3',fontSize:11}}>DigiNanba private administration · Organization structure</footer>
     </div>
