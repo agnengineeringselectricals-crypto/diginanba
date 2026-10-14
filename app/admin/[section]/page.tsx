@@ -6,7 +6,7 @@ import FactoryControls from '../FactoryControls';
 import CatalogControls from '../CatalogControls';
 
 type SectionKey = 'catalog' | 'users' | 'orders' | 'factory' | 'markets' | 'analytics' | 'activity';
-type AdminSearch = { period?: string; from?: string; to?: string };
+type AdminSearch = { period?: string; from?: string; to?: string; segment?: string };
 const periods = ['day','week','month','year','custom'] as const;
 function dateOnly(d: Date) { return d.toISOString().slice(0,10); }
 function shiftDays(d: Date, days: number) { const n = new Date(d); n.setUTCDate(n.getUTCDate()+days); return n; }
@@ -17,7 +17,9 @@ const trendQueries: Record<SectionKey, { title: string; total: string; trend: st
     {title:'Categories',total:'SELECT COUNT(*)::int AS n FROM categories',trend:'SELECT date_trunc($1,created_at)::date AS bucket,COUNT(*)::int AS n FROM categories WHERE created_at >= $2 AND created_at < $3 GROUP BY 1 ORDER BY 1',note:'Total categories and newly created categories'},
   ],
   users: [
-    {title:'Registered users',total:'SELECT COUNT(*)::int AS n FROM users',trend:'SELECT date_trunc($1,created_at)::date AS bucket,COUNT(*)::int AS n FROM users WHERE created_at >= $2 AND created_at < $3 GROUP BY 1 ORDER BY 1',note:'Total accounts and new registrations'},
+    {title:'Normal users',total:"SELECT COUNT(*)::int AS n FROM users u WHERE u.account_type='normal' AND NOT EXISTS (SELECT 1 FROM subscriptions s WHERE s.user_id=u.id AND s.status IN ('active','trialing'))",trend:"SELECT date_trunc($1,u.created_at)::date AS bucket,COUNT(*)::int AS n FROM users u WHERE u.account_type='normal' AND NOT EXISTS (SELECT 1 FROM subscriptions s WHERE s.user_id=u.id AND s.status IN ('active','trialing')) AND u.created_at >= $2 AND u.created_at < $3 GROUP BY 1 ORDER BY 1",note:'Regular marketplace accounts without an active subscription'},
+    {title:'Creators',total:"SELECT COUNT(*)::int AS n FROM users WHERE account_type='creator'",trend:"SELECT date_trunc($1,created_at)::date AS bucket,COUNT(*)::int AS n FROM users WHERE account_type='creator' AND created_at >= $2 AND created_at < $3 GROUP BY 1 ORDER BY 1",note:'Accounts explicitly marked as creators'},
+    {title:'Subscribers',total:"SELECT COUNT(DISTINCT user_id)::int AS n FROM subscriptions WHERE status IN ('active','trialing')",trend:"SELECT date_trunc($1,created_at)::date AS bucket,COUNT(DISTINCT user_id)::int AS n FROM subscriptions WHERE status IN ('active','trialing') AND created_at >= $2 AND created_at < $3 GROUP BY 1 ORDER BY 1",note:'Unique users with an active or trial subscription'},
   ],
   orders: [
     {title:'Orders',total:'SELECT COUNT(*)::int AS n FROM orders',trend:'SELECT date_trunc($1,created_at)::date AS bucket,COUNT(*)::int AS n FROM orders WHERE created_at >= $2 AND created_at < $3 GROUP BY 1 ORDER BY 1',note:'Total orders and newly placed orders'},
@@ -121,6 +123,8 @@ export default async function AdminSectionPage({ params, searchParams }: { param
   const roleLabel = roles.rows.map((row: { name: string }) => String(row.name)).join(', ');
   const search = await searchParams;
   const period = periods.includes(search.period as typeof periods[number]) ? search.period as typeof periods[number] : 'month';
+  const userSegments = ['all','normal','creators','subscribers'] as const;
+  const userSegment = userSegments.includes(search.segment as typeof userSegments[number]) ? search.segment as typeof userSegments[number] : 'all';
   const today = new Date();
   const to = search.to && /^\\d{4}-\\d{2}-\\d{2}$/.test(search.to) ? search.to : dateOnly(shiftDays(today, 1));
   const daysByPeriod: Record<string, number> = {day:1,week:7,month:30,year:365,custom:30};
@@ -129,7 +133,8 @@ export default async function AdminSectionPage({ params, searchParams }: { param
   const rangeEnd = new Date(to+'T00:00:00Z');
   const rangeDays = Math.max(1, Math.ceil((rangeEnd.getTime()-rangeStart.getTime())/86400000));
   const bucketSize = rangeDays <= 45 ? 'day' : rangeDays <= 120 ? 'week' : 'month';
-  const chartMetrics = await Promise.all(trendQueries[key].map(async (metric) => {
+  const metricsForPage = key === 'users' && userSegment !== 'all' ? trendQueries.users.filter(metric => ({normal:'Normal users',creators:'Creators',subscribers:'Subscribers'} as Record<string,string>)[userSegment] === metric.title) : trendQueries[key];
+  const chartMetrics = await Promise.all(metricsForPage.map(async (metric) => {
     try {
       const [totalResult, trendResult] = await Promise.all([
         db.query(metric.total),
@@ -177,6 +182,12 @@ export default async function AdminSectionPage({ params, searchParams }: { param
         <div><div style={{fontSize:12,color:'#7a8295',fontWeight:700}}>{key === 'analytics' ? 'METRICS AVAILABLE' : key === 'markets' ? 'MARKETS CONFIGURED' : key === 'activity' ? 'AUDIT EVENTS LOADED' : 'RECORDS LOADED'}</div><div style={{fontSize:32,fontWeight:850,marginTop:4}}>{loadError ? '—' : rows.length}</div></div>
         <div style={{fontSize:12,color:'#7a8295'}}>Showing up to {key === 'markets' || key === 'analytics' ? '100' : '50'} recent records · Read-only</div>
       </section>
+      {key === 'users' && <section aria-label="User subcategories" style={{background:'#fff',border:'1px solid #e7e9f1',borderRadius:16,padding:14,marginBottom:18}}>
+        <div style={{fontSize:11,fontWeight:800,letterSpacing:1.1,color:'#778095',marginBottom:10}}>USER SUBCATEGORIES</div>
+        <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+          {[{id:'all',label:'All users'},{id:'normal',label:'Normal users'},{id:'creators',label:'Creators'},{id:'subscribers',label:'Subscribers'}].map(item=><Link key={item.id} href={`/admin/users?segment=${item.id}&period=${period}&from=${from}&to=${to}`} aria-current={userSegment===item.id?'page':undefined} style={{textDecoration:'none',padding:'10px 14px',borderRadius:999,border:'1px solid #e5e7f0',fontSize:12,fontWeight:800,background:userSegment===item.id?'#5143d8':'#fff',color:userSegment===item.id?'#fff':'#586176'}}>{item.label}</Link>)}
+        </div>
+      </section>}
       <section style={{background:'#fff',border:'1px solid #e7e9f1',borderRadius:18,padding:18,marginBottom:18}}>
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:12,flexWrap:'wrap',marginBottom:14}}><div><h2 style={{margin:0,fontSize:19}}>Period analytics</h2><p style={{margin:'5px 0 0',fontSize:12,color:'#778095'}}>Current totals and activity over time for {page.title.toLowerCase()}.</p></div><form method="GET" style={{display:'flex',gap:8,flexWrap:'wrap',alignItems:'end'}}>
           <label style={{display:'grid',gap:4,fontSize:11,color:'#687187'}}>Period<select name="period" defaultValue={period} style={{padding:'9px 10px',border:'1px solid #dfe3ed',borderRadius:8,background:'#fff'}}>{periods.map(p=><option key={p} value={p}>{p==='day'?'Daily · today':p==='week'?'Weekly · 7 days':p==='month'?'Monthly · 30 days':p==='year'?'Yearly · 365 days':'Custom range'}</option>)}</select></label>
@@ -193,7 +204,7 @@ export default async function AdminSectionPage({ params, searchParams }: { param
             {metric.points.length>0&&<div style={{display:'flex',justifyContent:'space-between',fontSize:10,color:'#8991a3',marginTop:7}}><span>{metric.points[0].label}</span><span>{metric.points[metric.points.length-1].label}</span></div>}
           </article>})}
         </div>
-        {key==='users'&&<p style={{margin:'14px 0 0',fontSize:12,color:'#765517',background:'#fff9e8',padding:12,borderRadius:10}}>Creator and subscriber analytics will appear separately when dedicated creator/subscription records or verified account-type fields are available. This graph currently counts registered users without guessing account types.</p>}
+        {key==='users'&&<p style={{margin:'14px 0 0',fontSize:12,color:'#765517',background:'#fff9e8',padding:12,borderRadius:10}}>Normal users are accounts marked normal without an active/trial subscription. Creator counts use the explicit users.account_type field. Subscriber counts use active/trialing subscription records. Run the new Neon migration before using these metrics; existing accounts default to normal and are not automatically classified as creators or subscribers.</p>}
         {key==='markets'&&<p style={{margin:'14px 0 0',fontSize:12,color:'#765517',background:'#fff9e8',padding:12,borderRadius:10}}>If the markets table does not store created_at, its growth graph will show unavailable; the enabled-market total remains independently useful.</p>}
       </section>
       {key === 'orders' && <section style={{background:'#eef5ff',border:'1px solid #d6e5ff',borderRadius:16,padding:18,marginBottom:18,color:'#2b4b7a',fontSize:13,lineHeight:1.7}}>Financial amounts are stored in minor units (for example, cents or paise). Payment-provider confirmation and settlement reconciliation must be verified before these totals are treated as realized revenue.</section>}
