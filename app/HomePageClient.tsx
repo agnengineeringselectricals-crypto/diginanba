@@ -237,7 +237,7 @@ export default function HomePageClient({ initialProducts }: Props) {
           <aside className="ref-featured-panel" aria-label="Featured digital products">
             <div className="ref-featured-head"><div><h2>Featured digital tools</h2><p>Practical resources to help you get things done.</p></div><Link href="/explore" className="ref-view-product">Explore all →</Link></div>
             <div className="ref-featured-grid">
-              {products.slice(0, 6).map((product) => <article className="ref-featured-card dn-clickable-card" key={product.id} role="link" tabIndex={0} aria-label={`View ${product.title}`} onClick={() => { window.location.href = `/products/${product.slug}?market=${market}`; }} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); window.location.href = `/products/${product.slug}?market=${market}`; } }}>
+              {products.slice(0, 6).map((product) => <article className="ref-featured-card dn-clickable-card" key={product.id} role="link" tabIndex={0} aria-label={`View ${product.title}`} onClick={() => { window.location.href = `/products/${product.slug}?market=${market}`; }} onKeyDown={(event) => { if (event.target !== event.currentTarget) return; if (event.key === "Enter" || event.key === " ") { event.preventDefault(); window.location.href = `/products/${product.slug}?market=${market}`; } }}>
                 <Link className="ref-featured-art" href={`/products/${product.slug}?market=${market}`} aria-label={`View ${product.title}`}>
                   {categories.find(([, , dbName]) => dbName === product.category)?.[0] ?? '✦'}
                 </Link>
