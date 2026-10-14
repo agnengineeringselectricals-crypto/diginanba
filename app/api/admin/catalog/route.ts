@@ -25,7 +25,7 @@ const createSchema = z.object({
 const priceSchema = z.object({
   action: z.literal('price'),
   productId: z.string().uuid(),
-  marketCode: z.enum(['US','UK']),
+  marketCode: z.enum(['US','UK','IN']),
   amountMinor: z.number().int().positive().max(100000000),
 });
 const updateSchema = z.object({
@@ -69,8 +69,8 @@ export async function POST(request: Request) {
       const product = productResult.rows[0];
       if (!product) { await client.query('ROLLBACK'); return NextResponse.json({ error: 'Product not found' }, { status: 404 }); }
       const market = price.data.marketCode;
-      const currency = market === 'US' ? 'USD' : 'GBP';
-      const locale = market === 'US' ? 'en-US' : 'en-GB';
+      const currency = market === 'US' ? 'USD' : market === 'UK' ? 'GBP' : 'INR';
+      const locale = market === 'US' ? 'en-US' : market === 'UK' ? 'en-GB' : 'en-IN';
       const edition = await client.query(
         `INSERT INTO product_editions(product_id,market_code,locale,title,description,status,version)
          VALUES($1,$2,$3,$4,$5,'published','1.0')
