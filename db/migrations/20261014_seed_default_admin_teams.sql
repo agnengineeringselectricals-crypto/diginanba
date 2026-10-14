@@ -23,10 +23,7 @@ JOIN (VALUES
   ('localization-markets','Country & Currency Operations','Market readiness, country settings and currency configuration')
 ) AS seed(department_code, team_name, description) ON seed.department_code = d.code
 WHERE COALESCE(to_jsonb(d)->>'status','active') = 'active'
-ON CONFLICT (department_id, name) DO UPDATE
-SET description = EXCLUDED.description,
-    status = 'active',
-    updated_at = now();
+ON CONFLICT (department_id, name) DO NOTHING;
 
 -- This migration intentionally does not create fake employee accounts or assign
 -- real users to leadership/staff roles. Assign memberships after real users exist.
