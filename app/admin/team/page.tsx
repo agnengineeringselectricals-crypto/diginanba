@@ -35,7 +35,7 @@ export default async function AdminTeamPage() {
   let hierarchyCounts = { chief: 0, subAdmins: 0, leaders: 0, staff: 0, invited: 0 };
   try {
     const [deptResult, memberResult] = await Promise.all([
-      db.query(`SELECT d.code,d.name,d.status,COUNT(DISTINCT t.id)::int AS teams,
+      db.query(`SELECT d.code,d.name,COALESCE(to_jsonb(d)->>'status','active') AS status,COUNT(DISTINCT t.id)::int AS teams,
         COUNT(DISTINCT CASE WHEN m.status='active' THEN m.id END)::int AS members,
         COUNT(DISTINCT CASE WHEN m.status='active' AND m.role_code='team_leader' THEN m.id END)::int AS leaders
         FROM admin_departments d LEFT JOIN admin_teams t ON t.department_id=d.id
