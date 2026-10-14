@@ -7,7 +7,7 @@ const types = ['template','spreadsheet','ebook','guide','course','asset','tool']
 
 export default function CatalogControls() {
   const [products, setProducts] = useState<Product[]>([]);
-  const [draft, setDraft] = useState({ title: '', description: '', productType: 'template' });
+  const [draft, setDraft] = useState({ title: '', description: '', productType: 'template' });\n  const [priceProductId, setPriceProductId] = useState('');\n  const [priceMarket, setPriceMarket] = useState('US');\n  const [priceAmount, setPriceAmount] = useState('19.99');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -17,7 +17,7 @@ export default function CatalogControls() {
       const response = await fetch('/api/admin/catalog', { cache: 'no-store' });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || 'Unable to load catalog');
-      setProducts(Array.isArray(payload.products) ? payload.products : []);
+      const loaded = Array.isArray(payload.products) ? payload.products as Product[] : [];\n      setProducts(loaded);\n      setPriceProductId(current => current || loaded[0]?.id || '');
       setError('');
     } catch (e) { setError(e instanceof Error ? e.message : 'Unable to load catalog'); }
   }, []);
@@ -33,6 +33,20 @@ export default function CatalogControls() {
       setMessage('Product created as a draft. Review the details before publishing.');
       await load();
     } catch (e) { setError(e instanceof Error ? e.message : 'Unable to create product'); }
+    finally { setBusy(false); }
+  }
+
+  async function savePrice(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault(); setBusy(true); setError(''); setMessage('');
+    const amount = Number(priceAmount);
+    if (!Number.isFinite(amount) || amount <= 0 || amount > 1000000) { setError('Enter a valid positive price.'); setBusy(false); return; }
+    try {
+      const response = await fetch('/api/admin/catalog', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'price', productId: priceProductId, marketCode: priceMarket, amountMinor: Math.round(amount * 100) }) });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || 'Unable to save market price');
+      setMessage(`Saved ${payload.currency} ${(payload.amountMinor / 100).toFixed(2)} for ${payload.market}.`);
+      await load();
+    } catch (e) { setError(e instanceof Error ? e.message : 'Unable to save market price'); }
     finally { setBusy(false); }
   }
 
@@ -62,6 +76,16 @@ export default function CatalogControls() {
       </form>
       {message && <p role="status" style={{color:'#087f65',fontSize:13,marginBottom:0}}>{message}</p>}
       {error && <p role="alert" style={{color:'#a23a3a',fontSize:13}}>{error}</p>}
+    </section>
+    <section style={{ background:'#fff', border:'1px solid #e7e9f1', borderRadius:18, padding:20, marginBottom:18 }}>
+      <h2 style={{ margin:'0 0 6px', fontSize:18 }}>Market edition & pricing</h2>
+      <p style={{ margin:'0 0 16px', color:'#778095', fontSize:13, lineHeight:1.6 }}>Set a published US or UK market edition and its active price. Amounts are entered in major units; the system stores cents. Product files are not yet managed by this panel, so verify download fulfillment separately before selling.</p>
+      <form onSubmit={savePrice} style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))', gap:12 }}>
+        <label style={{ display:'grid', gap:6, fontSize:12, fontWeight:750 }}>Product<select style={input} value={priceProductId} onChange={e=>setPriceProductId(e.target.value)} required>{products.map(p=><option key={p.id} value={p.id}>{p.title}</option>)}</select></label>
+        <label style={{ display:'grid', gap:6, fontSize:12, fontWeight:750 }}>Market<select style={input} value={priceMarket} onChange={e=>setPriceMarket(e.target.value)}><option value="US">United States · USD</option><option value="UK">United Kingdom · GBP</option></select></label>
+        <label style={{ display:'grid', gap:6, fontSize:12, fontWeight:750 }}>Price ({priceMarket==='US'?'USD':'GBP'})<input style={input} type="number" min="0.01" max="1000000" step="0.01" value={priceAmount} onChange={e=>setPriceAmount(e.target.value)} required /></label>
+        <div style={{ display:'flex', alignItems:'end' }}><button disabled={busy || products.length===0} type="submit" style={button}>{busy ? 'Saving…' : 'Save market price'}</button></div>
+      </form>
     </section>
     <section style={{ background:'#fff', border:'1px solid #e7e9f1', borderRadius:18, overflow:'hidden' }}>
       <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',gap:12,padding:20,borderBottom:'1px solid #edf0f5' }}>
