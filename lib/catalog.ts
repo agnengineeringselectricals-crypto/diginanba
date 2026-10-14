@@ -65,9 +65,9 @@ export async function getProduct(slug:string, market:Market) {
 }
 
 function formatRow(r:any, market:Market):CatalogProduct {
-  return {id:r.id,slug:r.slug,title:r.title,description:r.description||'',category:r.category||'Digital Products',market,currency:r.currency_code,symbol:market==='US'?',amountMinor:Number(r.amount_minor),price:formatMoney(Number(r.amount_minor),market)};
+  return {id:r.id,slug:r.slug,title:r.title,description:r.description||'',category:r.category||'Digital Products',market,currency:r.currency_code,symbol:market==='US'?'$':market==='UK'?'£':'₹',amountMinor:Number(r.amount_minor),price:formatMoney(Number(r.amount_minor),market)};
 }
-function formatMoney(minor:number, market:Market){const locale=market==='US'?'en-US':market==='UK'?'en-GB':'en-IN';const currency=market==='US'?'USD':market==='UK'?'GBP':'INR';return new Intl.NumberFormat(locale,{style:'currency',currency}).format(minor/100)}
+function formatMoney(minor:number, market:Market){const locale=market==='US'?'en-US':market==='UK'?'en-GB':'en-IN';const currency=market==='US'?'USD':market==='UK'?'GBP':'INR';return new Intl.NumberFormat(locale,{style:'currency',currency}).format(minor/100)}).format(minor/100)}
 :market==='UK'?'£':'₹', amountMinor:market==='US'?x[4]:market==='UK'?x[5]:x[6], price:formatMoney(market==='US'?x[4]:market==='UK'?x[5]:x[6], market)
   }));
 }
