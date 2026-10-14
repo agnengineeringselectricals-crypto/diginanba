@@ -17,7 +17,7 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params, searchParams }: PageProps) {
   const { slug } = await params;
   const search = await searchParams;
-  const market = (search.market === 'UK' ? 'UK' : 'US') as Market;
+  const market = (search.market === 'UK' || search.market === 'IN' ? search.market : 'US') as Market;
   const product = await getProduct(slug, market);
   if (!product) return {};
 
@@ -89,7 +89,7 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
           <p className="lead">{product.description}</p>
           <div className="buybox">
             <div>
-              <span className="muted">{market === 'US' ? 'United States · USD' : 'United Kingdom · GBP'}</span>
+              <span className="muted">{market === 'US' ? 'United States · USD' : market === 'UK' ? 'United Kingdom · GBP' : 'India · INR'}</span>
               <strong>{product.price}</strong>
             </div>
             <AddToCartButton product={{
