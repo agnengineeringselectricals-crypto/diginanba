@@ -85,14 +85,14 @@ export default function HomePageClient({ initialProducts }: Props) {
 
   useEffect(() => {
     let selected = localStorage.getItem('diginanba-market') as Market | null;
-    if (selected !== 'US' && selected !== 'UK') {
+    if (selected !== 'US' && selected !== 'UK' && selected !== 'IN') {
       const language = (navigator.language || '').toLowerCase();
       const timezone = (Intl.DateTimeFormat().resolvedOptions().timeZone || '').toLowerCase();
-      selected = language.endsWith('-gb') || timezone.includes('london') ? 'UK' : 'US';
+      selected = language.endsWith('-in') || timezone.includes('kolkata') || timezone.includes('calcutta') ? 'IN' : language.endsWith('-gb') || timezone.includes('london') ? 'UK' : 'US';
     }
     setMarket(selected);
     const language = (navigator.language || 'en-US').toLowerCase();
-    const localeCountry = language.split('-')[1]?.toUpperCase() || (selected === 'UK' ? 'GB' : 'US');
+    const localeCountry = language.split('-')[1]?.toUpperCase() || (selected === 'UK' ? 'GB' : selected === 'IN' ? 'IN' : 'US');
     const languagePart = (language.split('-')[0] || 'en').toUpperCase().slice(0, 2);
     const flags: Record<string, string> = { US:'🇺🇸', GB:'🇬🇧', IN:'🇮🇳', CA:'🇨🇦', AU:'🇦🇺', DE:'🇩🇪', FR:'🇫🇷', ES:'🇪🇸', IT:'🇮🇹', JP:'🇯🇵', CN:'🇨🇳', BR:'🇧🇷', AE:'🇦🇪', SG:'🇸🇬' };
     setCountryCode(localeCountry);
@@ -118,8 +118,8 @@ export default function HomePageClient({ initialProducts }: Props) {
     return () => { cancelled = true; };
   }, [market]);
 
-  const currency = market === 'UK' ? 'GBP' : 'USD';
-  const marketName = market === 'UK' ? 'United Kingdom' : 'United States';
+  const currency = market === 'UK' ? 'GBP' : market === 'IN' ? 'INR' : 'USD';
+  const marketName = market === 'UK' ? 'United Kingdom' : market === 'IN' ? 'India' : 'United States';
   const visibleProducts = useMemo(() => {
     const term = query.trim().toLowerCase();
     const allowed = category === 'All' ? null : categoryMatches[category] ?? [category];
@@ -190,6 +190,7 @@ export default function HomePageClient({ initialProducts }: Props) {
           <button className="ref-primary" type="submit">Search</button>
         </form>
         <div className="ref-actions">
+          <label className="ref-market-select-label" aria-label="Choose storefront market"><span className="ref-language-flag">{market === 'IN' ? '🇮🇳' : market === 'UK' ? '🇬🇧' : '🇺🇸'}</span><select aria-label="Storefront country and currency" value={market} onChange={(event) => { const next = event.target.value as Market; setMarket(next); setCountryCode(next === 'IN' ? 'IN' : next === 'UK' ? 'GB' : 'US'); setCountryFlag(next === 'IN' ? '🇮🇳' : next === 'UK' ? '🇬🇧' : '🇺🇸'); localStorage.setItem('diginanba-market', next); }} style={{ maxWidth: 132, border: '1px solid #dfe3ed', borderRadius: 8, padding: '7px 5px', background: 'white', color: 'inherit', fontSize: 12 }}><option value="US">US · USD</option><option value="UK">UK · GBP</option><option value="IN">India · INR</option></select></label>
           <Link className="ref-login" href="/login">Log in</Link>
           <Link className="ref-signup" href="/signup">Sign up</Link>
           <Link className="ref-cart" href="/cart" aria-label={`Cart, ${cartCount} items`}><svg className="ref-cart-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h2l2.2 11.2a2 2 0 0 0 2 1.6h7.9a2 2 0 0 0 1.9-1.4L21 8H7" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><circle cx="10" cy="20" r="1.3" fill="currentColor"/><circle cx="18" cy="20" r="1.3" fill="currentColor"/></svg><span className="ref-count">{cartCount}</span></Link>
