@@ -3,9 +3,18 @@ import { db } from '@/lib/db';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 
-async function countRows(table: 'users' | 'products' | 'orders' | 'categories') {
+async function countRows(metric: 'users' | 'products' | 'orders' | 'categories' | 'pendingOrders' | 'draftProducts' | 'failedFactoryJobs') {
+  const queries = {
+    users: 'SELECT COUNT(*)::int AS count FROM users',
+    products: 'SELECT COUNT(*)::int AS count FROM products',
+    orders: 'SELECT COUNT(*)::int AS count FROM orders',
+    categories: 'SELECT COUNT(*)::int AS count FROM categories',
+    pendingOrders: "SELECT COUNT(*)::int AS count FROM orders WHERE status = 'pending'",
+    draftProducts: "SELECT COUNT(*)::int AS count FROM products WHERE status = 'draft'",
+    failedFactoryJobs: "SELECT COUNT(*)::int AS count FROM product_factory_jobs WHERE status = 'failed'",
+  } as const;
   try {
-    const result = await db.query(`SELECT COUNT(*)::int AS count FROM ${table}`);
+    const result = await db.query(queries[metric]);
     return Number(result.rows[0]?.count ?? 0);
   } catch {
     return null;
@@ -40,8 +49,9 @@ export default async function AdminPage() {
     '/admin/factory': ['Super Admin', 'AI Factory Manager'],
   };
 
-  const [users, products, orders, categories] = await Promise.all([
+  const [users, products, orders, categories, pendingOrders, draftProducts, failedFactoryJobs] = await Promise.all([
     countRows('users'), countRows('products'), countRows('orders'), countRows('categories'),
+    countRows('pendingOrders'), countRows('draftProducts'), countRows('failedFactoryJobs'),
   ]);
   const roleName = roleResult.rows.map((row: { name: string }) => String(row.name)).join(', ');
   const metric = (value: number | null) => value === null ? '—' : value.toLocaleString('en-US');
@@ -115,6 +125,21 @@ export default async function AdminPage() {
               <div style={{ fontSize: 34, fontWeight: 850, letterSpacing: '-1px', marginTop: 17, color: '#192137' }}>{item.value}</div>
               <div style={{ fontSize: 12, color: '#8991a3', marginTop: 5 }}>{item.note}</div>
             </article>)}
+          </div>
+        </section>
+
+        <section aria-label="Items needing attention" style={{ marginBottom: 34 }}>
+          <div className="dn-admin-sectionhead"><div><div style={{ color: '#6c5af2', fontSize: 11, fontWeight: 850, letterSpacing: 1.5 }}>OPERATIONS</div><h2 style={{ margin: '7px 0 0', fontSize: 21, letterSpacing: '-.4px' }}>Items needing attention</h2></div><div style={{ color: '#778095', fontSize: 12 }}>Live counts from the database</div></div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(190px,1fr))', gap: 12 }}>
+            {[
+              { label: 'Pending orders', value: pendingOrders, href: '/admin/orders', note: 'Require payment/status review', color: '#a15d0b' },
+              { label: 'Draft products', value: draftProducts, href: '/admin/catalog', note: 'Not yet published', color: '#5141d8' },
+              { label: 'Failed factory jobs', value: failedFactoryJobs, href: '/admin/factory', note: 'Retry only after checking errors', color: '#a23a3a' },
+            ].filter(item => item.href !== '/admin/factory' || roleNames.has('Super Admin') || roleNames.has('AI Factory Manager')).filter(item => item.href !== '/admin/orders' || ['Super Admin','Operations Admin','Finance Manager'].some(role => roleNames.has(role))).filter(item => item.href !== '/admin/catalog' || ['Super Admin','Operations Admin','Catalog Manager'].some(role => roleNames.has(role))).map(item => <Link key={item.label} href={item.href} style={{ display: 'block', textDecoration: 'none', color: 'inherit', background: '#fff', border: '1px solid #e8eaf2', borderRadius: 16, padding: 17 }}>
+              <div style={{ color: item.color, fontSize: 12, fontWeight: 800 }}>{item.label}</div>
+              <div style={{ fontSize: 30, fontWeight: 850, letterSpacing: '-.8px', marginTop: 9 }}>{item.value === null ? '—' : item.value.toLocaleString('en-US')}</div>
+              <div style={{ fontSize: 11, color: '#8991a3', marginTop: 5 }}>{item.note}</div>
+            </Link>)}
           </div>
         </section>
 
