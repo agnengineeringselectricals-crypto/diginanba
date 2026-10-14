@@ -37,7 +37,7 @@ export async function generateMetadata({ params, searchParams }: PageProps) {
 export default async function ProductPage({ params, searchParams }: PageProps) {
   const { slug } = await params;
   const search = await searchParams;
-  const market = (search.market === 'UK' ? 'UK' : 'US') as Market;
+  const market = (search.market === 'UK' || search.market === 'IN' ? search.market : 'US') as Market;
   const product = await getProduct(slug, market);
   if (!product) notFound();
 
