@@ -100,6 +100,18 @@ export async function PATCH(request: Request) {
       await client.query('ROLLBACK');
       return NextResponse.json({ error: 'Add a clear description before publishing this product.' }, { status: 400 });
     }
+    if (parsed.data.status === 'published') {
+      const pricing = await client.query(
+        `SELECT COUNT(*)::int AS count FROM product_editions pe
+         JOIN prices pr ON pr.product_edition_id = pe.id AND pr.valid_to IS NULL
+         WHERE pe.product_id = $1 AND pe.status = 'published' AND pr.amount_minor >= 0`,
+        [parsed.data.id],
+      );
+      if (Number(pricing.rows[0]?.count ?? 0) < 1) {
+        await client.query('ROLLBACK');
+        return NextResponse.json({ error: 'This product cannot be published yet. Add a published market edition and an active price first. The current schema does not yet verify downloadable asset availability.' }, { status: 400 });
+      }
+    }
     const result = await client.query(
       `UPDATE products SET title=$2,description=$3,product_type=$4,status=$5,updated_at=now()
        WHERE id=$1 RETURNING id,slug,title,description,product_type,status,created_at`,
