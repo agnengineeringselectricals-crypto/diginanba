@@ -84,11 +84,11 @@ export default function CatalogControls() {
     </section>
     <section style={{ background:'#fff', border:'1px solid #e7e9f1', borderRadius:18, padding:20, marginBottom:18 }}>
       <h2 style={{ margin:'0 0 6px', fontSize:18 }}>Market edition & pricing</h2>
-      <p style={{ margin:'0 0 16px', color:'#778095', fontSize:13, lineHeight:1.6 }}>Set a published US or UK market edition and its active price. Amounts are entered in major units; the system stores cents. Product files are not yet managed by this panel, so verify download fulfillment separately before selling.</p>
+      <p style={{ margin:'0 0 16px', color:'#778095', fontSize:13, lineHeight:1.6 }}>Set a published US, UK or India market edition and its active price. Amounts are entered in major units; the system stores cents. Product files are not yet managed by this panel, so verify download fulfillment separately before selling.</p>
       <form onSubmit={savePrice} style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))', gap:12 }}>
         <label style={{ display:'grid', gap:6, fontSize:12, fontWeight:750 }}>Product<select style={input} value={priceProductId} onChange={e=>setPriceProductId(e.target.value)} required>{products.map(p=><option key={p.id} value={p.id}>{p.title}</option>)}</select></label>
-        <label style={{ display:'grid', gap:6, fontSize:12, fontWeight:750 }}>Market<select style={input} value={priceMarket} onChange={e=>setPriceMarket(e.target.value)}><option value="US">United States · USD</option><option value="UK">United Kingdom · GBP</option></select></label>
-        <label style={{ display:'grid', gap:6, fontSize:12, fontWeight:750 }}>Price ({priceMarket==='US'?'USD':'GBP'})<input style={input} type="number" min="0.01" max="1000000" step="0.01" value={priceAmount} onChange={e=>setPriceAmount(e.target.value)} required /></label>
+        <label style={{ display:'grid', gap:6, fontSize:12, fontWeight:750 }}>Market<select style={input} value={priceMarket} onChange={e=>setPriceMarket(e.target.value)}><option value="US">United States · USD</option><option value="UK">United Kingdom · GBP</option><option value="IN">India · INR</option></select></label>
+        <label style={{ display:'grid', gap:6, fontSize:12, fontWeight:750 }}>Price ({priceMarket==='US'?'USD':priceMarket==='UK'?'GBP':'INR'})<input style={input} type="number" min="0.01" max="1000000" step="0.01" value={priceAmount} onChange={e=>setPriceAmount(e.target.value)} required /></label>
         <div style={{ display:'flex', alignItems:'end' }}><button disabled={busy || products.length===0} type="submit" style={button}>{busy ? 'Saving…' : 'Save market price'}</button></div>
       </form>
     </section>
