@@ -8,7 +8,7 @@ export default async function Explore({
   searchParams: Promise<{ q?: string; market?: string }>;
 }) {
   const p = await searchParams;
-  const market = (p.market === 'UK' ? 'UK' : 'US') as Market;
+  const market = (p.market === 'UK' || p.market === 'IN' ? p.market : 'US') as Market;
   const products = await getProducts(market, p.q || '');
 
   return (
