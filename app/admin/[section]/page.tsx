@@ -49,10 +49,11 @@ const sections: Record<SectionKey, { title: string; eyebrow: string; description
     query: 'SELECT action, resource_type, resource_id, result, created_at FROM audit_logs ORDER BY created_at DESC LIMIT 50',
   },
 };
-const navigation: { href: string; label: string }[] = [
-  {href:'/admin',label:'Overview'}, {href:'/admin/catalog',label:'Products'}, {href:'/admin/users',label:'Users'},
-  {href:'/admin/orders',label:'Orders & Finance'}, {href:'/admin/factory',label:'AI Product Factory'},
-  {href:'/admin/markets',label:'Global Markets'}, {href:'/admin/analytics',label:'Analytics'}, {href:'/admin/activity',label:'Audit & Activity'},
+const navigation: { href: string; label: string; roles: string[] }[] = [
+  {href:'/admin',label:'Overview',roles:['Super Admin','Operations Admin','Catalog Manager','Finance Manager','Support Agent','AI Factory Manager','Read-Only Analyst']},
+  {href:'/admin/catalog',label:'Products',roles:['Super Admin','Operations Admin','Catalog Manager']}, {href:'/admin/users',label:'Users',roles:['Super Admin','Operations Admin','Support Agent']},
+  {href:'/admin/orders',label:'Orders & Finance',roles:['Super Admin','Operations Admin','Finance Manager']}, {href:'/admin/factory',label:'AI Product Factory',roles:['Super Admin','Operations Admin','AI Factory Manager']},
+  {href:'/admin/markets',label:'Global Markets',roles:['Super Admin','Operations Admin']}, {href:'/admin/analytics',label:'Analytics',roles:['Super Admin','Operations Admin','Finance Manager','Read-Only Analyst']}, {href:'/admin/activity',label:'Audit & Activity',roles:['Super Admin','Operations Admin']},
 ];
 
 export default async function AdminSectionPage({ params }: { params: Promise<{ section: string }> }) {
@@ -65,10 +66,22 @@ export default async function AdminSectionPage({ params }: { params: Promise<{ s
   const roles = await db.query(
     `SELECT r.name FROM user_roles ur JOIN roles r ON r.id = ur.role_id
      WHERE ur.user_id = $1 AND r.name IN ('Super Admin','Operations Admin','Catalog Manager','Finance Manager','Support Agent','AI Factory Manager','Read-Only Analyst')
-     ORDER BY CASE WHEN r.name = 'Super Admin' THEN 0 ELSE 1 END LIMIT 1`,
+     ORDER BY CASE WHEN r.name = 'Super Admin' THEN 0 ELSE 1 END, r.name`,
     [session.user.id],
   );
   if (!roles.rowCount) redirect('/account');
+  const roleNames = new Set<string>(roles.rows.map((row: { name: string }) => String(row.name)));
+  const allowedRoles: Record<SectionKey, string[]> = {
+    catalog: ['Super Admin', 'Operations Admin', 'Catalog Manager'],
+    users: ['Super Admin', 'Operations Admin', 'Support Agent'],
+    orders: ['Super Admin', 'Operations Admin', 'Finance Manager'],
+    factory: ['Super Admin', 'Operations Admin', 'AI Factory Manager'],
+    markets: ['Super Admin', 'Operations Admin'],
+    analytics: ['Super Admin', 'Operations Admin', 'Finance Manager', 'Read-Only Analyst'],
+    activity: ['Super Admin', 'Operations Admin'],
+  };
+  if (!allowedRoles[key].some((role) => roleNames.has(role))) redirect('/account');
+  const roleLabel = roles.rows.map((row: { name: string }) => String(row.name)).join(', ');
 
   let rows: Record<string, unknown>[] = [];
   let loadError = false;
@@ -94,7 +107,7 @@ export default async function AdminSectionPage({ params }: { params: Promise<{ s
         <span style={{fontSize:12,color:'#6e778d'}}>Signed in as {session.user.name ?? session.user.email ?? 'Administrator'}</span>
       </header>
       <nav aria-label="Admin navigation" style={{display:'flex',gap:8,overflowX:'auto',padding:'5px 1px 17px',marginBottom:8}}>
-        {navigation.map(item => <Link key={item.href} href={item.href} aria-current={item.href === `/admin/${key}` ? 'page' : undefined} style={{whiteSpace:'nowrap',textDecoration:'none',borderRadius:999,padding:'10px 13px',fontSize:12,fontWeight:750,background:item.href === `/admin/${key}` ? '#5143d8' : '#fff',color:item.href === `/admin/${key}` ? '#fff' : '#586176',border:'1px solid #e5e7f0'}}>{item.label}</Link>)}
+        {navigation.filter(item => item.roles.some(role => roleNames.has(role))).map(item => <Link key={item.href} href={item.href} aria-current={item.href === `/admin/${key}` ? 'page' : undefined} style={{whiteSpace:'nowrap',textDecoration:'none',borderRadius:999,padding:'10px 13px',fontSize:12,fontWeight:750,background:item.href === `/admin/${key}` ? '#5143d8' : '#fff',color:item.href === `/admin/${key}` ? '#fff' : '#586176',border:'1px solid #e5e7f0'}}>{item.label}</Link>)}
       </nav>
       <section style={{background:'linear-gradient(120deg,#211b58,#5143d8)',color:'#fff',borderRadius:22,padding:'clamp(22px,3vw,34px)',marginBottom:22}}>
         <div style={{fontSize:11,letterSpacing:1.5,fontWeight:850,color:'#d9d4ff'}}>{page.eyebrow}</div>
@@ -111,7 +124,7 @@ export default async function AdminSectionPage({ params }: { params: Promise<{ s
         <div style={{padding:'18px 20px',borderBottom:'1px solid #edf0f5',fontWeight:800}}>{key === 'analytics' ? 'Operational metrics' : key === 'factory' ? 'Recent factory jobs' : key === 'activity' ? 'Recent audit events' : key === 'markets' ? 'Configured markets' : 'Recent records'}</div>
         {loadError ? <div style={{padding:24,color:'#a23a3a'}}>This section could not load its database records. The page remains available; check the table migration and deployment runtime logs.</div> : rows.length === 0 ? <div style={{padding:24,color:'#7a8295'}}>No records are available to display yet.</div> : <div style={{overflowX:'auto'}}><table style={{borderCollapse:'collapse',width:'100%',fontSize:13,minWidth:560}}><thead><tr>{page.columns.map(col=><th key={col.key} style={{textAlign:'left',padding:'13px 16px',background:'#fafbfe',color:'#687187',fontSize:11,letterSpacing:.5,borderBottom:'1px solid #edf0f5'}}>{col.label}</th>)}</tr></thead><tbody>{rows.map((row,i)=><tr key={String(row.id ?? row.email ?? row.metric ?? i)}>{page.columns.map(col=><td key={col.key} style={{padding:'14px 16px',borderBottom:'1px solid #f0f2f6',color:col.key==='status' || col.key==='result'?'#087f65':'#30394c',maxWidth:360,overflowWrap:'anywhere'}}>{fmt(row[col.key])}</td>)}</tr>)}</tbody></table></div>}
       </section>
-      <footer style={{marginTop:18,color:'#8991a3',fontSize:11}}>DigiNanba private administration · Access role: {String(roles.rows[0]?.name ?? 'Administrator')}</footer>
+      <footer style={{marginTop:18,color:'#8991a3',fontSize:11}}>DigiNanba private administration · Access role: {roleLabel}</footer>
     </div>
   </main>;
 }
