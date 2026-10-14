@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
-type Product = { slug: string; title: string; description: string; category: string; price: string; market: 'US' | 'UK' };
+type Product = { slug: string; title: string; description: string; category: string; price: string; market: 'US' | 'UK' | 'IN' };
 
 export default function CompareClient({ products }: { products: Product[] }) {
   const [selected, setSelected] = useState<string[]>([]);
