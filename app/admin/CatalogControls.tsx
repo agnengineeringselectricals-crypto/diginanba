@@ -8,7 +8,9 @@ const types = ['template','spreadsheet','ebook','guide','course','asset','tool']
 export default function CatalogControls() {
   const [products, setProducts] = useState<Product[]>([]);
   const [draft, setDraft] = useState({ title: '', description: '', productType: 'template' });
-  const [priceProductId, setPriceProductId] = useState('');\n  const [priceMarket, setPriceMarket] = useState('US');\n  const [priceAmount, setPriceAmount] = useState('19.99');
+  const [priceProductId, setPriceProductId] = useState('');
+  const [priceMarket, setPriceMarket] = useState('US');
+  const [priceAmount, setPriceAmount] = useState('19.99');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -19,7 +21,8 @@ export default function CatalogControls() {
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || 'Unable to load catalog');
       const loaded = Array.isArray(payload.products) ? payload.products as Product[] : [];
-      setProducts(loaded);\n      setPriceProductId(current => current || loaded[0]?.id || '');
+      setProducts(loaded);
+      setPriceProductId(current => current || loaded[0]?.id || '');
       setError('');
     } catch (e) { setError(e instanceof Error ? e.message : 'Unable to load catalog'); }
   }, []);
