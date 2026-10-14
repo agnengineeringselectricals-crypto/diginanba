@@ -6,6 +6,40 @@ import FactoryControls from '../FactoryControls';
 import CatalogControls from '../CatalogControls';
 
 type SectionKey = 'catalog' | 'users' | 'orders' | 'factory' | 'markets' | 'analytics' | 'activity';
+type AdminSearch = { period?: string; from?: string; to?: string };
+const periods = ['day','week','month','year','custom'] as const;
+function dateOnly(d: Date) { return d.toISOString().slice(0,10); }
+function shiftDays(d: Date, days: number) { const n = new Date(d); n.setUTCDate(n.getUTCDate()+days); return n; }
+const trendQueries: Record<SectionKey, { title: string; total: string; trend: string; note: string }[]> = {
+  catalog: [
+    {title:'All products',total:'SELECT COUNT(*)::int AS n FROM products',trend:'SELECT date_trunc($1,created_at)::date AS bucket,COUNT(*)::int AS n FROM products WHERE created_at >= $2 AND created_at < $3 GROUP BY 1 ORDER BY 1',note:'Total products and newly added products'},
+    {title:'Published products',total:"SELECT COUNT(*)::int AS n FROM products WHERE status='published'",trend:"SELECT date_trunc($1,created_at)::date AS bucket,COUNT(*)::int AS n FROM products WHERE status='published' AND created_at >= $2 AND created_at < $3 GROUP BY 1 ORDER BY 1",note:'Published product records created in the selected period'},
+    {title:'Categories',total:'SELECT COUNT(*)::int AS n FROM categories',trend:'SELECT date_trunc($1,created_at)::date AS bucket,COUNT(*)::int AS n FROM categories WHERE created_at >= $2 AND created_at < $3 GROUP BY 1 ORDER BY 1',note:'Total categories and newly created categories'},
+  ],
+  users: [
+    {title:'Registered users',total:'SELECT COUNT(*)::int AS n FROM users',trend:'SELECT date_trunc($1,created_at)::date AS bucket,COUNT(*)::int AS n FROM users WHERE created_at >= $2 AND created_at < $3 GROUP BY 1 ORDER BY 1',note:'Total accounts and new registrations'},
+  ],
+  orders: [
+    {title:'Orders',total:'SELECT COUNT(*)::int AS n FROM orders',trend:'SELECT date_trunc($1,created_at)::date AS bucket,COUNT(*)::int AS n FROM orders WHERE created_at >= $2 AND created_at < $3 GROUP BY 1 ORDER BY 1',note:'Total orders and newly placed orders'},
+    {title:'Paid orders',total:"SELECT COUNT(*)::int AS n FROM orders WHERE status='paid'",trend:"SELECT date_trunc($1,created_at)::date AS bucket,COUNT(*)::int AS n FROM orders WHERE status='paid' AND created_at >= $2 AND created_at < $3 GROUP BY 1 ORDER BY 1",note:'Orders marked paid; reconcile with payment provider'},
+    {title:'Pending orders',total:"SELECT COUNT(*)::int AS n FROM orders WHERE status='pending'",trend:"SELECT date_trunc($1,created_at)::date AS bucket,COUNT(*)::int AS n FROM orders WHERE status='pending' AND created_at >= $2 AND created_at < $3 GROUP BY 1 ORDER BY 1",note:'Orders currently pending that were created in the period'},
+  ],
+  factory: [
+    {title:'Factory jobs',total:'SELECT COUNT(*)::int AS n FROM product_factory_jobs',trend:'SELECT date_trunc($1,created_at)::date AS bucket,COUNT(*)::int AS n FROM product_factory_jobs WHERE created_at >= $2 AND created_at < $3 GROUP BY 1 ORDER BY 1',note:'All factory jobs and jobs created in the period'},
+    {title:'Failed jobs',total:"SELECT COUNT(*)::int AS n FROM product_factory_jobs WHERE status='failed'",trend:"SELECT date_trunc($1,created_at)::date AS bucket,COUNT(*)::int AS n FROM product_factory_jobs WHERE status='failed' AND created_at >= $2 AND created_at < $3 GROUP BY 1 ORDER BY 1",note:'Failed jobs created in the selected period'},
+  ],
+  markets: [
+    {title:'Enabled markets',total:'SELECT COUNT(*)::int AS n FROM markets WHERE enabled=true',trend:'SELECT date_trunc($1,created_at)::date AS bucket,COUNT(*)::int AS n FROM markets WHERE enabled=true AND created_at >= $2 AND created_at < $3 GROUP BY 1 ORDER BY 1',note:'Enabled markets and newly enabled-market records'},
+  ],
+  analytics: [
+    {title:'Registered users',total:'SELECT COUNT(*)::int AS n FROM users',trend:'SELECT date_trunc($1,created_at)::date AS bucket,COUNT(*)::int AS n FROM users WHERE created_at >= $2 AND created_at < $3 GROUP BY 1 ORDER BY 1',note:'All accounts and new registrations'},
+    {title:'Products',total:'SELECT COUNT(*)::int AS n FROM products',trend:'SELECT date_trunc($1,created_at)::date AS bucket,COUNT(*)::int AS n FROM products WHERE created_at >= $2 AND created_at < $3 GROUP BY 1 ORDER BY 1',note:'All products and new product records'},
+    {title:'Orders',total:'SELECT COUNT(*)::int AS n FROM orders',trend:'SELECT date_trunc($1,created_at)::date AS bucket,COUNT(*)::int AS n FROM orders WHERE created_at >= $2 AND created_at < $3 GROUP BY 1 ORDER BY 1',note:'All orders and new order records'},
+  ],
+  activity: [
+    {title:'Audit events',total:'SELECT COUNT(*)::int AS n FROM audit_logs',trend:'SELECT date_trunc($1,created_at)::date AS bucket,COUNT(*)::int AS n FROM audit_logs WHERE created_at >= $2 AND created_at < $3 GROUP BY 1 ORDER BY 1',note:'Total recorded audit events and events in the period'},
+  ],
+};
 type Column = { key: string; label: string };
 const sections: Record<SectionKey, { title: string; eyebrow: string; description: string; columns: Column[]; query: string }> = {
   catalog: {
@@ -58,7 +92,7 @@ const navigation: { href: string; label: string; roles: string[] }[] = [
   {href:'/admin/markets',label:'Global Markets',roles:['Super Admin','Operations Admin']}, {href:'/admin/analytics',label:'Analytics',roles:['Super Admin','Operations Admin','Finance Manager','Read-Only Analyst']}, {href:'/admin/activity',label:'Audit & Activity',roles:['Super Admin','Operations Admin']},
 ];
 
-export default async function AdminSectionPage({ params }: { params: Promise<{ section: string }> }) {
+export default async function AdminSectionPage({ params, searchParams }: { params: Promise<{ section: string }>; searchParams: Promise<AdminSearch> }) {
   const { section } = await params;
   if (!Object.prototype.hasOwnProperty.call(sections, section)) notFound();
   const key = section as SectionKey;
@@ -84,6 +118,28 @@ export default async function AdminSectionPage({ params }: { params: Promise<{ s
   };
   if (!allowedRoles[key].some((role) => roleNames.has(role))) redirect('/account');
   const roleLabel = roles.rows.map((row: { name: string }) => String(row.name)).join(', ');
+  const search = await searchParams;
+  const period = periods.includes(search.period as typeof periods[number]) ? search.period as typeof periods[number] : 'month';
+  const today = new Date();
+  const to = search.to && /^\\d{4}-\\d{2}-\\d{2}$/.test(search.to) ? search.to : dateOnly(shiftDays(today, 1));
+  const daysByPeriod: Record<string, number> = {day:1,week:7,month:30,year:365,custom:30};
+  const from = period === 'custom' && search.from && /^\\d{4}-\\d{2}-\\d{2}$/.test(search.from) ? search.from : dateOnly(shiftDays(new Date(to+'T00:00:00Z'), -daysByPeriod[period]));
+  const rangeStart = new Date(from+'T00:00:00Z');
+  const rangeEnd = new Date(to+'T00:00:00Z');
+  const rangeDays = Math.max(1, Math.ceil((rangeEnd.getTime()-rangeStart.getTime())/86400000));
+  const bucketSize = rangeDays <= 45 ? 'day' : rangeDays <= 120 ? 'week' : 'month';
+  const chartMetrics = await Promise.all(trendQueries[key].map(async (metric) => {
+    try {
+      const [totalResult, trendResult] = await Promise.all([
+        db.query(metric.total),
+        db.query(metric.trend, [bucketSize, rangeStart.toISOString(), rangeEnd.toISOString()]),
+      ]);
+      return { ...metric, total: Number(totalResult.rows[0]?.n ?? 0), points: trendResult.rows.map((row: {bucket: Date|string; n: number|string}) => ({ label: new Date(row.bucket).toLocaleDateString('en-IN',{day:'2-digit',month:'short',timeZone:'UTC'}), value: Number(row.n) })), error: false };
+    } catch (error) {
+      console.error('[admin:section-analytics] metric failed', key, metric.title, error);
+      return { ...metric, total: 0, points: [], error: true };
+    }
+  }));
 
   let rows: Record<string, unknown>[] = [];
   let loadError = false;
@@ -119,6 +175,25 @@ export default async function AdminSectionPage({ params }: { params: Promise<{ s
       <section style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:16,flexWrap:'wrap',background:'#fff',border:'1px solid #e7e9f1',borderRadius:18,padding:20,marginBottom:18}}>
         <div><div style={{fontSize:12,color:'#7a8295',fontWeight:700}}>{key === 'analytics' ? 'METRICS AVAILABLE' : key === 'markets' ? 'MARKETS CONFIGURED' : key === 'activity' ? 'AUDIT EVENTS LOADED' : 'RECORDS LOADED'}</div><div style={{fontSize:32,fontWeight:850,marginTop:4}}>{loadError ? '—' : rows.length}</div></div>
         <div style={{fontSize:12,color:'#7a8295'}}>Showing up to {key === 'markets' || key === 'analytics' ? '100' : '50'} recent records · Read-only</div>
+      </section>
+      <section style={{background:'#fff',border:'1px solid #e7e9f1',borderRadius:18,padding:18,marginBottom:18}}>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:12,flexWrap:'wrap',marginBottom:14}}><div><h2 style={{margin:0,fontSize:19}}>Period analytics</h2><p style={{margin:'5px 0 0',fontSize:12,color:'#778095'}}>Current totals and activity over time for {page.title.toLowerCase()}.</p></div><form method="GET" style={{display:'flex',gap:8,flexWrap:'wrap',alignItems:'end'}}>
+          <label style={{display:'grid',gap:4,fontSize:11,color:'#687187'}}>Period<select name="period" defaultValue={period} style={{padding:'9px 10px',border:'1px solid #dfe3ed',borderRadius:8,background:'#fff'}}>{periods.map(p=><option key={p} value={p}>{p==='day'?'Daily · today':p==='week'?'Weekly · 7 days':p==='month'?'Monthly · 30 days':p==='year'?'Yearly · 365 days':'Custom range'}</option>)}</select></label>
+          <label style={{display:'grid',gap:4,fontSize:11,color:'#687187'}}>From<input type="date" name="from" defaultValue={period==='custom'?from:undefined} style={{padding:'8px',border:'1px solid #dfe3ed',borderRadius:8}} /></label>
+          <label style={{display:'grid',gap:4,fontSize:11,color:'#687187'}}>To (exclusive)<input type="date" name="to" defaultValue={period==='custom'?to:undefined} style={{padding:'8px',border:'1px solid #dfe3ed',borderRadius:8}} /></label>
+          <button type="submit" style={{padding:'10px 14px',border:0,borderRadius:8,background:'#5143d8',color:'#fff',fontWeight:800,cursor:'pointer'}}>Apply</button>
+        </form></div>
+        <p style={{fontSize:11,color:'#8991a3',margin:'0 0 14px'}}>Range: {from} through the day before {to}. For longer ranges, graphs group activity by week or month.</p>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(260px,1fr))',gap:14}}>
+          {chartMetrics.map(metric=>{const max=Math.max(1,...metric.points.map(p=>p.value));return <article key={metric.title} style={{border:'1px solid #edf0f5',borderRadius:14,padding:15,minWidth:0}}>
+            <h3 style={{fontSize:15,margin:'0 0 5px'}}>{metric.title}</h3><p style={{fontSize:11,color:'#778095',lineHeight:1.5,margin:'0 0 10px'}}>{metric.note}</p>
+            <div style={{fontSize:29,fontWeight:850,marginBottom:12}}>{metric.error?'—':metric.total.toLocaleString('en-IN')}</div>
+            {metric.error?<p style={{fontSize:12,color:'#a23a3a'}}>Metric unavailable: check database schema.</p>:metric.points.length===0?<p style={{fontSize:12,color:'#8991a3'}}>No activity in this period.</p>:<div role="img" aria-label={metric.title+' activity graph'} style={{height:108,display:'flex',alignItems:'end',gap:4,overflowX:'auto',borderBottom:'1px solid #edf0f5',padding:'4px 1px 0'}}>{metric.points.map((p,i)=><div key={p.label+i} title={p.label+': '+p.value} style={{flex:'1 0 10px',minWidth:10,height:'100%',display:'flex',flexDirection:'column',justifyContent:'end',alignItems:'center'}}><span style={{fontSize:9,color:'#778095'}}>{p.value||''}</span><div style={{height:Math.max(3,p.value/max*70),width:'100%',maxWidth:22,background:'#7162ee',borderRadius:'3px 3px 0 0'}}/></div>)}</div>}
+            {metric.points.length>0&&<div style={{display:'flex',justifyContent:'space-between',fontSize:10,color:'#8991a3',marginTop:7}}><span>{metric.points[0].label}</span><span>{metric.points[metric.points.length-1].label}</span></div>}
+          </article>})}
+        </div>
+        {key==='users'&&<p style={{margin:'14px 0 0',fontSize:12,color:'#765517',background:'#fff9e8',padding:12,borderRadius:10}}>Creator and subscriber analytics will appear separately when dedicated creator/subscription records or verified account-type fields are available. This graph currently counts registered users without guessing account types.</p>}
+        {key==='markets'&&<p style={{margin:'14px 0 0',fontSize:12,color:'#765517',background:'#fff9e8',padding:12,borderRadius:10}}>If the markets table does not store created_at, its growth graph will show unavailable; the enabled-market total remains independently useful.</p>}
       </section>
       {key === 'orders' && <section style={{background:'#eef5ff',border:'1px solid #d6e5ff',borderRadius:16,padding:18,marginBottom:18,color:'#2b4b7a',fontSize:13,lineHeight:1.7}}>Financial amounts are stored in minor units (for example, cents or paise). Payment-provider confirmation and settlement reconciliation must be verified before these totals are treated as realized revenue.</section>}
       {key === 'factory' ? <FactoryControls /> : key === 'catalog' ? <CatalogControls /> : <section style={{background:'#fff',border:'1px solid #e7e9f1',borderRadius:18,overflow:'hidden'}}>
