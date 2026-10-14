@@ -63,6 +63,19 @@ export default function FactoryControls() {
     } finally { setBusy(false); }
   }
 
+  async function processNext() {
+    setBusy(true); setError(''); setMessage('');
+    try {
+      const response = await fetch('/api/admin/factory/process', { method: 'POST' });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || 'Factory worker could not process a job');
+      setMessage(payload.processed ? 'One queued job was processed. Refresh the queue to see its current state.' : (payload.message || 'No queued jobs were available.'));
+      await loadJobs();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to process factory job');
+    } finally { setBusy(false); }
+  }
+
   async function changeJob(job: FactoryJob, status: 'queued' | 'cancelled') {
     setBusy(true); setError(''); setMessage('');
     try {
@@ -112,7 +125,7 @@ export default function FactoryControls() {
     <section style={{ ...panel, padding: 0, overflow: 'hidden' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: 20, borderBottom: '1px solid #edf0f5' }}>
         <div><h2 style={{ margin: 0, fontSize: 18 }}>Factory job queue</h2><p style={{ margin: '5px 0 0', fontSize: 12, color: '#778095' }}>{jobs.length} recent jobs</p></div>
-        <button type="button" disabled={busy} onClick={() => void loadJobs()} style={{ ...primary, background: '#f0edff', color: '#5141d8' }}>Refresh</button>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}><button type="button" disabled={busy} onClick={() => void processNext()} style={primary}>{busy ? 'Working…' : 'Process next job'}</button><button type="button" disabled={busy} onClick={() => void loadJobs()} style={{ ...primary, background: '#f0edff', color: '#5141d8' }}>Refresh</button></div>
       </div>
       {error && <p role="alert" style={{ padding: '0 20px', color: '#a23a3a', fontSize: 13 }}>{error}</p>}
       {jobs.length === 0 ? <p style={{ padding: 22, color: '#778095', fontSize: 13 }}>No factory jobs found yet. Create the first job above.</p> :
