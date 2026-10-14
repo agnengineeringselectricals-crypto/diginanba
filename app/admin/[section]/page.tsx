@@ -93,6 +93,7 @@ const navigation: { href: string; label: string; roles: string[] }[] = [
   {href:'/admin/catalog',label:'Products',roles:['Super Admin','Operations Admin','Catalog Manager']}, {href:'/admin/users',label:'Users',roles:['Super Admin','Operations Admin','Support Agent']},
   {href:'/admin/orders',label:'Orders & Finance',roles:['Super Admin','Operations Admin','Finance Manager']}, {href:'/admin/factory',label:'AI Product Factory',roles:['Super Admin','AI Factory Manager']},
   {href:'/admin/markets',label:'Global Markets',roles:['Super Admin','Operations Admin']}, {href:'/admin/analytics',label:'Analytics',roles:['Super Admin','Operations Admin','Finance Manager','Read-Only Analyst']}, {href:'/admin/activity',label:'Audit & Activity',roles:['Super Admin','Operations Admin']},
+  {href:'/admin/team',label:'Team & hierarchy',roles:['Super Admin','Operations Admin']},
 ];
 
 export default async function AdminSectionPage({ params, searchParams }: { params: Promise<{ section: string }>; searchParams: Promise<AdminSearch> }) {
