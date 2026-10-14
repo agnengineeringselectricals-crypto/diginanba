@@ -1,0 +1,135 @@
+'use client';
+
+import { useCallback, useEffect, useState } from 'react';
+
+type FactoryJob = {
+  id: string;
+  job_type: string;
+  status: string;
+  market_code?: string | null;
+  locale?: string | null;
+  attempt_count?: number;
+  max_attempts?: number;
+  last_error?: string | null;
+  created_at?: string;
+};
+
+const jobLabels: Record<string, string> = {
+  demand_research: 'Demand research',
+  product_draft: 'Product draft',
+  localization: 'Localization',
+  quality_review: 'Quality review',
+};
+
+export default function FactoryControls() {
+  const [jobs, setJobs] = useState<FactoryJob[]>([]);
+  const [jobType, setJobType] = useState('demand_research');
+  const [marketCode, setMarketCode] = useState('US');
+  const [locale, setLocale] = useState('en-US');
+  const [brief, setBrief] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
+
+  const loadJobs = useCallback(async () => {
+    try {
+      const response = await fetch('/api/internal/product-jobs?limit=50', { cache: 'no-store' });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || 'Unable to load factory jobs');
+      setJobs(Array.isArray(payload.jobs) ? payload.jobs : []);
+      setError('');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to load factory jobs');
+    }
+  }, []);
+
+  useEffect(() => { void loadJobs(); }, [loadJobs]);
+
+  async function createJob(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setBusy(true); setError(''); setMessage('');
+    try {
+      const response = await fetch('/api/internal/product-jobs', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jobType, marketCode, locale, input: { brief: brief.trim() }, maxAttempts: 3 }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || 'Unable to queue job');
+      setBrief('');
+      setMessage('Job added to the queue. It will run when the configured worker processes queued jobs.');
+      await loadJobs();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to create job');
+    } finally { setBusy(false); }
+  }
+
+  async function changeJob(job: FactoryJob, status: 'queued' | 'cancelled') {
+    setBusy(true); setError(''); setMessage('');
+    try {
+      const response = await fetch(`/api/internal/product-jobs/${job.id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status, details: { source: 'admin_factory_console' } }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || 'Unable to update job');
+      setMessage(status === 'queued' ? 'Retry queued.' : 'Queued job cancelled.');
+      await loadJobs();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to update job');
+    } finally { setBusy(false); }
+  }
+
+  const panel: React.CSSProperties = { background: '#fff', border: '1px solid #e7e9f1', borderRadius: 18, padding: 20, marginBottom: 18 };
+  const field: React.CSSProperties = { width: '100%', border: '1px solid #dfe3ed', borderRadius: 10, padding: '11px 12px', background: '#fff', color: '#182033', fontSize: 13 };
+  const primary: React.CSSProperties = { border: 0, borderRadius: 10, padding: '11px 15px', background: '#5143d8', color: '#fff', fontWeight: 800, cursor: busy ? 'wait' : 'pointer', opacity: busy ? .7 : 1 };
+
+  return <div>
+    <section style={panel}>
+      <h2 style={{ margin: '0 0 6px', fontSize: 18 }}>Queue a factory job</h2>
+      <p style={{ color: '#778095', fontSize: 13, lineHeight: 1.6, margin: '0 0 18px' }}>Create a demand-research, product-draft, localization or quality-review task. Jobs remain drafts for review; this form does not publish products.</p>
+      <form onSubmit={createJob} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(190px,1fr))', gap: 12 }}>
+        <label style={{ display: 'grid', gap: 6, fontSize: 12, fontWeight: 750 }}>Job type
+          <select style={field} value={jobType} onChange={e => setJobType(e.target.value)}>
+            <option value="demand_research">Demand research</option><option value="product_draft">Product draft</option><option value="localization">Localization</option><option value="quality_review">Quality review</option>
+          </select>
+        </label>
+        <label style={{ display: 'grid', gap: 6, fontSize: 12, fontWeight: 750 }}>Market
+          <select style={field} value={marketCode} onChange={e => { const next = e.target.value; setMarketCode(next); setLocale(next === 'UK' ? 'en-GB' : 'en-US'); }}>
+            <option value="US">United States · USD</option><option value="UK">United Kingdom · GBP</option>
+          </select>
+        </label>
+        <label style={{ display: 'grid', gap: 6, fontSize: 12, fontWeight: 750 }}>Locale
+          <input style={field} value={locale} onChange={e => setLocale(e.target.value)} minLength={2} maxLength={35} required />
+        </label>
+        <label style={{ display: 'grid', gap: 6, fontSize: 12, fontWeight: 750, gridColumn: '1 / -1' }}>Brief / context
+          <textarea style={{ ...field, minHeight: 92, resize: 'vertical' }} value={brief} onChange={e => setBrief(e.target.value)} placeholder="Describe the product opportunity, audience, localization request or review context." required minLength={5} maxLength={4000} />
+        </label>
+        <div style={{ gridColumn: '1 / -1' }}><button disabled={busy} style={primary} type="submit">{busy ? 'Working…' : 'Add job to queue'}</button></div>
+      </form>
+      {message && <p role="status" style={{ color: '#087f65', fontSize: 13, marginBottom: 0 }}>{message}</p>}
+      {error && <p role="alert" style={{ color: '#a23a3a', fontSize: 13, marginBottom: 0 }}>{error}</p>}
+    </section>
+    <section style={{ ...panel, padding: 0, overflow: 'hidden' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: 20, borderBottom: '1px solid #edf0f5' }}>
+        <div><h2 style={{ margin: 0, fontSize: 18 }}>Factory job queue</h2><p style={{ margin: '5px 0 0', fontSize: 12, color: '#778095' }}>{jobs.length} recent jobs</p></div>
+        <button type="button" disabled={busy} onClick={() => void loadJobs()} style={{ ...primary, background: '#f0edff', color: '#5141d8' }}>Refresh</button>
+      </div>
+      {error && <p role="alert" style={{ padding: '0 20px', color: '#a23a3a', fontSize: 13 }}>{error}</p>}
+      {jobs.length === 0 ? <p style={{ padding: 22, color: '#778095', fontSize: 13 }}>No factory jobs found yet. Create the first job above.</p> :
+        <div style={{ overflowX: 'auto' }}><table style={{ borderCollapse: 'collapse', width: '100%', minWidth: 760, fontSize: 12 }}>
+          <thead><tr>{['Job','Status','Market / locale','Attempts','Last error','Actions'].map(label => <th key={label} style={{ textAlign: 'left', padding: '12px 14px', background: '#fafbfe', color: '#687187', fontSize: 10, letterSpacing: .5, borderBottom: '1px solid #edf0f5' }}>{label}</th>)}</tr></thead>
+          <tbody>{jobs.map(job => <tr key={job.id}>
+            <td style={{ padding: 14, borderBottom: '1px solid #f0f2f6', fontWeight: 750 }}>{jobLabels[job.job_type] || job.job_type}<div style={{ color: '#8991a3', fontWeight: 400, marginTop: 4 }}>{job.id.slice(0, 8)}</div></td>
+            <td style={{ padding: 14, borderBottom: '1px solid #f0f2f6' }}><span style={{ display: 'inline-block', padding: '5px 8px', borderRadius: 999, background: job.status === 'failed' ? '#fff0f0' : job.status === 'ready' ? '#e8f8f0' : '#f0edff', color: job.status === 'failed' ? '#a23a3a' : job.status === 'ready' ? '#087f65' : '#5141d8', fontWeight: 800 }}>{job.status}</span></td>
+            <td style={{ padding: 14, borderBottom: '1px solid #f0f2f6' }}>{job.market_code || '—'}<div style={{ color: '#8991a3', marginTop: 4 }}>{job.locale || '—'}</div></td>
+            <td style={{ padding: 14, borderBottom: '1px solid #f0f2f6' }}>{job.attempt_count ?? 0} / {job.max_attempts ?? 3}</td>
+            <td style={{ padding: 14, borderBottom: '1px solid #f0f2f6', color: job.last_error ? '#a23a3a' : '#8991a3', maxWidth: 220, overflowWrap: 'anywhere' }}>{job.last_error || '—'}</td>
+            <td style={{ padding: 14, borderBottom: '1px solid #f0f2f6', whiteSpace: 'nowrap' }}>
+              {job.status === 'failed' && Number(job.attempt_count || 0) < Number(job.max_attempts || 3) && <button disabled={busy} onClick={() => void changeJob(job, 'queued')} style={{ ...primary, padding: '8px 10px', marginRight: 6 }}>Retry</button>}
+              {job.status === 'queued' && <button disabled={busy} onClick={() => void changeJob(job, 'cancelled')} style={{ ...primary, padding: '8px 10px', background: '#f5f6fa', color: '#5e6678' }}>Cancel</button>}
+            </td>
+          </tr>)}</tbody>
+        </table></div>}
+    </section>
+  </div>;
+}
