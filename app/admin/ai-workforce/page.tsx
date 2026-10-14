@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { redirect } from 'next/navigation';
+import TaskReviewActions from './TaskReviewActions';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,7 +23,7 @@ export default async function AIWorkforcePage() {
   try {
     const [a,t,r] = await Promise.all([
       db.query(`SELECT agent_level, department_code, COUNT(*)::int AS total, COUNT(*) FILTER (WHERE enabled)::int AS enabled FROM ai_workforce_agents GROUP BY agent_level,department_code ORDER BY department_code,agent_level`),
-      db.query(`SELECT t.id,t.title,t.department_code,t.team_name,t.priority,t.status,t.result_summary,t.error_message,t.created_at,a.display_name AS agent_name FROM ai_workforce_tasks t LEFT JOIN ai_workforce_agents a ON a.id=t.agent_id ORDER BY t.created_at DESC LIMIT 30`),
+      db.query(`SELECT t.id,t.title,t.department_code,t.team_name,t.priority,t.status,t.result_summary,t.result_json,t.requires_approval,t.approved_by,t.approved_at,t.error_message,t.created_at,a.display_name AS agent_name FROM ai_workforce_tasks t LEFT JOIN ai_workforce_agents a ON a.id=t.agent_id ORDER BY t.created_at DESC LIMIT 30`),
       db.query(`SELECT id,status,agents_processed,tasks_created,summary,error_message,started_at,completed_at FROM ai_workforce_runs ORDER BY started_at DESC LIMIT 10`),
     ]);
     agents=a.rows; tasks=t.rows; runs=r.rows;
@@ -70,6 +71,7 @@ export default async function AIWorkforcePage() {
             <div style={{fontSize:11,color:'#778095',marginTop:6}}>{t.agent_name || 'Unassigned agent'} · {t.department_code}{t.team_name ? ' / '+t.team_name : ''} · Priority: {t.priority} · {new Date(t.created_at).toLocaleString('en-IN')}</div>
             {t.result_summary&&<p style={{fontSize:13,lineHeight:1.6,marginBottom:0}}>{t.result_summary}</p>}
             {t.error_message&&<p style={{fontSize:12,color:'#b42318',lineHeight:1.5,marginBottom:0}}>{t.error_message}</p>}
+            <TaskReviewActions taskId={t.id} status={t.status} resultJson={t.result_json ?? null} approvedBy={t.approved_by ?? null} approvedAt={t.approved_at ? new Date(t.approved_at).toISOString() : null} />
           </article>)}</div>}
         </section>
         <section style={panel}>
