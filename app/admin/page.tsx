@@ -37,7 +37,7 @@ export default async function AdminPage() {
     '/admin/catalog': ['Super Admin', 'Operations Admin', 'Catalog Manager'],
     '/admin/users': ['Super Admin', 'Operations Admin', 'Support Agent'],
     '/admin/orders': ['Super Admin', 'Operations Admin', 'Finance Manager'],
-    '/admin/factory': ['Super Admin', 'Operations Admin', 'AI Factory Manager'],
+    '/admin/factory': ['Super Admin', 'AI Factory Manager'],
   };
 
   const [users, products, orders, categories] = await Promise.all([
@@ -88,7 +88,7 @@ export default async function AdminPage() {
             { href: '/admin/catalog', label: 'Products', roles: ['Super Admin', 'Operations Admin', 'Catalog Manager'] },
             { href: '/admin/users', label: 'Users', roles: ['Super Admin', 'Operations Admin', 'Support Agent'] },
             { href: '/admin/orders', label: 'Orders & Finance', roles: ['Super Admin', 'Operations Admin', 'Finance Manager'] },
-            { href: '/admin/factory', label: 'AI Product Factory', roles: ['Super Admin', 'Operations Admin', 'AI Factory Manager'] },
+            { href: '/admin/factory', label: 'AI Product Factory', roles: ['Super Admin', 'AI Factory Manager'] },
             { href: '/admin/markets', label: 'Global Markets', roles: ['Super Admin', 'Operations Admin'] },
             { href: '/admin/analytics', label: 'Analytics', roles: ['Super Admin', 'Operations Admin', 'Finance Manager', 'Read-Only Analyst'] },
             { href: '/admin/activity', label: 'Audit & Activity', roles: ['Super Admin', 'Operations Admin'] },
