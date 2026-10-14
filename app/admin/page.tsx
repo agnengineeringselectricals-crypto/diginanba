@@ -28,16 +28,22 @@ export default async function AdminPage() {
      JOIN roles r ON r.id = ur.role_id
      WHERE ur.user_id = $1
        AND r.name IN ('Super Admin', 'Operations Admin', 'Catalog Manager', 'Finance Manager', 'Support Agent', 'AI Factory Manager', 'Read-Only Analyst')
-     ORDER BY CASE WHEN r.name = 'Super Admin' THEN 0 ELSE 1 END
-     LIMIT 1`,
+     ORDER BY CASE WHEN r.name = 'Super Admin' THEN 0 ELSE 1 END, r.name`,
     [session.user.id],
   );
   if (!roleResult.rowCount) redirect('/account');
+  const roleNames = new Set<string>(roleResult.rows.map((row: { name: string }) => String(row.name)));
+  const areaRoles: Record<string, string[]> = {
+    '/admin/catalog': ['Super Admin', 'Operations Admin', 'Catalog Manager'],
+    '/admin/users': ['Super Admin', 'Operations Admin', 'Support Agent'],
+    '/admin/orders': ['Super Admin', 'Operations Admin', 'Finance Manager'],
+    '/admin/factory': ['Super Admin', 'Operations Admin', 'AI Factory Manager'],
+  };
 
   const [users, products, orders, categories] = await Promise.all([
     countRows('users'), countRows('products'), countRows('orders'), countRows('categories'),
   ]);
-  const roleName = String(roleResult.rows[0]?.name ?? 'Administrator');
+  const roleName = roleResult.rows.map((row: { name: string }) => String(row.name)).join(', ');
   const metric = (value: number | null) => value === null ? '—' : value.toLocaleString('en-US');
   const stats = [
     { label: 'Registered users', value: metric(users), icon: '♙', note: 'Marketplace accounts', color: '#6554ed', tint: '#f0edff' },
@@ -78,15 +84,15 @@ export default async function AdminPage() {
 
         <nav aria-label="Admin navigation" style={{ display: 'flex', gap: 8, overflowX: 'auto', padding: '3px 1px 18px', marginBottom: 5 }}>
           {[
-            { href: '/admin', label: 'Overview' },
-            { href: '/admin/catalog', label: 'Products' },
-            { href: '/admin/users', label: 'Users' },
-            { href: '/admin/orders', label: 'Orders & Finance' },
-            { href: '/admin/factory', label: 'AI Product Factory' },
-            { href: '/admin/markets', label: 'Global Markets' },
-            { href: '/admin/analytics', label: 'Analytics' },
-            { href: '/admin/activity', label: 'Audit & Activity' },
-          ].map((item) => <Link key={item.href} href={item.href} aria-current={item.href === '/admin' ? 'page' : undefined} style={{ whiteSpace: 'nowrap', textDecoration: 'none', borderRadius: 999, padding: '10px 13px', fontSize: 12, fontWeight: 750, background: item.href === '/admin' ? '#5143d8' : '#fff', color: item.href === '/admin' ? '#fff' : '#586176', border: '1px solid #e5e7f0' }}>{item.label}</Link>)}
+            { href: '/admin', label: 'Overview', roles: ['Super Admin', 'Operations Admin', 'Catalog Manager', 'Finance Manager', 'Support Agent', 'AI Factory Manager', 'Read-Only Analyst'] },
+            { href: '/admin/catalog', label: 'Products', roles: ['Super Admin', 'Operations Admin', 'Catalog Manager'] },
+            { href: '/admin/users', label: 'Users', roles: ['Super Admin', 'Operations Admin', 'Support Agent'] },
+            { href: '/admin/orders', label: 'Orders & Finance', roles: ['Super Admin', 'Operations Admin', 'Finance Manager'] },
+            { href: '/admin/factory', label: 'AI Product Factory', roles: ['Super Admin', 'Operations Admin', 'AI Factory Manager'] },
+            { href: '/admin/markets', label: 'Global Markets', roles: ['Super Admin', 'Operations Admin'] },
+            { href: '/admin/analytics', label: 'Analytics', roles: ['Super Admin', 'Operations Admin', 'Finance Manager', 'Read-Only Analyst'] },
+            { href: '/admin/activity', label: 'Audit & Activity', roles: ['Super Admin', 'Operations Admin'] },
+          ].filter((item) => item.roles.some((role) => roleNames.has(role))).map((item) => <Link key={item.href} href={item.href} aria-current={item.href === '/admin' ? 'page' : undefined} style={{ whiteSpace: 'nowrap', textDecoration: 'none', borderRadius: 999, padding: '10px 13px', fontSize: 12, fontWeight: 750, background: item.href === '/admin' ? '#5143d8' : '#fff', color: item.href === '/admin' ? '#fff' : '#586176', border: '1px solid #e5e7f0' }}>{item.label}</Link>)}
         </nav>
 
         <section style={{ borderRadius: 26, padding: 'clamp(18px,2.5vw,28px)', color: '#fff', background: 'radial-gradient(circle at 85% 15%, #7669ff 0, transparent 34%), linear-gradient(120deg,#211b58 0%,#4033a7 58%,#5b4df6 100%)', position: 'relative', overflow: 'hidden' }}>
@@ -115,7 +121,7 @@ export default async function AdminPage() {
         <section>
           <div className="dn-admin-sectionhead"><div><div style={{ color: '#6c5af2', fontSize: 11, fontWeight: 850, letterSpacing: 1.5 }}>WORKSPACE</div><h2 style={{ margin: '7px 0 0', fontSize: 23, letterSpacing: '-.5px' }}>Administration areas</h2><p style={{ color: '#788196', margin: '7px 0 0', fontSize: 14 }}>Choose an area to review its current capabilities.</p></div></div>
           <div className="dn-admin-areas">
-            {adminAreas.map((area) => <article key={area.number} className="dn-admin-area">\n              <Link href={area.href} className="dn-admin-card-hit" aria-label={`Open ${area.title}`} />
+            {adminAreas.filter((area) => (areaRoles[area.href] ?? []).some((role) => roleNames.has(role))).map((area) => <article key={area.number} className="dn-admin-area">\n              <Link href={area.href} className="dn-admin-card-hit" aria-label={`Open ${area.title}`} />
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 14 }}>
                 <div style={{ width: 48, height: 48, display: 'grid', placeItems: 'center', borderRadius: 15, background: area.tint, color: area.color, fontSize: 25, fontWeight: 750 }}>{area.icon}</div>
                 <span style={{ fontSize: 12, color: '#a0a6b5', fontWeight: 800, letterSpacing: 1 }}>{area.number}</span>
