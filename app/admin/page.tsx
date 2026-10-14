@@ -22,10 +22,11 @@ async function countRows(metric: 'users' | 'products' | 'orders' | 'categories' 
 }
 
 const adminAreas = [
-  { href: '/admin/catalog', icon: '▦', number: '01', title: 'Catalog management', description: 'Review product records, editions, pricing and publishing status.', detail: 'PRODUCTS & CATEGORIES', color: '#6757f5', tint: '#f0edff' },
-  { href: '/admin/users', icon: '♙', number: '02', title: 'Users & access', description: 'Manage administrator access and review role assignments.', detail: 'ACCOUNTS & PERMISSIONS', color: '#087f8c', tint: '#e6f7f7' },
-  { href: '/admin/orders', icon: '↗', number: '03', title: 'Orders & finance', description: 'Monitor order activity and prepare for payment operations.', detail: 'ORDERS & SETTLEMENTS', color: '#b76b12', tint: '#fff4e4' },
-  { href: '/admin/factory', icon: '✦', number: '04', title: 'AI Product Factory', description: 'Review private product-generation operations and factory readiness.', detail: 'AUTOMATION & AI', color: '#a044b5', tint: '#faedff' },
+  { href: '/admin/business', icon: '↗', number: '01', title: 'Business analytics', description: 'Review business performance with daily, weekly, monthly, yearly and custom-range graphs for products, users, orders and paid order value.', detail: 'PERFORMANCE & TRENDS', color: '#087f8c', tint: '#e6f7f7' },
+  { href: '/admin/catalog', icon: '▦', number: '02', title: 'Catalog management', description: 'Review product records, editions, pricing and publishing status.', detail: 'PRODUCTS & CATEGORIES', color: '#6757f5', tint: '#f0edff' },
+  { href: '/admin/users', icon: '♙', number: '03', title: 'Users & access', description: 'Manage administrator access and review role assignments.', detail: 'ACCOUNTS & PERMISSIONS', color: '#087f8c', tint: '#e6f7f7' },
+  { href: '/admin/orders', icon: '↗', number: '04', title: 'Orders & finance', description: 'Monitor order activity and prepare for payment operations.', detail: 'ORDERS & SETTLEMENTS', color: '#b76b12', tint: '#fff4e4' },
+  { href: '/admin/factory', icon: '✦', number: '05', title: 'AI Product Factory', description: 'Review private product-generation operations and factory readiness.', detail: 'AUTOMATION & AI', color: '#a044b5', tint: '#faedff' },
 ];
 
 export default async function AdminPage() {
@@ -43,6 +44,7 @@ export default async function AdminPage() {
   if (!roleResult.rowCount) redirect('/account');
   const roleNames = new Set<string>(roleResult.rows.map((row: { name: string }) => String(row.name)));
   const areaRoles: Record<string, string[]> = {
+    '/admin/business': ['Super Admin', 'Operations Admin', 'Finance Manager', 'Read-Only Analyst'],
     '/admin/catalog': ['Super Admin', 'Operations Admin', 'Catalog Manager'],
     '/admin/users': ['Super Admin', 'Operations Admin', 'Support Agent'],
     '/admin/orders': ['Super Admin', 'Operations Admin', 'Finance Manager'],
@@ -96,6 +98,7 @@ export default async function AdminPage() {
 
         <nav aria-label="Admin navigation" style={{ display: 'flex', gap: 8, overflowX: 'auto', padding: '3px 1px 18px', marginBottom: 5 }}>
           {[
+            { href: '/admin/business', label: 'Business analytics', roles: ['Super Admin', 'Operations Admin', 'Finance Manager', 'Read-Only Analyst'] },
             { href: '/admin', label: 'Overview', roles: ['Super Admin', 'Operations Admin', 'Catalog Manager', 'Finance Manager', 'Support Agent', 'AI Factory Manager', 'Read-Only Analyst'] },
             { href: '/admin/catalog', label: 'Products', roles: ['Super Admin', 'Operations Admin', 'Catalog Manager'] },
             { href: '/admin/users', label: 'Users', roles: ['Super Admin', 'Operations Admin', 'Support Agent'] },
