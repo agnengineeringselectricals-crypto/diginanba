@@ -67,7 +67,7 @@ export default async function AdminTeamPage() {
         <span style={{fontSize:12,color:'#6e778d'}}>Signed in as {session.user.name ?? session.user.email ?? 'Administrator'}</span>
       </header>
       <nav aria-label="Admin navigation" style={{display:'flex',gap:8,overflowX:'auto',padding:'5px 1px 17px'}}>
-        {[['/admin','Overview'],['/admin/business','Business analytics'],['/admin/users','Users'],['/admin/team','Team & hierarchy']].map(([href,label])=><Link key={href} href={href} style={{whiteSpace:'nowrap',textDecoration:'none',borderRadius:999,padding:'10px 13px',fontSize:12,fontWeight:750,background:href==='/admin/team'?'#5143d8':'#fff',color:href==='/admin/team'?'#fff':'#586176',border:'1px solid #e5e7f0'}}>{label}</Link>)}
+        {[['/admin','Overview'],['/admin/business','Business analytics'],['/admin/catalog','Products'],['/admin/users','Users'],['/admin/orders','Orders & Finance'],['/admin/factory','AI Product Factory'],['/admin/team','Team & hierarchy'],['/admin/markets','Global Markets'],['/admin/analytics','Analytics'],['/admin/activity','Audit & Activity']].map(([href,label])=><Link key={href} href={href} style={{whiteSpace:'nowrap',textDecoration:'none',borderRadius:999,padding:'10px 13px',fontSize:12,fontWeight:750,background:href==='/admin/team'?'#5143d8':'#fff',color:href==='/admin/team'?'#fff':'#586176',border:'1px solid #e5e7f0'}}>{label}</Link>)}
       </nav>
       <section style={{background:'linear-gradient(120deg,#173b2d,#176b45)',color:'#fff',borderRadius:22,padding:'clamp(22px,3vw,34px)',margin:'12px 0 22px'}}>
         <div style={{fontSize:11,letterSpacing:1.5,fontWeight:850,color:'#bcebd0'}}>ORGANIZATION & STAFF</div>
