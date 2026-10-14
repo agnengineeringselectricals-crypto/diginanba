@@ -87,7 +87,7 @@ export default async function AdminTeamPage() {
       </header>
       <nav aria-label="Admin navigation" style={{display:'flex',gap:8,overflowX:'auto',padding:'5px 1px 17px',scrollbarGutter:'stable'}}>
         {[
-          ['/admin/business','Business analytics'],['/admin','Overview'],['/admin/catalog','Products'],['/admin/users','Users'],['/admin/orders','Orders & Finance'],['/admin/factory','AI Product Factory'],['/admin/markets','Global Markets'],['/admin/analytics','Analytics'],['/admin/activity','Audit & Activity'],['/admin/team','Team & hierarchy']
+          ['/admin/business','Business analytics'],['/admin','Overview'],['/admin/catalog','Products'],['/admin/users','Users'],['/admin/orders','Orders & Finance'],['/admin/factory','AI Product Factory'],['/admin/markets','Global Markets'],['/admin/analytics','Analytics'],['/admin/activity','Audit & Activity'],['/admin/ai-workforce','AI Workforce'],['/admin/team','Team & hierarchy']
         ].map(([href,label])=><Link key={href} href={href} aria-current={href==='/admin/team'?'page':undefined} style={{flex:'0 0 auto',whiteSpace:'nowrap',textDecoration:'none',borderRadius:999,padding:'10px 13px',fontSize:12,fontWeight:750,background:href==='/admin/team'?'#5143d8':'#fff',color:href==='/admin/team'?'#fff':'#586176',border:'1px solid #e5e7f0'}}>{label}</Link>)}
       </nav>
       <section style={{background:'linear-gradient(120deg,#173b2d,#176b45)',color:'#fff',borderRadius:22,padding:'clamp(22px,3vw,34px)',margin:'12px 0 22px'}}>
