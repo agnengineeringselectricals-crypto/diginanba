@@ -86,6 +86,7 @@ const sections: Record<SectionKey, { title: string; eyebrow: string; description
   },
 };
 const navigation: { href: string; label: string; roles: string[] }[] = [
+  {href:'/admin/business',label:'Business analytics',roles:['Super Admin','Operations Admin','Finance Manager','Read-Only Analyst']},
   {href:'/admin',label:'Overview',roles:['Super Admin','Operations Admin','Catalog Manager','Finance Manager','Support Agent','AI Factory Manager','Read-Only Analyst']},
   {href:'/admin/catalog',label:'Products',roles:['Super Admin','Operations Admin','Catalog Manager']}, {href:'/admin/users',label:'Users',roles:['Super Admin','Operations Admin','Support Agent']},
   {href:'/admin/orders',label:'Orders & Finance',roles:['Super Admin','Operations Admin','Finance Manager']}, {href:'/admin/factory',label:'AI Product Factory',roles:['Super Admin','AI Factory Manager']},
