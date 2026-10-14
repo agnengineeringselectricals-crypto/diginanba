@@ -27,6 +27,7 @@ const adminAreas = [
   { href: '/admin/users', icon: '♙', number: '03', title: 'Users & access', description: 'Manage administrator access and review role assignments.', detail: 'ACCOUNTS & PERMISSIONS', color: '#087f8c', tint: '#e6f7f7' },
   { href: '/admin/orders', icon: '↗', number: '04', title: 'Orders & finance', description: 'Monitor order activity and prepare for payment operations.', detail: 'ORDERS & SETTLEMENTS', color: '#b76b12', tint: '#fff4e4' },
   { href: '/admin/factory', icon: '✦', number: '05', title: 'AI Product Factory', description: 'Review private product-generation operations and factory readiness.', detail: 'AUTOMATION & AI', color: '#a044b5', tint: '#faedff' },
+  { href: '/admin/ai-workforce', icon: '✓', number: '07', title: 'AI Workforce Review', description: 'Review AI reports, record approval decisions and track scheduled task execution.', detail: 'AI TASKS & APPROVALS', color: '#176b45', tint: '#e8f7ee' },
   { href: '/admin/team', icon: '♧', number: '06', title: 'Team & hierarchy', description: 'Organize the Chief Admin, department sub-admins, team leaders and staff across marketplace operations.', detail: 'ORGANIZATION & STAFF', color: '#176b45', tint: '#e8f7ee' },
 ];
 
@@ -50,6 +51,7 @@ export default async function AdminPage() {
     '/admin/users': ['Super Admin', 'Operations Admin', 'Support Agent'],
     '/admin/orders': ['Super Admin', 'Operations Admin', 'Finance Manager'],
     '/admin/factory': ['Super Admin', 'AI Factory Manager'],
+    '/admin/ai-workforce': ['Super Admin', 'Operations Admin'],
     '/admin/team': ['Super Admin', 'Operations Admin'],
   };
 
@@ -106,6 +108,7 @@ export default async function AdminPage() {
             { href: '/admin/users', label: 'Users', roles: ['Super Admin', 'Operations Admin', 'Support Agent'] },
             { href: '/admin/orders', label: 'Orders & Finance', roles: ['Super Admin', 'Operations Admin', 'Finance Manager'] },
             { href: '/admin/factory', label: 'AI Product Factory', roles: ['Super Admin', 'AI Factory Manager'] },
+            { href: '/admin/ai-workforce', label: 'AI Workforce Review', roles: ['Super Admin', 'Operations Admin'] },
             { href: '/admin/team', label: 'Team & hierarchy', roles: ['Super Admin', 'Operations Admin'] },
             { href: '/admin/markets', label: 'Global Markets', roles: ['Super Admin', 'Operations Admin'] },
             { href: '/admin/analytics', label: 'Analytics', roles: ['Super Admin', 'Operations Admin', 'Finance Manager', 'Read-Only Analyst'] },
