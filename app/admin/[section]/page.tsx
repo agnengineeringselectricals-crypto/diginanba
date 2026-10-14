@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { notFound, redirect } from 'next/navigation';
 import FactoryControls from '../FactoryControls';
+import CatalogControls from '../CatalogControls';
 
 type SectionKey = 'catalog' | 'users' | 'orders' | 'factory' | 'markets' | 'analytics' | 'activity';
 type Column = { key: string; label: string };
@@ -120,7 +121,7 @@ export default async function AdminSectionPage({ params }: { params: Promise<{ s
         <div style={{fontSize:12,color:'#7a8295'}}>Showing up to {key === 'markets' || key === 'analytics' ? '100' : '50'} recent records · Read-only</div>
       </section>
       {key === 'orders' && <section style={{background:'#eef5ff',border:'1px solid #d6e5ff',borderRadius:16,padding:18,marginBottom:18,color:'#2b4b7a',fontSize:13,lineHeight:1.7}}>Financial amounts are stored in minor units (for example, cents or paise). Payment-provider confirmation and settlement reconciliation must be verified before these totals are treated as realized revenue.</section>}
-      {key === 'factory' ? <FactoryControls /> : <section style={{background:'#fff',border:'1px solid #e7e9f1',borderRadius:18,overflow:'hidden'}}>
+      {key === 'factory' ? <FactoryControls /> : key === 'catalog' ? <CatalogControls /> : <section style={{background:'#fff',border:'1px solid #e7e9f1',borderRadius:18,overflow:'hidden'}}>
         <div style={{padding:'18px 20px',borderBottom:'1px solid #edf0f5',fontWeight:800}}>{key === 'analytics' ? 'Operational metrics' : key === 'factory' ? 'Recent factory jobs' : key === 'activity' ? 'Recent audit events' : key === 'markets' ? 'Configured markets' : 'Recent records'}</div>
         {loadError ? <div style={{padding:24,color:'#a23a3a'}}>This section could not load its database records. The page remains available; check the table migration and deployment runtime logs.</div> : rows.length === 0 ? <div style={{padding:24,color:'#7a8295'}}>No records are available to display yet.</div> : <div style={{overflowX:'auto'}}><table style={{borderCollapse:'collapse',width:'100%',fontSize:13,minWidth:560}}><thead><tr>{page.columns.map(col=><th key={col.key} style={{textAlign:'left',padding:'13px 16px',background:'#fafbfe',color:'#687187',fontSize:11,letterSpacing:.5,borderBottom:'1px solid #edf0f5'}}>{col.label}</th>)}</tr></thead><tbody>{rows.map((row,i)=><tr key={String(row.id ?? row.email ?? row.metric ?? i)}>{page.columns.map(col=><td key={col.key} style={{padding:'14px 16px',borderBottom:'1px solid #f0f2f6',color:col.key==='status' || col.key==='result'?'#087f65':'#30394c',maxWidth:360,overflowWrap:'anywhere'}}>{fmt(row[col.key])}</td>)}</tr>)}</tbody></table></div>}
       </section>}
