@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
 
   try {
     // Seed one daily review task per enabled department manager and the central orchestrator.
-    // The hourly cron processes a maximum of four tasks per run to limit model usage.
+    // The daily cron processes up to ten tasks per run, covering the initial review and daily manager reviews.
     await db.query(
       `INSERT INTO ai_workforce_tasks
          (agent_id, department_code, title, task_description, priority, status, requires_approval)
@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
        LEFT JOIN ai_workforce_agents a ON a.id=t.agent_id
        WHERE t.status='queued' AND (a.enabled IS TRUE OR a.id IS NULL)
        ORDER BY CASE t.priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'normal' THEN 2 ELSE 3 END, t.created_at
-       LIMIT 4`,
+       LIMIT 10`,
     );
 
     for (const row of pending.rows as any[]) {
