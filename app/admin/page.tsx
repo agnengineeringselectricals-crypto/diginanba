@@ -60,7 +60,7 @@ export default async function AdminPage() {
         .dn-admin-stat{background:#fff;border:1px solid #e8eaf2;border-radius:18px;padding:21px;box-shadow:0 4px 18px #1b24400a;min-width:0;transition:transform .18s,box-shadow .18s}
         .dn-admin-areas{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
         .dn-admin-area{display:block;text-decoration:none;color:inherit;background:#fff;border:1px solid #e8eaf2;border-radius:20px;padding:23px;min-width:0;position:relative;transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease}
-        .dn-admin-open{display:inline-flex;align-items:center;justify-content:center;gap:7px;margin-top:14px;padding:12px 15px;min-height:44px;max-width:100%;border-radius:10px;background:#f0edff;color:#5141d8;font-size:12px;font-weight:800;text-decoration:none;position:relative;z-index:2}
+        .dn-admin-card-hit{position:absolute;inset:0;z-index:1;border-radius:20px;display:block;outline-offset:4px}\n        .dn-admin-card-hit:focus-visible{outline:3px solid #6757f5}\n        .dn-admin-open{display:inline-flex;align-items:center;justify-content:center;gap:7px;margin-top:14px;padding:12px 15px;min-height:44px;max-width:100%;border-radius:10px;background:#f0edff;color:#5141d8;font-size:12px;font-weight:800;text-decoration:none;position:relative;z-index:2}
         .dn-admin-open:focus-visible{outline:3px solid #6757f5;outline-offset:3px}
         .dn-admin-area:hover{box-shadow:0 14px 32px #1b244012;border-color:#c9c3ff;transform:translateY(-2px)}
         .dn-admin-open:hover{background:#e3ddff}
@@ -102,7 +102,7 @@ export default async function AdminPage() {
         <section>
           <div className="dn-admin-sectionhead"><div><div style={{ color: '#6c5af2', fontSize: 11, fontWeight: 850, letterSpacing: 1.5 }}>WORKSPACE</div><h2 style={{ margin: '7px 0 0', fontSize: 23, letterSpacing: '-.5px' }}>Administration areas</h2><p style={{ color: '#788196', margin: '7px 0 0', fontSize: 14 }}>Choose an area to review its current capabilities.</p></div></div>
           <div className="dn-admin-areas">
-            {adminAreas.map((area) => <article key={area.number} className="dn-admin-area">
+            {adminAreas.map((area) => <article key={area.number} className="dn-admin-area">\n              <Link href={area.href} className="dn-admin-card-hit" aria-label={`Open ${area.title}`} />
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 14 }}>
                 <div style={{ width: 48, height: 48, display: 'grid', placeItems: 'center', borderRadius: 15, background: area.tint, color: area.color, fontSize: 25, fontWeight: 750 }}>{area.icon}</div>
                 <span style={{ fontSize: 12, color: '#a0a6b5', fontWeight: 800, letterSpacing: 1 }}>{area.number}</span>
