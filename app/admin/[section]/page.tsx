@@ -53,8 +53,8 @@ const sections: Record<SectionKey, { title: string; eyebrow: string; description
   users: {
     title: 'Users & access', eyebrow: 'ACCOUNTS & PERMISSIONS',
     description: 'Review marketplace accounts and account status. Passwords and authentication secrets are never displayed here.',
-    columns: [{key:'display_name',label:'Name'}, {key:'email',label:'Email'}, {key:'status',label:'Status'}, {key:'created_at',label:'Registered'}],
-    query: 'SELECT display_name, email, status, created_at FROM users ORDER BY created_at DESC LIMIT 50',
+    columns: [{key:'display_name',label:'Name'}, {key:'email',label:'Email'}, {key:'account_type',label:'Account type'}, {key:'status',label:'Status'}, {key:'created_at',label:'Registered'}],
+    query: 'SELECT display_name, email, account_type, status, created_at FROM users ORDER BY created_at DESC LIMIT 50',
   },
   orders: {
     title: 'Orders & finance', eyebrow: 'ORDERS & SETTLEMENTS',
@@ -150,7 +150,14 @@ export default async function AdminSectionPage({ params, searchParams }: { param
   let rows: Record<string, unknown>[] = [];
   let loadError = false;
   try {
-    const result = await db.query(page.query);
+    const userQuery = key !== 'users' ? page.query : userSegment === 'normal'
+      ? "SELECT u.display_name,u.email,u.account_type,u.status,u.created_at FROM users u WHERE u.account_type='normal' AND NOT EXISTS (SELECT 1 FROM subscriptions s WHERE s.user_id=u.id AND s.status IN ('active','trialing')) ORDER BY u.created_at DESC LIMIT 50"
+      : userSegment === 'creators'
+      ? "SELECT display_name,email,account_type,status,created_at FROM users WHERE account_type='creator' ORDER BY created_at DESC LIMIT 50"
+      : userSegment === 'subscribers'
+      ? "SELECT DISTINCT ON (u.id) u.display_name,u.email,u.account_type,u.status,u.created_at FROM users u JOIN subscriptions s ON s.user_id=u.id WHERE s.status IN ('active','trialing') ORDER BY u.id,s.created_at DESC LIMIT 50"
+      : page.query;
+    const result = await db.query(userQuery);
     rows = result.rows as Record<string, unknown>[];
   } catch (error) {
     loadError = true;
