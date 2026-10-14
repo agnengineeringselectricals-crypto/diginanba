@@ -45,6 +45,26 @@ export async function GET(request: NextRequest) {
   const summaries: string[] = [];
 
   try {
+    // Seed one daily review task per enabled department manager and the central orchestrator.
+    // The hourly cron processes a maximum of four tasks per run to limit model usage.
+    await db.query(
+      `INSERT INTO ai_workforce_tasks
+         (agent_id, department_code, title, task_description, priority, status, requires_approval)
+       SELECT a.id, a.department_code,
+              'Daily AI operations review — ' || a.display_name,
+              'Prepare a concise daily review for your assigned responsibility. Identify the most important checks, risks, and practical next steps. Use only verified facts supplied in the task or safely available from your role context; explicitly state when live evidence is missing. Do not change production data, contact users, publish content, spend money, change access/security, or execute financial actions. Escalate sensitive decisions for owner approval.',
+              'normal', 'queued', FALSE
+       FROM ai_workforce_agents a
+       WHERE a.enabled IS TRUE
+         AND a.agent_level IN ('orchestrator','department_manager')
+         AND NOT EXISTS (
+           SELECT 1 FROM ai_workforce_tasks t
+           WHERE t.agent_id=a.id
+             AND t.title='Daily AI operations review — ' || a.display_name
+             AND t.created_at >= date_trunc('day', now())
+         )`,
+    );
+
     const pending = await db.query(
       `SELECT t.id AS task_id, t.title, t.task_description, t.department_code AS task_department,
               a.id AS agent_id, a.agent_key, a.display_name, a.department_code, a.team_name,
