@@ -22,7 +22,7 @@ const createSchema = z.object({
   description: z.string().trim().max(5000).default(''),
   productType: z.enum(['ebook','guide','template','spreadsheet','course','asset','tool']).default('template'),
 });
-const updateSchema = z.object({
+const priceSchema = z.object({\n  action: z.literal('price'),\n  productId: z.string().uuid(),\n  marketCode: z.enum(['US','UK']),\n  amountMinor: z.number().int().positive().max(100000000),\n});\nconst updateSchema = z.object({
   id: z.string().uuid(),
   title: z.string().trim().min(3).max(180),
   description: z.string().trim().max(5000),
@@ -52,7 +52,50 @@ export async function GET() {
 export async function POST(request: Request) {
   const access = await getAccess(true);
   if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status });
-  const parsed = createSchema.safeParse(await request.json().catch(() => null));
+  const body = await request.json().catch(() => null);
+  if (body && typeof body === 'object' && (body as { action?: unknown }).action === 'price') {
+    const price = priceSchema.safeParse(body);
+    if (!price.success) return NextResponse.json({ error: 'Invalid market price fields', issues: price.error.issues }, { status: 400 });
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const productResult = await client.query('SELECT id,title,description FROM products WHERE id=$1 FOR UPDATE', [price.data.productId]);
+      const product = productResult.rows[0];
+      if (!product) { await client.query('ROLLBACK'); return NextResponse.json({ error: 'Product not found' }, { status: 404 }); }
+      const market = price.data.marketCode;
+      const currency = market === 'US' ? 'USD' : 'GBP';
+      const locale = market === 'US' ? 'en-US' : 'en-GB';
+      const edition = await client.query(
+        `INSERT INTO product_editions(product_id,market_code,locale,title,description,status,version)
+         VALUES($1,$2,$3,$4,$5,'published','1.0')
+         ON CONFLICT(product_id,market_code,locale,version) DO UPDATE SET title=EXCLUDED.title,description=EXCLUDED.description,status='published'
+         RETURNING id`,
+        [product.id, market, locale, product.title, product.description || ''],
+      );
+      const editionId = edition.rows[0].id;
+      const currentPrice = await client.query(
+        'SELECT id FROM prices WHERE product_edition_id=$1 AND currency_code=$2 AND valid_to IS NULL ORDER BY valid_from DESC LIMIT 1 FOR UPDATE',
+        [editionId, currency],
+      );
+      if (currentPrice.rows[0]) {
+        await client.query('UPDATE prices SET amount_minor=$2,valid_from=now() WHERE id=$1', [currentPrice.rows[0].id, price.data.amountMinor]);
+      } else {
+        await client.query('INSERT INTO prices(product_edition_id,currency_code,amount_minor) VALUES($1,$2,$3)', [editionId, currency, price.data.amountMinor]);
+      }
+      await client.query(
+        `INSERT INTO audit_logs(actor_user_id,action,resource_type,resource_id,after_json,result)
+         VALUES($1,'product.price_updated','product',$2,$3::jsonb,'success')`,
+        [access.userId, product.id, JSON.stringify({ market, locale, currency, amountMinor: price.data.amountMinor })],
+      );
+      await client.query('COMMIT');
+      return NextResponse.json({ ok: true, market, locale, currency, amountMinor: price.data.amountMinor });
+    } catch (error) {
+      await client.query('ROLLBACK').catch(() => undefined);
+      console.error('[admin:catalog] price update failed', error);
+      return NextResponse.json({ error: 'Market edition or price could not be saved.' }, { status: 503 });
+    } finally { client.release(); }
+  }
+  const parsed = createSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: 'Invalid product fields', issues: parsed.error.issues }, { status: 400 });
   const client = await db.connect();
   try {
