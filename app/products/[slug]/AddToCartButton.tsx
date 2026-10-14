@@ -7,7 +7,7 @@ type Product = {
   title: string;
   price: string;
   amountMinor: number;
-  market: 'US' | 'UK';
+  market: 'US' | 'UK' | 'IN';
 };
 
 export default function AddToCartButton({ product }: { product: Product }) {
