@@ -79,7 +79,7 @@ export default async function AIWorkforcePage() {
           {runs.length===0?<p style={{color:'#778095',fontSize:13}}>No scheduled runs yet.</p>:<div style={{display:'grid',gap:10}}>{runs.map(r=><article key={r.id} style={{borderBottom:'1px solid #edf0f5',padding:'8px 0'}}><strong>{r.status}</strong><span style={{fontSize:12,color:'#778095'}}> · {new Date(r.started_at).toLocaleString('en-IN')} · tasks processed: {r.agents_processed}</span>{r.summary&&<p style={{fontSize:12,color:'#596276',lineHeight:1.6,margin:'6px 0'}}>{r.summary}</p>}{r.error_message&&<p style={{fontSize:12,color:'#b42318'}}>{r.error_message}</p>}</article>)}</div>}
         </section>
       </>}
-      <p style={{fontSize:12,color:'#778095',lineHeight:1.7,marginTop:18}}>Setup requirements: apply the Neon migration; configure CRON_SECRET and AI_WORKFORCE_API_KEY in Vercel. Optional AI_WORKFORCE_MODEL defaults to gpt-4.1-mini. The scheduled runner processes up to four queued tasks per hour to control costs.</p>
+      <p style={{fontSize:12,color:'#778095',lineHeight:1.7,marginTop:18}}>Setup requirements: apply the Neon migration; configure CRON_SECRET and AI_WORKFORCE_API_KEY in Vercel. Optional AI_WORKFORCE_MODEL defaults to gpt-4.1-mini. The scheduled runner runs once daily and processes up to ten queued analysis tasks per run to control costs.</p>
     </div>
   </main>;
 }
