@@ -55,7 +55,7 @@ export async function getProducts(market: Market, q=''): Promise<CatalogProduct[
   } catch {}
   return fallback.filter(x => !q || `${x[1]} ${x[2]} ${x[3]}`.toLowerCase().includes(q.toLowerCase()) || x[3].toLowerCase().includes(q.toLowerCase())).map(x => ({
     id:x[0], slug:x[0], title:x[1], description:x[2], category:x[3], market,
-    currency:market==='US'?'USD':market==='UK'?'GBP':'INR', symbol:market==='US'?'$':market==='UK'?'£':'₹', amountMinor:market==='US'?x[4]:market==='UK'?x[5]:x[6], price:formatMoney(market==='US'?x[4]:market==='UK'?x[5]:x[6], market)'
+    currency:market==='US'?'USD':market==='UK'?'GBP':'INR', symbol:market==='US'?'$':market==='UK'?'£':'₹', amountMinor:market==='US'?x[4]:market==='UK'?x[5]:x[6], price:formatMoney(market==='US'?x[4]:market==='UK'?x[5]:x[6], market)
   }));
 }
 
