@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { redirect } from 'next/navigation';
+import { assignTeamMembership } from './actions';
 
 const departments = [
   { code: 'accounts-security', name: 'Accounts & Security', desc: 'Account administration, permissions, security and compliance' },
@@ -56,6 +57,24 @@ export default async function AdminTeamPage() {
     dbReady = false;
     console.error('[admin:team] hierarchy tables unavailable; apply organization migration', error);
   }
+  let assignmentUsers: { id: string; display_name: string | null; email: string }[] = [];
+  let assignmentDepartments: { id: string; name: string }[] = [];
+  let assignmentTeams: { id: string; department_id: string; name: string }[] = [];
+  let assignmentReady = false;
+  try {
+    const [u, d, t] = await Promise.all([
+      db.query(`SELECT id, display_name, email FROM users WHERE status='active' ORDER BY COALESCE(display_name,email), email LIMIT 500`),
+      db.query(`SELECT id, name FROM admin_departments WHERE COALESCE(to_jsonb(admin_departments)->>'status','active')='active' ORDER BY name`),
+      db.query(`SELECT id, department_id, name FROM admin_teams ORDER BY name`),
+    ]);
+    assignmentUsers = u.rows;
+    assignmentDepartments = d.rows;
+    assignmentTeams = t.rows;
+    assignmentReady = true;
+  } catch (error) {
+    console.error('[admin:team] assignment options unavailable', error);
+  }
+
   const metrics = [
     ['Sub-admins', hierarchyCounts.subAdmins], ['Team leaders', hierarchyCounts.leaders],
     ['Staff', hierarchyCounts.staff], ['Pending invitations', hierarchyCounts.invited],
@@ -87,6 +106,40 @@ export default async function AdminTeamPage() {
             <div style={{fontSize:11,fontWeight:850,color:'#6c5af2',letterSpacing:1}}>LEVEL {level.n}</div><h3 style={{fontSize:16,margin:'10px 0 7px'}}>{level.title}</h3><p style={{fontSize:12,color:'#6f788d',lineHeight:1.65,margin:0}}>{level.desc}</p>
           </article>)}
         </div>
+      </section>
+      <section style={{background:'#fff',border:'1px solid #e7e9f1',borderRadius:18,padding:20,marginBottom:22}}>
+        <h2 style={{margin:'0 0 7px',fontSize:20}}>Assign real users to roles</h2>
+        <p style={{fontSize:13,color:'#778095',lineHeight:1.6,margin:'0 0 16px'}}>Choose an existing active account and assign it to a department. Team leaders and staff must also be assigned to a team. Only Super Admin accounts can submit assignments.</p>
+        {new URLSearchParams().get('assigned') === '1' && <p role="status" style={{color:'#087f65',fontSize:13,fontWeight:750}}>Membership assigned successfully.</p>}
+        {!assignmentReady ? <p style={{fontSize:13,color:'#a15d0b'}}>Assignment options could not be loaded. Check the database schema and refresh.</p> :
+        assignmentUsers.length === 0 ? <p style={{fontSize:13,color:'#a15d0b'}}>No active user accounts are available to assign. Create or activate real user accounts first.</p> :
+        <form action={assignTeamMembership} style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))',gap:12,alignItems:'end'}}>
+          <label style={{fontSize:12,fontWeight:750,color:'#596276'}}>Active user
+            <select name="userId" required defaultValue="" style={{display:'block',width:'100%',marginTop:7,padding:11,border:'1px solid #dfe3ed',borderRadius:9,background:'#fff',color:'#182033'}}>
+              <option value="" disabled>Select a user</option>{assignmentUsers.map(u=><option key={u.id} value={u.id}>{u.display_name ? u.display_name + ' — ' : ''}{u.email}</option>)}
+            </select>
+          </label>
+          <label style={{fontSize:12,fontWeight:750,color:'#596276'}}>Department
+            <select name="departmentId" required defaultValue="" style={{display:'block',width:'100%',marginTop:7,padding:11,border:'1px solid #dfe3ed',borderRadius:9,background:'#fff',color:'#182033'}}>
+              <option value="" disabled>Select a department</option>{assignmentDepartments.map(d=><option key={d.id} value={d.id}>{d.name}</option>)}
+            </select>
+          </label>
+          <label style={{fontSize:12,fontWeight:750,color:'#596276'}}>Role
+            <select name="roleCode" required defaultValue="staff" style={{display:'block',width:'100%',marginTop:7,padding:11,border:'1px solid #dfe3ed',borderRadius:9,background:'#fff',color:'#182033'}}>
+              <option value="sub_admin">Department Sub-Admin</option><option value="team_leader">Team Leader</option><option value="staff">Staff</option>
+            </select>
+          </label>
+          <label style={{fontSize:12,fontWeight:750,color:'#596276'}}>Team (required for leader/staff)
+            <select name="teamId" defaultValue="" style={{display:'block',width:'100%',marginTop:7,padding:11,border:'1px solid #dfe3ed',borderRadius:9,background:'#fff',color:'#182033'}}>
+              <option value="">No team / department sub-admin</option>{assignmentTeams.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}
+            </select>
+          </label>
+          <label style={{fontSize:12,fontWeight:750,color:'#596276'}}>Job title (optional)
+            <input name="jobTitle" maxLength={100} placeholder="e.g. Customer Care Lead" style={{display:'block',width:'100%',marginTop:7,padding:11,border:'1px solid #dfe3ed',borderRadius:9,background:'#fff',color:'#182033'}} />
+          </label>
+          <button type="submit" style={{border:0,borderRadius:10,padding:'12px 16px',minHeight:42,background:'#176b45',color:'#fff',fontWeight:800,cursor:'pointer'}}>Assign membership</button>
+        </form>}
+        <p style={{fontSize:11,color:'#778095',lineHeight:1.6,margin:'13px 0 0'}}>This assigns an organizational membership only. It does not automatically grant application-wide permissions or create login accounts; those controls must be implemented separately.</p>
       </section>
       <section>
         <div style={{marginBottom:14}}><h2 style={{fontSize:21,margin:'0 0 6px'}}>Departments & team structure</h2><p style={{fontSize:13,color:'#778095',margin:0}}>Eight functional departments with seeded operating teams. Team leaders and staff are counted after real user accounts are assigned.</p></div>
