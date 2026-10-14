@@ -22,7 +22,13 @@ const createSchema = z.object({
   description: z.string().trim().max(5000).default(''),
   productType: z.enum(['ebook','guide','template','spreadsheet','course','asset','tool']).default('template'),
 });
-const priceSchema = z.object({\n  action: z.literal('price'),\n  productId: z.string().uuid(),\n  marketCode: z.enum(['US','UK']),\n  amountMinor: z.number().int().positive().max(100000000),\n});\nconst updateSchema = z.object({
+const priceSchema = z.object({
+  action: z.literal('price'),
+  productId: z.string().uuid(),
+  marketCode: z.enum(['US','UK']),
+  amountMinor: z.number().int().positive().max(100000000),
+});
+const updateSchema = z.object({
   id: z.string().uuid(),
   title: z.string().trim().min(3).max(180),
   description: z.string().trim().max(5000),
