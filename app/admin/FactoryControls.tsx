@@ -24,7 +24,7 @@ const jobLabels: Record<string, string> = {
 
 export default function FactoryControls() {
   const [jobs, setJobs] = useState<FactoryJob[]>([]);
-  const [jobType, setJobType] = useState('demand_research');
+  const [jobType, setJobType] = useState('product_draft');
   const [marketCode, setMarketCode] = useState('IN');
   const [locale, setLocale] = useState('en-IN');
   const [brief, setBrief] = useState('');
