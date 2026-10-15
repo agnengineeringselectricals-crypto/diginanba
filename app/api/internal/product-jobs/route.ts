@@ -5,7 +5,7 @@ import { createProductFactoryJob, listProductFactoryJobs, productJobTypes } from
 
 const createSchema = z.object({
   jobType: z.enum(productJobTypes),
-  marketCode: z.enum(['US', 'UK']).optional(),
+  marketCode: z.enum(['IN', 'US', 'UK']).optional(),
   locale: z.string().min(2).max(35).optional(),
   categoryId: z.string().uuid().optional(),
   input: z.record(z.string(), z.unknown()).default({}),
