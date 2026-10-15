@@ -142,7 +142,8 @@ export async function POST(request: Request) {
     }
     // Apply the same non-negotiable contrast gate to offline and AI-assisted results.
     draft.designStandards = DESIGN_STANDARDS;
-    draft.designQualityGate = { status: 'required_before_approval', checks: ['No dark text on dark/blue fills', 'Header text contrasts clearly with header fill', 'All rows and table cells remain readable', 'Inspect exported deliverable in target application'] };\n    const saved = await db.query(`UPDATE product_factory_jobs SET status='quality_review',
+    draft.designQualityGate = { status: 'required_before_approval', checks: ['No dark text on dark/blue fills', 'Header text contrasts clearly with header fill', 'All rows and table cells remain readable', 'Inspect exported deliverable in target application'] };
+    const saved = await db.query(`UPDATE product_factory_jobs SET status='quality_review',
       result_json=$2::jsonb,last_error=NULL,locked_at=NULL,locked_by=NULL,updated_at=now()
       WHERE id=$1 AND status='researching'
       RETURNING id,job_type,status,market_code,locale,result_json,updated_at`, [job.id, JSON.stringify(draft)]);
