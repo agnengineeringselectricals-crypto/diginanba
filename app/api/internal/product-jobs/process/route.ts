@@ -64,7 +64,8 @@ export async function POST(request: Request) {
     await client.query('BEGIN');
     const claimed = await client.query(`SELECT id, job_type, market_code, locale, category_id, input_json, attempt_count, max_attempts
       FROM product_factory_jobs WHERE status='queued' AND available_at <= now()
-      ORDER BY created_at ASC FOR UPDATE SKIP LOCKED LIMIT 1`);
+        AND ($1::boolean = true OR job_type='product_draft')
+      ORDER BY created_at ASC FOR UPDATE SKIP LOCKED LIMIT 1`, [Boolean(apiKey)]);
     job = claimed.rows[0];
     if (!job) {
       await client.query('COMMIT');
