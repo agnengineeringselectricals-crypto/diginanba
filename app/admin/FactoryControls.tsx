@@ -32,6 +32,15 @@ export default function FactoryControls() {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [selectedDraftId, setSelectedDraftId] = useState<string | null>(null);
+  const [testChecks, setTestChecks] = useState({
+    deliverableGenerated: false,
+    openedInTargetApp: false,
+    formulasAndImportChecked: false,
+    visualAccessibilityChecked: false,
+    localizationAndMarketChecked: false,
+    sampleDataAndInstructionsChecked: false,
+  });
+  const [testNotes, setTestNotes] = useState('');
 
   const loadJobs = useCallback(async () => {
     try {
@@ -91,6 +100,24 @@ export default function FactoryControls() {
       await loadJobs();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to update job');
+    } finally { setBusy(false); }
+  }
+
+  async function recordArtifactTests() {
+    if (!selectedDraft) return;
+    setBusy(true); setError(''); setMessage('');
+    try {
+      const response = await fetch(`/api/internal/product-jobs/${selectedDraft.id}/tests`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ checks: testChecks, notes: testNotes }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || 'Unable to record artifact test results');
+      setMessage('Artifact test checklist recorded. The product remains unpublished and still requires explicit approval.');
+      await loadJobs();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to record artifact tests');
     } finally { setBusy(false); }
   }
 
@@ -169,6 +196,25 @@ export default function FactoryControls() {
         <p style={{ margin: '5px 0', fontSize: 12, color: '#4f596d' }}>Independent review passes recorded: <strong>{Array.isArray(draftObject.reviewHistory) ? draftObject.reviewHistory.length : (draftObject.reviewPasses || 0)}</strong></p>
         <p style={{ margin: '5px 0', fontSize: 12, color: '#4f596d' }}>Actual file/application tests: <strong>{draftObject.actualArtifactTests?.status || 'not recorded'}</strong></p>
         <p style={{ margin: '8px 0 0', fontSize: 12, color: '#8a5b12' }}>Publication is blocked until a real deliverable is generated, inspected and tested, all blocking issues are resolved, and you explicitly approve the final version. An AI text review alone is not a file test.</p>
+        {selectedDraft.status === 'quality_review' && <div style={{ marginTop: 14, padding: 12, border: '1px solid #e7e9f1', borderRadius: 10, background: '#fff' }}>
+          <h4 style={{ margin: '0 0 6px', fontSize: 13 }}>Manual artifact test attestation</h4>
+          <p style={{ margin: '0 0 10px', fontSize: 12, lineHeight: 1.5, color: '#687187' }}>Only check an item after you have actually completed it on the real deliverable. This records a human attestation; it does not run these tests automatically.</p>
+          {([
+            ['deliverableGenerated', 'The real customer deliverable file has been generated and attached to the product draft.'],
+            ['openedInTargetApp', 'I opened the actual file in its target application and inspected the layout.'],
+            ['formulasAndImportChecked', 'I tested formulas and the supported statement-import/review workflow.'],
+            ['visualAccessibilityChecked', 'I checked text/background contrast, headings, labels and readability.'],
+            ['localizationAndMarketChecked', 'I checked the target market, currency, date formats, language and local assumptions.'],
+            ['sampleDataAndInstructionsChecked', 'I checked buyer instructions and verified sample data is clearly fictional or removed.'],
+          ] as const).map(([key, label]) => <label key={key} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 12, color: '#293246', marginTop: 8 }}>
+            <input type="checkbox" checked={testChecks[key]} onChange={e => setTestChecks(prev => ({ ...prev, [key]: e.target.checked }))} />
+            <span>{label}</span>
+          </label>)}
+          <label style={{ display: 'grid', gap: 5, marginTop: 12, fontSize: 12, fontWeight: 750 }}>Test notes / evidence summary
+            <textarea value={testNotes} onChange={e => setTestNotes(e.target.value)} maxLength={4000} placeholder="Record the actual file name/version, what was tested, the results, and any remaining limitations." style={{ ...field, minHeight: 76 }} />
+          </label>
+          <button type="button" disabled={busy || !Object.values(testChecks).every(Boolean) || testNotes.trim().length < 20} onClick={() => void recordArtifactTests()} style={{ ...primary, marginTop: 10, opacity: busy || !Object.values(testChecks).every(Boolean) || testNotes.trim().length < 20 ? .5 : 1 }}>Record completed artifact tests</button>
+        </div>}
         {Array.isArray(draftObject.reviewHistory) && draftObject.reviewHistory.length > 0 && <div style={{ marginTop: 12 }}>
           <h4 style={{ margin: '0 0 6px', fontSize: 12 }}>Reviewer feedback history</h4>
           {draftObject.reviewHistory.map((entry: any, index: number) => <div key={index} style={{ padding: 10, marginTop: 6, borderRadius: 8, background: '#fff', border: '1px solid #edf0f5', fontSize: 12 }}>
