@@ -25,8 +25,8 @@ const jobLabels: Record<string, string> = {
 export default function FactoryControls() {
   const [jobs, setJobs] = useState<FactoryJob[]>([]);
   const [jobType, setJobType] = useState('demand_research');
-  const [marketCode, setMarketCode] = useState('US');
-  const [locale, setLocale] = useState('en-US');
+  const [marketCode, setMarketCode] = useState('IN');
+  const [locale, setLocale] = useState('en-IN');
   const [brief, setBrief] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
@@ -108,8 +108,8 @@ export default function FactoryControls() {
           </select>
         </label>
         <label style={{ display: 'grid', gap: 6, fontSize: 12, fontWeight: 750 }}>Market
-          <select style={field} value={marketCode} onChange={e => { const next = e.target.value; setMarketCode(next); setLocale(next === 'UK' ? 'en-GB' : 'en-US'); }}>
-            <option value="US">United States · USD</option><option value="UK">United Kingdom · GBP</option>
+          <select style={field} value={marketCode} onChange={e => { const next = e.target.value; setMarketCode(next); setLocale(next === 'UK' ? 'en-GB' : next === 'IN' ? 'en-IN' : 'en-US'); }}>
+            <option value="IN">India · INR (₹)</option><option value="US">United States · USD ($)</option><option value="UK">United Kingdom · GBP (£)</option>
           </select>
         </label>
         <label style={{ display: 'grid', gap: 6, fontSize: 12, fontWeight: 750 }}>Locale
