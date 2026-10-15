@@ -41,15 +41,6 @@ export default function FactoryControls() {
     sampleDataAndInstructionsChecked: false,
   });
   const [testNotes, setTestNotes] = useState('');
-  const [testChecks, setTestChecks] = useState({
-    deliverableGenerated: false,
-    openedInTargetApp: false,
-    formulasAndImportChecked: false,
-    visualAccessibilityChecked: false,
-    localizationAndMarketChecked: false,
-    sampleDataAndInstructionsChecked: false,
-  });
-  const [testNotes, setTestNotes] = useState('');
 
   const loadJobs = useCallback(async () => {
     try {
