@@ -11,6 +11,7 @@ type FactoryJob = {
   attempt_count?: number;
   max_attempts?: number;
   last_error?: string | null;
+  result_json?: unknown;
   created_at?: string;
 };
 
@@ -76,7 +77,7 @@ export default function FactoryControls() {
     } finally { setBusy(false); }
   }
 
-  async function changeJob(job: FactoryJob, status: 'queued' | 'cancelled') {
+  async function changeJob(job: FactoryJob, status: 'queued' | 'cancelled' | 'ready') {
     setBusy(true); setError(''); setMessage('');
     try {
       const response = await fetch(`/api/internal/product-jobs/${job.id}`, {
@@ -85,7 +86,7 @@ export default function FactoryControls() {
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || 'Unable to update job');
-      setMessage(status === 'queued' ? 'Retry queued.' : 'Queued job cancelled.');
+      setMessage(status === 'queued' ? 'Retry queued.' : status === 'ready' ? 'Draft approved for the next production stage. This does not publish a product.' : 'Queued job cancelled.');
       await loadJobs();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to update job');
@@ -140,6 +141,7 @@ export default function FactoryControls() {
             <td style={{ padding: 14, borderBottom: '1px solid #f0f2f6', whiteSpace: 'nowrap' }}>
               {job.status === 'failed' && Number(job.attempt_count || 0) < Number(job.max_attempts || 3) && <button disabled={busy} onClick={() => void changeJob(job, 'queued')} style={{ ...primary, padding: '8px 10px', marginRight: 6 }}>Retry</button>}
               {job.status === 'queued' && <button disabled={busy} onClick={() => void changeJob(job, 'cancelled')} style={{ ...primary, padding: '8px 10px', background: '#f5f6fa', color: '#5e6678' }}>Cancel</button>}
+              {job.status === 'quality_review' && <button disabled={busy} onClick={() => { if (window.confirm('Approve this draft for the next production stage? This will not publish it.')) void changeJob(job, 'ready'); }} style={{ ...primary, padding: '8px 10px' }}>Approve draft</button>}
             </td>
           </tr>)}</tbody>
         </table></div>}
