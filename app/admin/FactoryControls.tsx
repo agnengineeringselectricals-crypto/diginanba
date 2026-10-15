@@ -31,6 +31,7 @@ export default function FactoryControls() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [selectedDraftId, setSelectedDraftId] = useState<string | null>(null);
 
   const loadJobs = useCallback(async () => {
     try {
@@ -93,6 +94,10 @@ export default function FactoryControls() {
     } finally { setBusy(false); }
   }
 
+  const selectedDraft = jobs.find(job => job.id === selectedDraftId);
+  const draftResult = selectedDraft?.result_json;
+  const formattedDraft = draftResult == null ? '' : typeof draftResult === 'string' ? (() => { try { return JSON.stringify(JSON.parse(draftResult), null, 2); } catch { return draftResult; } })() : JSON.stringify(draftResult, null, 2);
+
   const panel: React.CSSProperties = { background: '#fff', border: '1px solid #e7e9f1', borderRadius: 18, padding: 20, marginBottom: 18 };
   const field: React.CSSProperties = { width: '100%', border: '1px solid #dfe3ed', borderRadius: 10, padding: '11px 12px', background: '#fff', color: '#182033', fontSize: 13 };
   const primary: React.CSSProperties = { border: 0, borderRadius: 10, padding: '11px 15px', background: '#5143d8', color: '#fff', fontWeight: 800, cursor: busy ? 'wait' : 'pointer', opacity: busy ? .7 : 1 };
@@ -141,10 +146,17 @@ export default function FactoryControls() {
             <td style={{ padding: 14, borderBottom: '1px solid #f0f2f6', whiteSpace: 'nowrap' }}>
               {job.status === 'failed' && Number(job.attempt_count || 0) < Number(job.max_attempts || 3) && <button disabled={busy} onClick={() => void changeJob(job, 'queued')} style={{ ...primary, padding: '8px 10px', marginRight: 6 }}>Retry</button>}
               {job.status === 'queued' && <button disabled={busy} onClick={() => void changeJob(job, 'cancelled')} style={{ ...primary, padding: '8px 10px', background: '#f5f6fa', color: '#5e6678' }}>Cancel</button>}
-              {job.status === 'quality_review' && <button disabled={busy} onClick={() => { if (window.confirm('Approve this draft for the next production stage? This will not publish it.')) void changeJob(job, 'ready'); }} style={{ ...primary, padding: '8px 10px' }}>Approve draft</button>}
+              {job.job_type === 'product_draft' && job.result_json != null && <button disabled={busy} onClick={() => setSelectedDraftId(selectedDraftId === job.id ? null : job.id)} style={{ ...primary, padding: '8px 10px', marginRight: 6, background: '#f0edff', color: '#5141d8' }}>{selectedDraftId === job.id ? 'Hide draft' : 'View draft'}</button>}{job.status === 'quality_review' && <button disabled={busy} onClick={() => { if (window.confirm('Approve this draft for the next production stage? This will not publish it.')) void changeJob(job, 'ready'); }} style={{ ...primary, padding: '8px 10px' }}>Approve draft</button>}
             </td>
           </tr>)}</tbody>
         </table></div>}
     </section>
+    {selectedDraft && <section style={panel}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+        <div><h2 style={{ margin: '0 0 5px', fontSize: 18 }}>Product draft · {selectedDraft.id.slice(0, 8)}</h2><p style={{ margin: 0, color: '#778095', fontSize: 12 }}>Review the generated scaffold below. Offline drafts are templates, not finished products.</p></div>
+        <button type="button" onClick={() => setSelectedDraftId(null)} style={{ ...primary, background: '#f0edff', color: '#5141d8' }}>Close draft</button>
+      </div>
+      {formattedDraft ? <pre style={{ marginTop: 16, padding: 16, borderRadius: 12, background: '#f7f8fc', border: '1px solid #e7e9f1', color: '#20283a', fontSize: 12, lineHeight: 1.65, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', maxHeight: 560, overflow: 'auto' }}>{formattedDraft}</pre> : <p style={{ fontSize: 13, color: '#778095' }}>No draft result is saved on this job yet. Refresh the queue and check the status.</p>}
+    </section>}
   </div>;
 }
