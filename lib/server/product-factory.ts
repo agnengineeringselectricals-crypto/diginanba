@@ -9,7 +9,7 @@ export type ProductJobStatus = typeof productJobStatuses[number];
 
 export type NewProductJob = {
   jobType: ProductJobType;
-  marketCode?: 'US' | 'UK';
+  marketCode?: 'IN' | 'US' | 'UK';
   locale?: string;
   categoryId?: string;
   input: Record<string, unknown>;
