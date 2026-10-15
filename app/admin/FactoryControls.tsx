@@ -96,7 +96,14 @@ export default function FactoryControls() {
 
   const selectedDraft = jobs.find(job => job.id === selectedDraftId);
   const draftResult = selectedDraft?.result_json;
+  const draftObject: Record<string, any> | null = draftResult && typeof draftResult === 'object'
+    ? draftResult as Record<string, any>
+    : typeof draftResult === 'string' ? (() => { try { return JSON.parse(draftResult) as Record<string, any>; } catch { return null; } })() : null;
   const formattedDraft = draftResult == null ? '' : typeof draftResult === 'string' ? (() => { try { return JSON.stringify(JSON.parse(draftResult), null, 2); } catch { return draftResult; } })() : JSON.stringify(draftResult, null, 2);
+  const reviewStatus = typeof draftObject?.qualityReviewStatus === 'string' ? draftObject.qualityReviewStatus : 'not_available';
+  const artifactTestsPassed = draftObject?.actualArtifactTests?.status === 'passed';
+  const aiReviewPassed = reviewStatus === 'ai_review_passed_artifact_tests_still_required';
+  const canApproveDraft = aiReviewPassed && artifactTestsPassed;
 
   const panel: React.CSSProperties = { background: '#fff', border: '1px solid #e7e9f1', borderRadius: 18, padding: 20, marginBottom: 18 };
   const field: React.CSSProperties = { width: '100%', border: '1px solid #dfe3ed', borderRadius: 10, padding: '11px 12px', background: '#fff', color: '#182033', fontSize: 13 };
@@ -146,7 +153,7 @@ export default function FactoryControls() {
             <td style={{ padding: 14, borderBottom: '1px solid #f0f2f6', whiteSpace: 'nowrap' }}>
               {job.status === 'failed' && Number(job.attempt_count || 0) < Number(job.max_attempts || 3) && <button disabled={busy} onClick={() => void changeJob(job, 'queued')} style={{ ...primary, padding: '8px 10px', marginRight: 6 }}>Retry</button>}
               {job.status === 'queued' && <button disabled={busy} onClick={() => void changeJob(job, 'cancelled')} style={{ ...primary, padding: '8px 10px', background: '#f5f6fa', color: '#5e6678' }}>Cancel</button>}
-              {job.job_type === 'product_draft' && job.result_json != null && <button disabled={busy} onClick={() => setSelectedDraftId(selectedDraftId === job.id ? null : job.id)} style={{ ...primary, padding: '8px 10px', marginRight: 6, background: '#f0edff', color: '#5141d8' }}>{selectedDraftId === job.id ? 'Hide draft' : 'View draft'}</button>}{job.status === 'quality_review' && <button disabled={busy} onClick={() => { if (window.confirm('Approve this draft for the next production stage? This will not publish it.')) void changeJob(job, 'ready'); }} style={{ ...primary, padding: '8px 10px' }}>Approve draft</button>}
+              {job.job_type === 'product_draft' && job.result_json != null && <button disabled={busy} onClick={() => setSelectedDraftId(selectedDraftId === job.id ? null : job.id)} style={{ ...primary, padding: '8px 10px', marginRight: 6, background: '#f0edff', color: '#5141d8' }}>{selectedDraftId === job.id ? 'Hide draft' : 'View draft'}</button>}{job.status === 'quality_review' && <span title="Approval is blocked until the independent AI review passes and actual deliverable tests are recorded." style={{ display: 'inline-block', fontSize: 11, color: '#7b5b11', background: '#fff7df', border: '1px solid #f1dfaa', borderRadius: 8, padding: '7px 9px', marginTop: 5 }}>Artifact tests required</span>}
             </td>
           </tr>)}</tbody>
         </table></div>}
@@ -156,6 +163,22 @@ export default function FactoryControls() {
         <div><h2 style={{ margin: '0 0 5px', fontSize: 18 }}>Product draft · {selectedDraft.id.slice(0, 8)}</h2><p style={{ margin: 0, color: '#778095', fontSize: 12 }}>Review the generated scaffold below. Offline drafts are templates, not finished products.</p></div>
         <button type="button" onClick={() => setSelectedDraftId(null)} style={{ ...primary, background: '#f0edff', color: '#5141d8' }}>Close draft</button>
       </div>
+      {draftObject && <div style={{ marginTop: 16, border: '1px solid #e7e9f1', borderRadius: 12, padding: 14, background: '#fbfcff' }}>
+        <h3 style={{ margin: '0 0 10px', fontSize: 14 }}>Release-readiness gates</h3>
+        <p style={{ margin: '5px 0', fontSize: 12, color: '#4f596d' }}>AI review: <strong>{reviewStatus.replaceAll('_', ' ')}</strong></p>
+        <p style={{ margin: '5px 0', fontSize: 12, color: '#4f596d' }}>Independent review passes recorded: <strong>{Array.isArray(draftObject.reviewHistory) ? draftObject.reviewHistory.length : (draftObject.reviewPasses || 0)}</strong></p>
+        <p style={{ margin: '5px 0', fontSize: 12, color: '#4f596d' }}>Actual file/application tests: <strong>{draftObject.actualArtifactTests?.status || 'not recorded'}</strong></p>
+        <p style={{ margin: '8px 0 0', fontSize: 12, color: '#8a5b12' }}>Publication is blocked until a real deliverable is generated, inspected and tested, all blocking issues are resolved, and you explicitly approve the final version. An AI text review alone is not a file test.</p>
+        {Array.isArray(draftObject.reviewHistory) && draftObject.reviewHistory.length > 0 && <div style={{ marginTop: 12 }}>
+          <h4 style={{ margin: '0 0 6px', fontSize: 12 }}>Reviewer feedback history</h4>
+          {draftObject.reviewHistory.map((entry: any, index: number) => <div key={index} style={{ padding: 10, marginTop: 6, borderRadius: 8, background: '#fff', border: '1px solid #edf0f5', fontSize: 12 }}>
+            <strong>Pass {entry.pass || index + 1}: {String(entry.verdict || 'unknown')}</strong>
+            {Array.isArray(entry.issues) && entry.issues.length > 0 && <ul style={{ margin: '6px 0', paddingLeft: 18 }}>{entry.issues.map((issue: unknown, i: number) => <li key={i}>{typeof issue === 'string' ? issue : JSON.stringify(issue)}</li>)}</ul>}
+            {Array.isArray(entry.corrections) && entry.corrections.length > 0 && <p style={{ margin: '6px 0' }}><strong>Correction instructions:</strong> {entry.corrections.map((item: unknown) => typeof item === 'string' ? item : JSON.stringify(item)).join(' · ')}</p>}
+          </div>)}
+        </div>}
+        {selectedDraft.status === 'quality_review' && <button type="button" disabled={!canApproveDraft || busy} onClick={() => { if (window.confirm('Approve this fully tested draft for the next production stage? This does not publish it.')) void changeJob(selectedDraft, 'ready'); }} style={{ ...primary, marginTop: 12, opacity: canApproveDraft && !busy ? 1 : .5 }}>{canApproveDraft ? 'Approve tested draft for next stage' : 'Approval blocked — tests incomplete'}</button>}
+      </div>}
       {formattedDraft ? <pre style={{ marginTop: 16, padding: 16, borderRadius: 12, background: '#f7f8fc', border: '1px solid #e7e9f1', color: '#20283a', fontSize: 12, lineHeight: 1.65, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', maxHeight: 560, overflow: 'auto' }}>{formattedDraft}</pre> : <p style={{ fontSize: 13, color: '#778095' }}>No draft result is saved on this job yet. Refresh the queue and check the status.</p>}
     </section>}
   </div>;
