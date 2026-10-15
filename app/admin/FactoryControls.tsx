@@ -87,23 +87,6 @@ export default function FactoryControls() {
     } finally { setBusy(false); }
   }
 
-  async function recordArtifactTests(job: FactoryJob) {
-    setBusy(true); setError(''); setMessage('');
-    try {
-      const response = await fetch(`/api/internal/product-jobs/${job.id}/tests`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ checks: testChecks, notes: testNotes.trim() }),
-      });
-      const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || 'Unable to record artifact test evidence');
-      setMessage('Artifact test evidence saved. The draft still requires explicit approval and is not published.');
-      await loadJobs();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to record artifact test evidence');
-    } finally { setBusy(false); }
-  }
-
   async function changeJob(job: FactoryJob, status: 'queued' | 'cancelled' | 'ready') {
     setBusy(true); setError(''); setMessage('');
     try {
@@ -231,25 +214,6 @@ export default function FactoryControls() {
             <textarea value={testNotes} onChange={e => setTestNotes(e.target.value)} maxLength={4000} placeholder="Record the actual file name/version, what was tested, the results, and any remaining limitations." style={{ ...field, minHeight: 76 }} />
           </label>
           <button type="button" disabled={busy || !Object.values(testChecks).every(Boolean) || testNotes.trim().length < 20} onClick={() => void recordArtifactTests()} style={{ ...primary, marginTop: 10, opacity: busy || !Object.values(testChecks).every(Boolean) || testNotes.trim().length < 20 ? .5 : 1 }}>Record completed artifact tests</button>
-        </div>}
-        {selectedDraft.status === 'quality_review' && draftObject.actualArtifactTests?.status !== 'passed' && <div style={{ marginTop: 14, padding: 12, borderRadius: 10, background: '#fff', border: '1px solid #e7e9f1' }}>
-          <h4 style={{ margin: '0 0 6px', fontSize: 13 }}>Record actual deliverable test evidence</h4>
-          <p style={{ margin: '0 0 10px', color: '#7b5b11', fontSize: 12 }}>Only tick a check after you have actually completed it. Do not use this checklist to claim tests you have not performed.</p>
-          {([
-            ['deliverableGenerated', 'Actual buyer deliverable file generated and attached/available'],
-            ['openedInTargetApp', 'Opened the actual file in Excel or a compatible target app'],
-            ['formulasAndImportChecked', 'Checked formulas, transaction import, and summary calculations'],
-            ['visualAccessibilityChecked', 'Checked readability, contrast, and layout in the actual file'],
-            ['localizationAndMarketChecked', 'Checked locale, currency, date formats, and market assumptions'],
-            ['sampleDataAndInstructionsChecked', 'Checked sample-data labels and buyer instructions'],
-          ] as const).map(([key, label]) => <label key={key} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 12, margin: '8px 0', color: '#283246' }}>
-            <input type="checkbox" checked={testChecks[key]} onChange={e => setTestChecks(previous => ({ ...previous, [key]: e.target.checked }))} />
-            <span>{label}</span>
-          </label>)}
-          <label style={{ display: 'grid', gap: 6, marginTop: 10, fontSize: 12, fontWeight: 750 }}>Test notes (what was tested, where the file is, and any findings)
-            <textarea value={testNotes} onChange={e => setTestNotes(e.target.value)} minLength={20} maxLength={4000} placeholder="Record the actual file name/location, test cases performed, results, and any issues corrected." style={{ ...field, minHeight: 82 }} />
-          </label>
-          <button type="button" disabled={busy || !Object.values(testChecks).every(Boolean) || testNotes.trim().length < 20} onClick={() => void recordArtifactTests(selectedDraft)} style={{ ...primary, marginTop: 10, opacity: busy || !Object.values(testChecks).every(Boolean) || testNotes.trim().length < 20 ? .5 : 1 }}>Save completed test evidence</button>
         </div>}
         {Array.isArray(draftObject.reviewHistory) && draftObject.reviewHistory.length > 0 && <div style={{ marginTop: 12 }}>
           <h4 style={{ margin: '0 0 6px', fontSize: 12 }}>Reviewer feedback history</h4>
