@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 export async function POST(req:Request){
   const secret=process.env.PAYMENT_WEBHOOK_SECRET;
-  if(secret && req.headers.get('x-diginanba-webhook-secret')!==secret) return NextResponse.json({error:'Unauthorized'},{status:401});
+  if(!secret) return NextResponse.json({error:'Payment webhook is not configured'},{status:503});
+  if(req.headers.get('x-diginanba-webhook-secret')!==secret) return NextResponse.json({error:'Unauthorized'},{status:401});
   const body=await req.json();
   const eventId=String(body.eventId||''); const type=String(body.type||''); const paymentId=String(body.paymentId||'');
   if(!eventId||!type) return NextResponse.json({error:'Invalid event'},{status:400});
