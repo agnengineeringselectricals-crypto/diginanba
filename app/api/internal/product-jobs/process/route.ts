@@ -114,6 +114,39 @@ export async function POST(request: Request) {
     const reviewHistory: Array<Record<string, unknown>> = [];
     let qualityReviewStatus = 'not_run_no_api_key';
 
+    async function askResearchModel(system: string, user: unknown): Promise<Record<string, unknown>> {
+      const model = process.env.PRODUCT_RESEARCH_MODEL || 'gpt-4.1-mini';
+      const response = await fetch('https://api.openai.com/v1/responses', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model,
+          tools: [{ type: 'web_search' }],
+          text: { format: { type: 'json_object' } },
+          input: [
+            { role: 'system', content: [{ type: 'input_text', text: system }] },
+            { role: 'user', content: [{ type: 'input_text', text: JSON.stringify(user) }] },
+          ],
+        }),
+        signal: AbortSignal.timeout(55000),
+      });
+      if (!response.ok) throw new Error(`AI research provider returned HTTP ${response.status}`);
+      const payload = await response.json();
+      let raw = payload?.output_text;
+      if (typeof raw !== 'string') {
+        const parts = Array.isArray(payload?.output) ? payload.output.flatMap((item: any) =>
+          Array.isArray(item?.content) ? item.content.filter((part: any) => part?.type === 'output_text' && typeof part?.text === 'string').map((part: any) => part.text) : []
+        ) : [];
+        raw = parts.join('\\n');
+      }
+      if (typeof raw !== 'string' || !raw.trim()) throw new Error('AI research provider returned no text output');
+      const result = JSON.parse(raw) as Record<string, unknown>;
+      result.researchMethod = 'openai_responses_web_search';
+      result.researchModel = model;
+      result.liveSearchPerformed = true;
+      return result;
+    }
+
     async function askModel(system: string, user: unknown): Promise<Record<string, unknown>> {
       const model = process.env.PRODUCT_FACTORY_MODEL || 'gpt-4o-mini';
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -199,7 +232,11 @@ export async function POST(request: Request) {
           localization: 'Localize the supplied product brief for the requested locale, adapting examples respectfully and flagging expert-review needs.',
           quality_review: 'Review the supplied brief for usefulness, clarity, originality risks, localization and factual claims; recommend pass or revision.',
         }[job.job_type as string] || 'Create a structured draft for human review.';
-        draft = await askModel(commonSystem + ' For demand research, return JSON with scope, scopeCode, targetLanguages, summary, candidates, researchLimitations, sourceEvidence, proposedCategoryName, proposedCategoryDescription, categoryPolicy, validationPlan, and recommendation. For other task types, return JSON with summary, title, targetAudience, problem, outline, deliverables, localizationNotes, qualityRisks, validationSteps, recommendation. Preserve all evidence limitations. Category taxonomy is open and new categories may be proposed when justified. Never publish.', { task, marketCode: job.market_code, locale: job.locale, categoryId: job.category_id, input: job.input_json || {} });
+        const taskInput = { task, marketCode: job.market_code, locale: job.locale, categoryId: job.category_id, input: job.input_json || {} };
+        const researchSystem = commonSystem + ' You have access to the web_search tool for current research. Actually search the web for relevant queries in the target geography and language, inspect source results, and include source URLs and publication/observation dates when available. Clearly distinguish source evidence from inference and unverified hypotheses. Never invent search volumes, sales, reviews, prices, trend scores, or citations. If a source or metric cannot be verified, say so. Category taxonomy is open; propose new categories when warranted. Research only; never publish or claim a product file exists. Return JSON with scope, scopeCode, targetLanguages, summary, candidates, researchLimitations, sourceEvidence, proposedCategoryName, proposedCategoryDescription, categoryPolicy, validationPlan, and recommendation.';
+        draft = job.job_type === 'demand_research'
+          ? await askResearchModel(researchSystem, taskInput)
+          : await askModel(commonSystem + ' For other task types, return JSON with summary, title, targetAudience, problem, outline, deliverables, localizationNotes, qualityRisks, validationSteps, recommendation. Never publish.', taskInput);
         qualityReviewStatus = 'single_task_result_human_review_required';
       }
     }
