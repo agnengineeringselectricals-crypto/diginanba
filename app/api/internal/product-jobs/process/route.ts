@@ -101,7 +101,10 @@ export async function POST(request: Request) {
     job = claimed.rows[0];
     if (!job) {
       await client.query('COMMIT');
-      return NextResponse.json({ ok: true, processed: false, message: requestedJobId ? 'The selected job is not queued, is not yet available, or cannot run with the current API configuration.' : 'No queued jobs' });
+      const message = requestedJobId
+        ? 'The selected job was not claimed. It may already be running, may be waiting for its retry time, or requires OPENAI_API_KEY for research.'
+        : 'No eligible queued jobs. Research jobs require OPENAI_API_KEY; offline mode can only create a product-draft scaffold.';
+      return NextResponse.json({ ok: true, processed: false, message });
     }
     if (job.job_type !== 'product_draft' && !apiKey) {
       await client.query('ROLLBACK');
@@ -260,6 +263,23 @@ export async function POST(request: Request) {
         draft = job.job_type === 'demand_research'
           ? await askResearchModel(researchSystem, taskInput)
           : await askModel(commonSystem + ' For other task types, return JSON with summary, title, targetAudience, problem, outline, deliverables, localizationNotes, qualityRisks, validationSteps, recommendation. Never publish.', taskInput);
+        if (job.job_type === 'demand_research') {
+          const candidates = Array.isArray(draft.candidates) ? draft.candidates : [];
+          if (candidates.length === 0) {
+            throw new Error('Research returned no ranked candidates. No research result was saved as complete; inspect API usage/configuration and retry.');
+          }
+          if (draft.liveSearchPerformed !== true) {
+            throw new Error('Research did not execute a confirmed web_search call. No result was marked complete; retry after verifying the research model and API configuration.');
+          }
+          draft.researchValidation = {
+            status: 'candidates_returned_review_required',
+            candidateCount: candidates.length,
+            webSearchPerformed: true,
+            warning: Number(draft.sourceCitationCount || 0) === 0
+              ? 'Web search ran, but no URL citations were detected in the model output. Verify every source before relying on these rankings.'
+              : 'Rankings are preliminary; verify evidence and demand before product creation.',
+          };
+        }
         qualityReviewStatus = 'single_task_result_human_review_required';
       }
     }
@@ -286,6 +306,12 @@ export async function POST(request: Request) {
     await db.query(`INSERT INTO product_factory_job_events(job_id,from_status,to_status,event_type,details_json)
       VALUES ($1,'researching',$2,'worker_failed',$3::jsonb)`,
       [job.id, nextStatus, JSON.stringify({ message: message.slice(0, 500), retryScheduled: retry })]).catch(() => undefined);
-    return NextResponse.json({ error: retry ? 'Job failed; retry scheduled' : 'Job failed; maximum attempts reached', retryScheduled: retry }, { status: 502 });
+    return NextResponse.json({
+      error: retry ? 'Job failed; retry scheduled' : 'Job failed; maximum attempts reached',
+      message,
+      jobId: job.id,
+      status: nextStatus,
+      retryScheduled: retry,
+    }, { status: 502 });
   }
 }
