@@ -141,10 +141,13 @@ export default function FactoryControls() {
         body: JSON.stringify(job ? { jobId: job.id } : {}),
       });
       const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || 'Factory worker could not process a job');
-      setMessage(payload.processed
-        ? `Worker finished selected job ${job ? job.id.slice(0, 8) : 'from queue'}. The queue now shows its saved status and any error details.`
-        : (payload.message || 'No matching queued job was available.'));
+      if (!response.ok) throw new Error(payload.message || payload.error || 'Factory worker could not process a job');
+      if (payload.processed) {
+        const finalStatus = payload.job?.status || 'updated';
+        setMessage(`Job ${job ? job.id.slice(0, 8) : ''} finished with status: ${finalStatus}. Check Last error if it was re-queued or failed.`);
+      } else {
+        setMessage(payload.message || 'No matching queued job was available.');
+      }
       await loadJobs();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to process factory job');
@@ -152,6 +155,8 @@ export default function FactoryControls() {
       setBusy(false);
       if (targetJobId) {
         await loadJobs();
+        // Keep the selected row pinned as processing only while the server says it is researching.
+        // The next queue refresh will show quality_review, failed, or queued-with-error as appropriate.
         setProcessingJobId(null);
       }
     }
