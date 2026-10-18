@@ -48,12 +48,20 @@ export default function FactoryControls() {
       const response = await fetch('/api/internal/product-jobs?limit=50', { cache: 'no-store' });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || 'Unable to load factory jobs');
-      setJobs(Array.isArray(payload.jobs) ? payload.jobs : []);
+      const incoming = Array.isArray(payload.jobs) ? payload.jobs as FactoryJob[] : [];
+      // Do not let a stale queue response erase the visible in-flight state while the worker request is active.
+      setJobs(current => incoming.map(item => {
+        if (processingJobId === item.id && item.status === 'queued') {
+          const previous = current.find(old => old.id === item.id);
+          if (previous?.status === 'researching') return { ...item, status: 'researching' };
+        }
+        return item;
+      }));
       setError('');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to load factory jobs');
     }
-  }, []);
+  }, [processingJobId]);
 
   useEffect(() => { void loadJobs(); }, [loadJobs]);
 
@@ -124,8 +132,7 @@ export default function FactoryControls() {
       setProcessingJobId(targetJobId);
       setJobs(current => current.map(item => item.id === targetJobId ? { ...item, status: 'researching' } : item));
       setMessage(`Processing selected job ${targetJobId.slice(0, 8)}… its status will update automatically.`);
-      // Start polling immediately while the worker performs the longer task.
-      void loadJobs();
+      // The polling effect refreshes persisted status; avoid an immediate stale fetch racing the optimistic state.
     }
     try {
       const response = await fetch('/api/admin/factory/process', {
@@ -136,7 +143,7 @@ export default function FactoryControls() {
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || 'Factory worker could not process a job');
       setMessage(payload.processed
-        ? `Processed ${job ? `selected job ${job.id.slice(0, 8)}` : 'one queued job'}; refresh the queue to see its current state.`
+        ? `Worker finished selected job ${job ? job.id.slice(0, 8) : 'from queue'}. The queue now shows its saved status and any error details.`
         : (payload.message || 'No matching queued job was available.'));
       await loadJobs();
     } catch (err) {
