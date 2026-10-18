@@ -155,7 +155,18 @@ export async function POST(request: Request) {
       const result = JSON.parse(raw) as Record<string, unknown>;
       result.researchMethod = 'openai_responses_web_search';
       result.researchModel = model;
-      result.liveSearchPerformed = true;
+      const outputItems = Array.isArray(payload?.output) ? payload.output : [];
+      const searchCalls = outputItems.filter((item: any) => item?.type === 'web_search_call');
+      const annotations = outputItems.flatMap((item: any) => Array.isArray(item?.content) ? item.content.flatMap((part: any) => Array.isArray(part?.annotations) ? part.annotations : []) : []);
+      const candidateList = Array.isArray(result.candidates) ? result.candidates : [];
+      result.liveSearchPerformed = searchCalls.length > 0;
+      result.webSearchCallCount = searchCalls.length;
+      result.sourceCitationCount = annotations.filter((item: any) => item?.type === 'url_citation' || item?.url).length;
+      result.candidateCount = candidateList.length;
+      result.researchValidation = {
+        status: candidateList.length > 0 ? 'candidates_returned_review_required' : 'no_candidates_returned',
+        warning: candidateList.length === 0 ? 'The research model returned no candidates. Do not treat this result as a ranked opportunity.' : undefined,
+      };
       return result;
     }
 
@@ -238,14 +249,14 @@ export async function POST(request: Request) {
             'Category taxonomy is OPEN: do not force ideas into existing categories. You may propose a genuinely new category and include proposedCategoryName, proposedCategoryDescription, and why existing categories do not fit. A new category is a recommendation only; do not write to category tables or publish anything.',
             'Return a structured report with scope, scopeCode, locale, targetLanguages, summary, candidates (up to 3 ranked candidates), and researchLimitations. Each candidate must include rank, productTitle, proposedCategoryName, proposedCategoryDescription, buyerSegment, urgentProblem, deliverableFormat, searchPhrases (include relevant local scripts and transliterations when useful), demandEvidence, competitorEvidence, willingnessToPaySignals, INRPriceHypothesis, confidence, evidenceGaps, and validationPlan.',
             'For every evidence item provide claim, label (source_evidence, inference, or unverified_hypothesis), sourceTitle, sourceUrl, observedOrPublishedDate if actually known, geography, timeframe, and what the source does and does not establish. Distinguish search popularity from commercial intent and paid-product demand.',
-            'CRITICAL: you do not have live browsing in this worker. You may only describe sources and observations supplied in the job input. Do not claim to have opened a URL, inspected Google Trends, measured search volume, checked live marketplace listings, or confirmed current competitor prices/reviews unless that evidence is explicitly included in the input. Treat supplied links as leads, not as inspected evidence. Mark missing data as unavailable and create a concrete follow-up validation plan. Never invent volumes, sales, reviews, trend scores, or citations.',
-            'If evidence is insufficient, say no opportunity is yet validated instead of presenting a guess as a winner. Recommend new categories when useful. Research only: do not create product files, listings, or claim a product has been generated.',
+            'Use the web_search tool available to this worker to search current web sources relevant to the target geography, language, and buyer segment. Include actual source URLs and source titles in each candidate. Never invent search volumes, sales, reviews, trend scores, citations, publication dates, or competitor prices. If a metric cannot be verified, say unavailable; cite sources for qualitative signals and label inference separately.',
+            'Always return a candidates array with up to 3 ranked, plausible candidate opportunities, even if evidence is incomplete. Each candidate must include rank (1, 2, or 3), productTitle, proposedCategoryName, proposedCategoryDescription, buyerSegment, urgentProblem, deliverableFormat, searchPhrases, demandEvidence, competitorEvidence, willingnessToPaySignals, INRPriceHypothesis, confidence, evidenceGaps, and validationPlan. If evidence is insufficient, mark confidence low and state that the opportunity is unvalidated; do not leave candidates empty merely because metrics are unavailable. Research only: do not create product files, listings, or claim a product has been generated.'
           ].join(' '),
           localization: 'Localize the supplied product brief for the requested locale, adapting examples respectfully and flagging expert-review needs.',
           quality_review: 'Review the supplied brief for usefulness, clarity, originality risks, localization and factual claims; recommend pass or revision.',
         }[job.job_type as string] || 'Create a structured draft for human review.';
         const taskInput = { task, marketCode: job.market_code, locale: job.locale, categoryId: job.category_id, input: job.input_json || {} };
-        const researchSystem = commonSystem + ' You have access to the web_search tool for current research. Actually search the web for relevant queries in the target geography and language, inspect source results, and include source URLs and publication/observation dates when available. Clearly distinguish source evidence from inference and unverified hypotheses. Never invent search volumes, sales, reviews, prices, trend scores, or citations. If a source or metric cannot be verified, say so. Category taxonomy is open; propose new categories when warranted. Research only; never publish or claim a product file exists. Return JSON with scope, scopeCode, targetLanguages, summary, candidates, researchLimitations, sourceEvidence, proposedCategoryName, proposedCategoryDescription, categoryPolicy, validationPlan, and recommendation.';
+        const researchSystem = commonSystem + ' Use the web_search tool to search current web sources in the target geography and relevant languages. Inspect the results and include real source URLs and titles. Do not fabricate metrics, prices, sales, dates, or citations. Distinguish source evidence, inference, and unverified hypotheses. Category taxonomy is open; recommend new categories when warranted. Always return up to 3 ranked candidate opportunities, including low-confidence candidates with explicit evidence gaps if the evidence is incomplete. Never return an empty candidates array solely because search-volume data is unavailable. Research only; never publish or claim a product file exists. Return valid JSON with scope, scopeCode, targetLanguages, summary, candidates, researchLimitations, sourceEvidence, proposedCategoryName, proposedCategoryDescription, categoryPolicy, validationPlan, and recommendation.';
         draft = job.job_type === 'demand_research'
           ? await askResearchModel(researchSystem, taskInput)
           : await askModel(commonSystem + ' For other task types, return JSON with summary, title, targetAudience, problem, outline, deliverables, localizationNotes, qualityRisks, validationSteps, recommendation. Never publish.', taskInput);
