@@ -100,7 +100,7 @@ export default async function AdminPage() {
           <div className="dn-admin-user"><div className="dn-admin-avatar">{(session.user.name ?? session.user.email ?? 'A').slice(0, 1).toUpperCase()}</div><div style={{ minWidth: 0 }}><div style={{ fontSize: 13, fontWeight: 750, overflowWrap: 'anywhere' }}>{session.user.name ?? session.user.email ?? 'Administrator'}</div><div style={{ fontSize: 11, color: '#778095', marginTop: 3 }}>Access role: <span style={{ color: '#087f65', fontWeight: 750 }}>{roleName}</span></div></div><span aria-hidden="true" style={{ color: '#7c8497', paddingLeft: 4 }}>●</span></div>
         </header>
 
-        <nav aria-label="Admin navigation" style={{ display: 'flex', gap: 8, overflowX: 'auto', padding: '3px 1px 18px', marginBottom: 5 }}>
+        <nav aria-label="Admin navigation" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, overflowX: 'visible', padding: '3px 1px 18px', marginBottom: 5, maxWidth: '100%' }}>
           {[
             { href: '/admin/business', label: 'Business analytics', roles: ['Super Admin', 'Operations Admin', 'Finance Manager', 'Read-Only Analyst'] },
             { href: '/admin', label: 'Overview', roles: ['Super Admin', 'Operations Admin', 'Catalog Manager', 'Finance Manager', 'Support Agent', 'AI Factory Manager', 'Read-Only Analyst'] },
@@ -113,7 +113,7 @@ export default async function AdminPage() {
             { href: '/admin/markets', label: 'Global Markets', roles: ['Super Admin', 'Operations Admin'] },
             { href: '/admin/analytics', label: 'Analytics', roles: ['Super Admin', 'Operations Admin', 'Finance Manager', 'Read-Only Analyst'] },
             { href: '/admin/activity', label: 'Audit & Activity', roles: ['Super Admin', 'Operations Admin'] },
-          ].filter((item) => item.roles.some((role) => roleNames.has(role))).map((item) => <Link key={item.href} href={item.href} aria-current={item.href === '/admin' ? 'page' : undefined} style={{ whiteSpace: 'nowrap', textDecoration: 'none', borderRadius: 999, padding: '10px 13px', fontSize: 12, fontWeight: 750, background: item.href === '/admin' ? '#5143d8' : '#fff', color: item.href === '/admin' ? '#fff' : '#586176', border: '1px solid #e5e7f0' }}>{item.label}</Link>)}
+          ].filter((item) => item.roles.some((role) => roleNames.has(role))).map((item) => <Link key={item.href} href={item.href} aria-current={item.href === '/admin' ? 'page' : undefined} style={{ whiteSpace: 'normal', overflowWrap: 'anywhere', textDecoration: 'none', borderRadius: 999, padding: '10px 13px', fontSize: 12, lineHeight: 1.3, fontWeight: 750, background: item.href === '/admin' ? '#5143d8' : '#fff', color: item.href === '/admin' ? '#fff' : '#586176', border: '1px solid #e5e7f0', maxWidth: '100%' }}>{item.label}</Link>)}
         </nav>
 
         <section style={{ borderRadius: 26, padding: 'clamp(18px,2.5vw,28px)', color: '#fff', background: 'radial-gradient(circle at 85% 15%, #7669ff 0, transparent 34%), linear-gradient(120deg,#211b58 0%,#4033a7 58%,#5b4df6 100%)', position: 'relative', overflow: 'hidden' }}>
