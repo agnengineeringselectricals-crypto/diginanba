@@ -30,6 +30,7 @@ export default async function AdminTeamPage() {
     [session.user.id],
   );
   if (!roleResult.rowCount) redirect('/account');
+  const canAssignMembership = roleResult.rows.some((row: { name: string }) => row.name === 'Super Admin');
 
   let dbReady = true;
   let deptRows: { code: string; name: string; status: string; teams: number; team_names: string | null; members: number; leaders: number }[] = [];
@@ -111,7 +112,7 @@ export default async function AdminTeamPage() {
         <h2 style={{margin:'0 0 7px',fontSize:20}}>Assign real users to roles</h2>
         <p style={{fontSize:13,color:'#778095',lineHeight:1.6,margin:'0 0 16px'}}>Choose an existing active account and assign it to a department. Team leaders and staff must also be assigned to a team. Only Super Admin accounts can submit assignments.</p>
         {new URLSearchParams().get('assigned') === '1' && <p role="status" style={{color:'#087f65',fontSize:13,fontWeight:750}}>Membership assigned successfully.</p>}
-        {!assignmentReady ? <p style={{fontSize:13,color:'#a15d0b'}}>Assignment options could not be loaded. Check the database schema and refresh.</p> :
+        {!canAssignMembership ? <p style={{fontSize:13,color:'#a15d0b'}}>Only a Super Admin can assign memberships. Contact your Super Admin if this assignment is needed.</p> : !assignmentReady ? <p style={{fontSize:13,color:'#a15d0b'}}>Assignment options could not be loaded. Check the database schema and refresh.</p> :
         assignmentUsers.length === 0 ? <p style={{fontSize:13,color:'#a15d0b'}}>No active user accounts are available to assign. Create or activate real user accounts first.</p> :
         <form action={assignTeamMembership} style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))',gap:12,alignItems:'end'}}>
           <label style={{fontSize:12,fontWeight:750,color:'#596276'}}>Active user
