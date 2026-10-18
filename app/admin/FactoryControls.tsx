@@ -74,6 +74,23 @@ export default function FactoryControls() {
     } finally { setBusy(false); }
   }
 
+  async function createDemandBatch() {
+    setBusy(true); setError(''); setMessage('');
+    try {
+      const response = await fetch('/api/internal/product-jobs/batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ batch: 'local-demand-scan-2026-10', count: 10 }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || 'Unable to queue demand research');
+      setMessage(payload.message || `Queued ${payload.created} local demand-research jobs. Review their evidence and recommendations before creating products.`);
+      await loadJobs();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to queue demand research');
+    } finally { setBusy(false); }
+  }
+
   async function processNext() {
     setBusy(true); setError(''); setMessage('');
     try {
@@ -138,6 +155,10 @@ export default function FactoryControls() {
 
   return <div>
     <section style={panel}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
+        <div><h2 style={{ margin: '0 0 6px', fontSize: 18 }}>Local demand discovery</h2><p style={{ color: '#778095', fontSize: 13, lineHeight: 1.6, margin: '0 0 12px' }}>Queue a 10-market research batch across India, the United States and the United Kingdom. Jobs are research only; new categories may be recommended without being restricted to today’s catalog. No products are published.</p></div>
+        <button type="button" disabled={busy} onClick={() => void createDemandBatch()} style={primary}>{busy ? 'Working…' : 'Queue 10 local research jobs'}</button>
+      </div>
       <h2 style={{ margin: '0 0 6px', fontSize: 18 }}>Queue a factory job</h2>
       <p style={{ color: '#778095', fontSize: 13, lineHeight: 1.6, margin: '0 0 18px' }}>Create a demand-research, product-draft, localization or quality-review task. Jobs remain drafts for review; this form does not publish products.</p>
       <form onSubmit={createJob} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(190px,1fr))', gap: 12 }}>
