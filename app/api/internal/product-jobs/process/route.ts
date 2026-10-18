@@ -78,18 +78,30 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   const apiKey = process.env.OPENAI_API_KEY;
+  let requestedJobId: string | null = null;
+  try {
+    const body = await request.json();
+    if (body && typeof body.jobId === 'string' && body.jobId.trim()) requestedJobId = body.jobId.trim();
+  } catch {
+    // An empty body keeps the existing "process next queued job" behavior.
+  }
   const client = await db.connect();
   let job: any;
   try {
     await client.query('BEGIN');
-    const claimed = await client.query(`SELECT id, job_type, market_code, locale, category_id, input_json, attempt_count, max_attempts
-      FROM product_factory_jobs WHERE status='queued' AND available_at <= now()
-        AND ($1::boolean = true OR job_type='product_draft')
-      ORDER BY created_at ASC FOR UPDATE SKIP LOCKED LIMIT 1`, [Boolean(apiKey)]);
+    const claimed = requestedJobId
+      ? await client.query(`SELECT id, job_type, market_code, locale, category_id, input_json, attempt_count, max_attempts
+          FROM product_factory_jobs WHERE id=$2 AND status='queued' AND available_at <= now()
+            AND ($1::boolean = true OR job_type='product_draft')
+          FOR UPDATE SKIP LOCKED LIMIT 1`, [Boolean(apiKey), requestedJobId])
+      : await client.query(`SELECT id, job_type, market_code, locale, category_id, input_json, attempt_count, max_attempts
+          FROM product_factory_jobs WHERE status='queued' AND available_at <= now()
+            AND ($1::boolean = true OR job_type='product_draft')
+          ORDER BY created_at ASC FOR UPDATE SKIP LOCKED LIMIT 1`, [Boolean(apiKey)]);
     job = claimed.rows[0];
     if (!job) {
       await client.query('COMMIT');
-      return NextResponse.json({ ok: true, processed: false, message: 'No queued jobs' });
+      return NextResponse.json({ ok: true, processed: false, message: requestedJobId ? 'The selected job is not queued, is not yet available, or cannot run with the current API configuration.' : 'No queued jobs' });
     }
     if (job.job_type !== 'product_draft' && !apiKey) {
       await client.query('ROLLBACK');
