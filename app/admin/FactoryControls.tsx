@@ -29,6 +29,7 @@ export default function FactoryControls() {
   const [locale, setLocale] = useState('en-IN');
   const [brief, setBrief] = useState('');
   const [busy, setBusy] = useState(false);
+  const [processingJobId, setProcessingJobId] = useState<string | null>(null);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [selectedDraftId, setSelectedDraftId] = useState<string | null>(null);
@@ -55,6 +56,14 @@ export default function FactoryControls() {
   }, []);
 
   useEffect(() => { void loadJobs(); }, [loadJobs]);
+
+  // While a job is running, refresh its persisted status so the queue visibly updates
+  // from queued to processing and then to its final state without a manual refresh.
+  useEffect(() => {
+    if (!processingJobId) return;
+    const timer = window.setInterval(() => { void loadJobs(); }, 2000);
+    return () => window.clearInterval(timer);
+  }, [processingJobId, loadJobs]);
 
   async function createJob(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -110,6 +119,14 @@ export default function FactoryControls() {
 
   async function processJob(job?: FactoryJob) {
     setBusy(true); setError(''); setMessage('');
+    const targetJobId = job?.id || null;
+    if (targetJobId) {
+      setProcessingJobId(targetJobId);
+      setJobs(current => current.map(item => item.id === targetJobId ? { ...item, status: 'researching' } : item));
+      setMessage(`Processing selected job ${targetJobId.slice(0, 8)}… its status will update automatically.`);
+      // Start polling immediately while the worker performs the longer task.
+      void loadJobs();
+    }
     try {
       const response = await fetch('/api/admin/factory/process', {
         method: 'POST',
@@ -124,7 +141,13 @@ export default function FactoryControls() {
       await loadJobs();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to process factory job');
-    } finally { setBusy(false); }
+    } finally {
+      setBusy(false);
+      if (targetJobId) {
+        await loadJobs();
+        setProcessingJobId(null);
+      }
+    }
   }
 
   async function changeJob(job: FactoryJob, status: 'queued' | 'cancelled' | 'ready') {
@@ -217,13 +240,13 @@ export default function FactoryControls() {
           <thead><tr>{['Job','Status','Market / locale','Attempts','Last error','Actions'].map(label => <th key={label} style={{ textAlign: 'left', padding: '12px 14px', background: '#fafbfe', color: '#687187', fontSize: 10, letterSpacing: .5, borderBottom: '1px solid #edf0f5' }}>{label}</th>)}</tr></thead>
           <tbody>{jobs.map(job => <tr key={job.id}>
             <td style={{ padding: 14, borderBottom: '1px solid #f0f2f6', fontWeight: 750 }}>{jobLabels[job.job_type] || job.job_type}<div style={{ color: '#8991a3', fontWeight: 400, marginTop: 4 }}>{job.id.slice(0, 8)}</div></td>
-            <td style={{ padding: 14, borderBottom: '1px solid #f0f2f6' }}><span style={{ display: 'inline-block', padding: '5px 8px', borderRadius: 999, background: job.status === 'failed' ? '#fff0f0' : job.status === 'ready' ? '#e8f8f0' : '#f0edff', color: job.status === 'failed' ? '#a23a3a' : job.status === 'ready' ? '#087f65' : '#5141d8', fontWeight: 800 }}>{job.status}</span></td>
+            <td style={{ padding: 14, borderBottom: '1px solid #f0f2f6' }}><span style={{ display: 'inline-block', padding: '5px 8px', borderRadius: 999, background: job.status === 'failed' ? '#fff0f0' : job.status === 'ready' || job.status === 'researching' ? '#e8f8f0' : '#f0edff', color: job.status === 'failed' ? '#a23a3a' : job.status === 'ready' || job.status === 'researching' ? '#087f65' : '#5141d8', fontWeight: 800 }}>{job.status}</span></td>
             <td style={{ padding: 14, borderBottom: '1px solid #f0f2f6' }}>{job.market_code || '—'}<div style={{ color: '#8991a3', marginTop: 4 }}>{job.locale || '—'}</div></td>
             <td style={{ padding: 14, borderBottom: '1px solid #f0f2f6' }}>{job.attempt_count ?? 0} / {job.max_attempts ?? 3}</td>
             <td style={{ padding: 14, borderBottom: '1px solid #f0f2f6', color: job.last_error ? '#a23a3a' : '#8991a3', maxWidth: 220, overflowWrap: 'anywhere' }}>{job.last_error || '—'}</td>
             <td style={{ padding: 14, borderBottom: '1px solid #f0f2f6', whiteSpace: 'nowrap' }}>
               {job.status === 'failed' && Number(job.attempt_count || 0) < Number(job.max_attempts || 3) && <button disabled={busy} onClick={() => void changeJob(job, 'queued')} style={{ ...primary, padding: '8px 10px', marginRight: 6 }}>Retry</button>}
-              {job.status === 'queued' && <><button disabled={busy} onClick={() => void processJob(job)} style={{ ...primary, padding: '8px 10px', marginRight: 6 }}>Process this job</button><button disabled={busy} onClick={() => void changeJob(job, 'cancelled')} style={{ ...primary, padding: '8px 10px', background: '#f5f6fa', color: '#5e6678' }}>Cancel</button></>}
+              {(job.status === 'queued' || (job.status === 'researching' && processingJobId === job.id)) && <><button disabled={busy || (job.status === 'researching' && processingJobId !== job.id)} onClick={() => void processJob(job)} style={{ ...primary, padding: '8px 10px', marginRight: 6, background: job.status === 'researching' ? '#087f65' : primary.background }}>{job.status === 'researching' && processingJobId === job.id ? '⏳ Processing…' : 'Process this job'}</button><button disabled={busy} onClick={() => void changeJob(job, 'cancelled')} style={{ ...primary, padding: '8px 10px', background: '#f5f6fa', color: '#5e6678' }}>Cancel</button></>}
               {job.job_type === 'product_draft' && job.result_json != null && <button disabled={busy} onClick={() => setSelectedDraftId(selectedDraftId === job.id ? null : job.id)} style={{ ...primary, padding: '8px 10px', marginRight: 6, background: '#f0edff', color: '#5141d8' }}>{selectedDraftId === job.id ? 'Hide draft' : 'View draft'}</button>}{job.status === 'quality_review' && <span title="Approval is blocked until the independent AI review passes and actual deliverable tests are recorded." style={{ display: 'inline-block', fontSize: 11, color: '#7b5b11', background: '#fff7df', border: '1px solid #f1dfaa', borderRadius: 8, padding: '7px 9px', marginTop: 5 }}>Artifact tests required</span>}
             </td>
           </tr>)}</tbody>
