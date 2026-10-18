@@ -150,6 +150,51 @@ export default function FactoryControls() {
     }
   }
 
+  async function createDraftFromResearch(job: FactoryJob) {
+    const result = job.result_json && typeof job.result_json === 'object'
+      ? job.result_json as Record<string, any>
+      : typeof job.result_json === 'string' ? (() => { try { return JSON.parse(job.result_json as string) as Record<string, any>; } catch { return {}; } })() : {};
+    const candidate = Array.isArray(result.candidates) ? result.candidates[0] : null;
+    if (!candidate) {
+      setError('This research result has no ranked candidate to turn into a draft. Open View result and review its limitations first.');
+      return;
+    }
+    const candidateTitle = typeof candidate.productTitle === 'string' ? candidate.productTitle : 'Research-led digital product';
+    setBusy(true); setError(''); setMessage('');
+    try {
+      const response = await fetch('/api/internal/product-jobs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jobType: 'product_draft',
+          marketCode: job.market_code || 'US',
+          locale: job.locale || 'en-US',
+          input: {
+            title: candidateTitle,
+            brief: [
+              'Create a product draft based on this reviewed demand-research result. This is a new draft job, not publication.',
+              'Research job ID: ' + job.id,
+              'Selected candidate: ' + JSON.stringify(candidate),
+              'Full research result: ' + JSON.stringify(result),
+              'Use the research evidence carefully; label unsupported assumptions and do not claim demand is proven where evidence is missing.',
+              'Create a substantive, useful product specification and actual deliverable plan. Do not claim a downloadable file has been generated unless the system really generates one.',
+              'Keep the product unpublished. It must be reviewed and explicitly authorized by the owner before any publication.',
+            ].join('\n\n'),
+            sourceResearchJobId: job.id,
+            sourceCandidate: candidate,
+          },
+          maxAttempts: 3,
+        }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || 'Unable to create product-draft job');
+      setMessage('Created a product-draft job from research candidate "' + candidateTitle + '". It is not published; process and review the new draft separately.');
+      await loadJobs();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to create product-draft job');
+    } finally { setBusy(false); }
+  }
+
   async function changeJob(job: FactoryJob, status: 'queued' | 'cancelled' | 'ready') {
     setBusy(true); setError(''); setMessage('');
     try {
@@ -247,17 +292,17 @@ export default function FactoryControls() {
             <td style={{ padding: 14, borderBottom: '1px solid #f0f2f6', whiteSpace: 'nowrap' }}>
               {job.status === 'failed' && Number(job.attempt_count || 0) < Number(job.max_attempts || 3) && <button disabled={busy} onClick={() => void changeJob(job, 'queued')} style={{ ...primary, padding: '8px 10px', marginRight: 6 }}>Retry</button>}
               {(job.status === 'queued' || job.status === 'researching' || processingJobId === job.id) && <><button disabled={busy || processingJobId === job.id || job.status === 'researching'} onClick={() => void processJob(job)} style={{ ...primary, padding: '8px 10px', marginRight: 6, background: processingJobId === job.id || job.status === 'researching' ? '#087f65' : primary.background, opacity: processingJobId === job.id || job.status === 'researching' ? 1 : primary.opacity }}>{processingJobId === job.id ? '⏳ Processing…' : job.status === 'researching' ? '⏳ Processing…' : 'Process this job'}</button>{job.status === 'queued' && processingJobId !== job.id && <button disabled={busy} onClick={() => void changeJob(job, 'cancelled')} style={{ ...primary, padding: '8px 10px', background: '#f5f6fa', color: '#5e6678' }}>Cancel</button>}</>}
-              {job.job_type === 'product_draft' && job.result_json != null && <button disabled={busy} onClick={() => setSelectedDraftId(selectedDraftId === job.id ? null : job.id)} style={{ ...primary, padding: '8px 10px', marginRight: 6, background: '#f0edff', color: '#5141d8' }}>{selectedDraftId === job.id ? 'Hide draft' : 'View draft'}</button>}{job.status === 'quality_review' && <span title="Approval is blocked until the independent AI review passes and actual deliverable tests are recorded." style={{ display: 'inline-block', fontSize: 11, color: '#7b5b11', background: '#fff7df', border: '1px solid #f1dfaa', borderRadius: 8, padding: '7px 9px', marginTop: 5 }}>Artifact tests required</span>}
+              {job.result_json != null && <button disabled={busy} onClick={() => setSelectedDraftId(selectedDraftId === job.id ? null : job.id)} style={{ ...primary, padding: '8px 10px', marginRight: 6, marginBottom: 4, background: '#f0edff', color: '#5141d8' }}>{selectedDraftId === job.id ? 'Hide result' : job.job_type === 'product_draft' ? 'View draft' : 'View result'}</button>}{job.job_type === 'demand_research' && job.status === 'quality_review' && job.result_json != null && <button disabled={busy} onClick={() => void createDraftFromResearch(job)} style={{ ...primary, padding: '8px 10px', marginRight: 6, marginBottom: 4, background: '#087f65' }}>Create product draft</button>}{job.status === 'quality_review' && <span title="Approval is blocked until the independent AI review passes and actual deliverable tests are recorded." style={{ display: 'inline-block', fontSize: 11, color: '#7b5b11', background: '#fff7df', border: '1px solid #f1dfaa', borderRadius: 8, padding: '7px 9px', marginTop: 5 }}>Artifact tests required</span>}
             </td>
           </tr>)}</tbody>
         </table></div>}
     </section>
     {selectedDraft && <section style={panel}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-        <div><h2 style={{ margin: '0 0 5px', fontSize: 18 }}>Product draft · {selectedDraft.id.slice(0, 8)}</h2><p style={{ margin: 0, color: '#778095', fontSize: 12 }}>Review the generated scaffold below. Offline drafts are templates, not finished products.</p></div>
+        <div><h2 style={{ margin: '0 0 5px', fontSize: 18 }}>{selectedDraft.job_type === 'product_draft' ? 'Product draft' : (jobLabels[selectedDraft.job_type] || 'Job') + ' result'} · {selectedDraft.id.slice(0, 8)}</h2><p style={{ margin: 0, color: '#778095', fontSize: 12 }}>{selectedDraft.job_type === 'product_draft' ? 'Review the generated draft below. An offline scaffold is not a finished product.' : 'Inspect the saved job result and evidence. Research results are not product files and do not authorize publication.'}</p></div>
         <button type="button" onClick={() => setSelectedDraftId(null)} style={{ ...primary, background: '#f0edff', color: '#5141d8' }}>Close draft</button>
       </div>
-      {draftObject && <div style={{ marginTop: 16, border: '1px solid #e7e9f1', borderRadius: 12, padding: 14, background: '#fbfcff' }}>
+      {draftObject && selectedDraft.job_type === 'product_draft' && <div style={{ marginTop: 16, border: '1px solid #e7e9f1', borderRadius: 12, padding: 14, background: '#fbfcff' }}>
         <h3 style={{ margin: '0 0 10px', fontSize: 14 }}>Release-readiness gates</h3>
         <p style={{ margin: '5px 0', fontSize: 12, color: '#4f596d' }}>AI review: <strong>{reviewStatus.replaceAll('_', ' ')}</strong></p>
         <p style={{ margin: '5px 0', fontSize: 12, color: '#4f596d' }}>Independent review passes recorded: <strong>{Array.isArray(draftObject.reviewHistory) ? draftObject.reviewHistory.length : (draftObject.reviewPasses || 0)}</strong></p>
