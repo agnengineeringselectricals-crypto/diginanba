@@ -11,9 +11,14 @@ export async function POST(request: Request) {
   if (!secret) return NextResponse.json({ error: 'Factory worker is not configured: FACTORY_WORKER_SECRET is missing.' }, { status: 503 });
   try {
     const workerUrl = new URL('/api/internal/product-jobs/process', request.url);
+    const body = await request.json().catch(() => ({}));
+    const workerBody = body && typeof body.jobId === 'string' && body.jobId.trim()
+      ? { jobId: body.jobId.trim() }
+      : {};
     const response = await fetch(workerUrl, {
       method: 'POST',
-      headers: { authorization: `Bearer ${secret}` },
+      headers: { authorization: `Bearer ${secret}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(workerBody),
       cache: 'no-store',
       signal: AbortSignal.timeout(55000),
     });
