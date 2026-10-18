@@ -108,13 +108,19 @@ export default function FactoryControls() {
     } finally { setBusy(false); }
   }
 
-  async function processNext() {
+  async function processJob(job?: FactoryJob) {
     setBusy(true); setError(''); setMessage('');
     try {
-      const response = await fetch('/api/admin/factory/process', { method: 'POST' });
+      const response = await fetch('/api/admin/factory/process', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(job ? { jobId: job.id } : {}),
+      });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || 'Factory worker could not process a job');
-      setMessage(payload.processed ? 'One queued job was processed. Refresh the queue to see its current state.' : (payload.message || 'No queued jobs were available.'));
+      setMessage(payload.processed
+        ? `Processed ${job ? `selected job ${job.id.slice(0, 8)}` : 'one queued job'}; refresh the queue to see its current state.`
+        : (payload.message || 'No matching queued job was available.'));
       await loadJobs();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to process factory job');
@@ -203,7 +209,7 @@ export default function FactoryControls() {
     <section style={{ ...panel, padding: 0, overflow: 'hidden' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: 20, borderBottom: '1px solid #edf0f5' }}>
         <div><h2 style={{ margin: 0, fontSize: 18 }}>Factory job queue</h2><p style={{ margin: '5px 0 0', fontSize: 12, color: '#778095' }}>{jobs.length} recent jobs</p></div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}><button type="button" disabled={busy} onClick={() => void processNext()} style={primary}>{busy ? 'Working…' : 'Process next job'}</button><button type="button" disabled={busy} onClick={() => void loadJobs()} style={{ ...primary, background: '#f0edff', color: '#5141d8' }}>Refresh</button></div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}><button type="button" disabled={busy} onClick={() => void processJob()} style={primary}>{busy ? 'Working…' : 'Process next job'}</button><button type="button" disabled={busy} onClick={() => void loadJobs()} style={{ ...primary, background: '#f0edff', color: '#5141d8' }}>Refresh</button></div>
       </div>
       {error && <p role="alert" style={{ padding: '0 20px', color: '#a23a3a', fontSize: 13 }}>{error}</p>}
       {jobs.length === 0 ? <p style={{ padding: 22, color: '#778095', fontSize: 13 }}>No factory jobs found yet. Create the first job above.</p> :
@@ -217,7 +223,7 @@ export default function FactoryControls() {
             <td style={{ padding: 14, borderBottom: '1px solid #f0f2f6', color: job.last_error ? '#a23a3a' : '#8991a3', maxWidth: 220, overflowWrap: 'anywhere' }}>{job.last_error || '—'}</td>
             <td style={{ padding: 14, borderBottom: '1px solid #f0f2f6', whiteSpace: 'nowrap' }}>
               {job.status === 'failed' && Number(job.attempt_count || 0) < Number(job.max_attempts || 3) && <button disabled={busy} onClick={() => void changeJob(job, 'queued')} style={{ ...primary, padding: '8px 10px', marginRight: 6 }}>Retry</button>}
-              {job.status === 'queued' && <button disabled={busy} onClick={() => void changeJob(job, 'cancelled')} style={{ ...primary, padding: '8px 10px', background: '#f5f6fa', color: '#5e6678' }}>Cancel</button>}
+              {job.status === 'queued' && <><button disabled={busy} onClick={() => void processJob(job)} style={{ ...primary, padding: '8px 10px', marginRight: 6 }}>Process this job</button><button disabled={busy} onClick={() => void changeJob(job, 'cancelled')} style={{ ...primary, padding: '8px 10px', background: '#f5f6fa', color: '#5e6678' }}>Cancel</button></>}
               {job.job_type === 'product_draft' && job.result_json != null && <button disabled={busy} onClick={() => setSelectedDraftId(selectedDraftId === job.id ? null : job.id)} style={{ ...primary, padding: '8px 10px', marginRight: 6, background: '#f0edff', color: '#5141d8' }}>{selectedDraftId === job.id ? 'Hide draft' : 'View draft'}</button>}{job.status === 'quality_review' && <span title="Approval is blocked until the independent AI review passes and actual deliverable tests are recorded." style={{ display: 'inline-block', fontSize: 11, color: '#7b5b11', background: '#fff7df', border: '1px solid #f1dfaa', borderRadius: 8, padding: '7px 9px', marginTop: 5 }}>Artifact tests required</span>}
             </td>
           </tr>)}</tbody>
