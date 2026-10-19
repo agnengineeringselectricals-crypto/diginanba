@@ -216,32 +216,21 @@ export async function POST(request: Request) {
             'Do not claim an actual file was generated or tested unless that happened.',
           ],
         };
-        draft = await askModel(commonSystem + ' You are the DRAFTING agent. Create a complete structured product draft with title, summary, targetAudience, problem, productSpecification, outline, deliverables, localizationNotes, qualityRisks, validationSteps, and recommendation.', brief);
+        // Keep product drafting within the serverless request budget: draft and review in one model call.
+        // The former sequential draft/review/revision loop could require up to six 45-second calls,
+        // exceeding this route's 60-second execution limit and leaving the row stuck in researching.
+        draft = await askModel(
+          commonSystem + ' You are both the drafting agent and a clearly-labelled preliminary self-reviewer. Return one JSON object containing the complete product draft fields (title, summary, targetAudience, problem, productSpecification, outline, deliverables, localizationNotes, qualityRisks, validationSteps, recommendation) plus qualityReview with verdict ("pass" or "revise"), issues (specific defects), corrections (actionable fixes), checks (completeness, buyer usefulness, factual claims, originality/IP risk, accessibility/contrast, localization, security/privacy, testability), and humanReviewRequired (boolean). Be strict. Do not claim actual file tests, external fact verification, or execution. If artifact tests remain, list them as blockers. This is a preliminary self-review, not independent approval.',
+          brief,
+        );
+        const preliminaryReview = draft.qualityReview && typeof draft.qualityReview === 'object'
+          ? draft.qualityReview as Record<string, unknown>
+          : { verdict: 'revise', issues: ['The model did not return a structured preliminary review.'], humanReviewRequired: true };
+        reviewHistory.push({ pass: 1, ...preliminaryReview, reviewType: 'preliminary_self_review_not_independent' });
+        qualityReviewStatus = preliminaryReview.verdict === 'pass'
+          ? 'ai_self_review_passed_artifact_tests_still_required'
+          : 'needs_revision_or_human_review';
 
-        // Independent reviewer loop: review the draft, send actionable defects back to the drafting agent,
-        // and repeat up to three review passes. Passing this JSON review is not a substitute for testing the actual deliverable.
-        for (let pass = 1; pass <= 3; pass++) {
-          const review = await askModel(
-            commonSystem + ' You are DigiNanba’s independent QUALITY REVIEW agent, not the drafting agent. Inspect the supplied draft against the brief. Return JSON with verdict ("pass" or "revise"), issues (array of concrete defects), corrections (array of actionable instructions for the drafting agent), checks (object covering completeness, buyer usefulness, factual claims, originality/IP risk, accessibility/contrast, localization, security/privacy, and testability), and humanReviewRequired (boolean). Be strict. A generic outline is not a finished product. Never claim to have executed code, opened a workbook, or verified external facts. If actual artifact/file tests are still required, list them as blockers and do not say the product is ready to publish.',
-            { brief, draft, reviewPass: pass },
-          );
-          reviewHistory.push({ pass, verdict: review.verdict, issues: review.issues, corrections: review.corrections, checks: review.checks, humanReviewRequired: review.humanReviewRequired });
-          if (review.verdict === 'pass') {
-            qualityReviewStatus = 'ai_review_passed_artifact_tests_still_required';
-            draft = { ...draft, qualityReviewStatus, qualityReview: review, reviewPasses: pass };
-            break;
-          }
-          if (pass === 3) {
-            qualityReviewStatus = 'needs_revision_or_human_review';
-            draft = { ...draft, qualityReviewStatus, qualityReview: review, reviewPasses: pass };
-            break;
-          }
-          draft = await askModel(
-            commonSystem + ' You are the DRAFTING agent revising your own prior draft. Apply every actionable correction from the independent reviewer. Preserve useful material, fix specific defects, and return the complete revised JSON product draft. Do not claim tests were performed unless the supplied evidence proves it.',
-            { brief, previousDraft: draft, reviewerFeedback: review, revisionPass: pass },
-          );
-        }
-        draft.reviewHistory = reviewHistory;
         draft.qualityReviewStatus = qualityReviewStatus;
         draft.publicationStatus = 'awaiting_human_approval';
         draft.actualArtifactTests = { status: 'not_run_by_text_review_worker', required: ['Generate the actual deliverable file', 'Open and inspect it in the target application', 'Run formula/import/format/accessibility tests appropriate to the file', 'Verify localization and market-specific claims'] };
