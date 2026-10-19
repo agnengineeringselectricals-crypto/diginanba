@@ -283,6 +283,9 @@ export async function POST(request: Request) {
       result_json=$2::jsonb,last_error=NULL,locked_at=NULL,locked_by=NULL,updated_at=now()
       WHERE id=$1 AND status='researching'
       RETURNING id,job_type,status,market_code,locale,result_json,updated_at`, [job.id, JSON.stringify(draft)]);
+    if (!saved.rows[0]) {
+      throw new Error('Draft was generated, but the job row was not saved: its status was no longer researching. Check job history for a concurrent update.');
+    }
     await db.query(`INSERT INTO product_factory_job_events(job_id,from_status,to_status,event_type,details_json)
       VALUES ($1,'researching','quality_review','worker_completed',$2::jsonb)`,
       [job.id, JSON.stringify({ model: modelUsed, aiGenerated: modelUsed !== 'offline-template' })]);
@@ -291,20 +294,39 @@ export async function POST(request: Request) {
     const message = error instanceof Error ? error.message : 'Job failed';
     const retry = Number(job.attempt_count) + 1 < Number(job.max_attempts);
     const nextStatus = retry ? 'queued' : 'failed';
-    await db.query(`UPDATE product_factory_jobs SET status=$2,last_error=$3,
-      available_at=CASE WHEN $2='queued' THEN now()+interval '5 minutes' ELSE available_at END,
-      locked_at=NULL,locked_by=NULL,completed_at=CASE WHEN $2='failed' THEN now() ELSE NULL END,
-      updated_at=now() WHERE id=$1 AND status='researching'`,
-      [job.id, nextStatus, message.slice(0, 4000)]).catch(() => undefined);
-    await db.query(`INSERT INTO product_factory_job_events(job_id,from_status,to_status,event_type,details_json)
-      VALUES ($1,'researching',$2,'worker_failed',$3::jsonb)`,
-      [job.id, nextStatus, JSON.stringify({ message: message.slice(0, 500), retryScheduled: retry })]).catch(() => undefined);
+    console.error('[factory:worker] job processing failed', { jobId: job.id, jobType: job.job_type, message });
+    let persistenceError: string | null = null;
+    try {
+      const failed = await db.query(`UPDATE product_factory_jobs SET status=$2,last_error=$3,
+        available_at=CASE WHEN $2='queued' THEN now()+interval '5 minutes' ELSE available_at END,
+        locked_at=NULL,locked_by=NULL,completed_at=CASE WHEN $2='failed' THEN now() ELSE NULL END,
+        updated_at=now() WHERE id=$1 AND status='researching' RETURNING id,status,last_error`,
+        [job.id, nextStatus, message.slice(0, 4000)]);
+      if (!failed.rows[0]) {
+        persistenceError = 'Failure details could not be saved because the job row was no longer researching.';
+        console.error('[factory:worker] failed job status update matched no rows', { jobId: job.id });
+      }
+    } catch (saveError) {
+      persistenceError = saveError instanceof Error ? saveError.message : 'Unknown database error saving job failure';
+      console.error('[factory:worker] could not persist job failure', { jobId: job.id, persistenceError });
+    }
+    try {
+      await db.query(`INSERT INTO product_factory_job_events(job_id,from_status,to_status,event_type,details_json)
+        VALUES ($1,'researching',$2,'worker_failed',$3::jsonb)`,
+        [job.id, nextStatus, JSON.stringify({ message: message.slice(0, 500), retryScheduled: retry, persistenceError })]);
+    } catch (eventError) {
+      console.error('[factory:worker] could not save failure event', {
+        jobId: job.id,
+        error: eventError instanceof Error ? eventError.message : 'Unknown event persistence error',
+      });
+    }
     return NextResponse.json({
       error: retry ? 'Job failed; retry scheduled' : 'Job failed; maximum attempts reached',
       message,
       jobId: job.id,
       status: nextStatus,
       retryScheduled: retry,
+      persistenceError,
     }, { status: 502 });
   }
 }
