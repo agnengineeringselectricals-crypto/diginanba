@@ -56,3 +56,15 @@ Vercel can connect this Next.js project to GitHub so pushes can generate preview
 - secure separation of server-only checkout logic
 
 Before production payments, configure a payment provider, merchant/KYC settings, tax rules, webhook signing, and Vercel environment variables. Vercel recommends keeping secrets server-side and scoping environment variables by Production/Preview/Development; changes to environment variables require a redeploy.
+
+
+## AI factory usage and cost controls
+
+- Apply `db/migrations/009_factory_ai_usage_ledger.sql` in the production Neon database before enabling AI factory processing on this version.
+- Successful OpenAI responses record input, output, cached-input tokens, model, job, requester, pricing basis and calculated USD cost in `factory_ai_usage`.
+- The worker defaults to a **$1.00 rolling 24-hour recorded AI-cost cap**. Override with `PRODUCT_FACTORY_DAILY_BUDGET_USD` only after reviewing the budget.
+- Built-in per-million-token rates exist for the current worker defaults `gpt-4o-mini` and `gpt-4.1-mini`; verify these against the current official API pricing before production use. To set explicit prices, use `PRODUCT_FACTORY_MODEL_PRICING_JSON`, keyed by exact API model ID with `input`, `cachedInput`, and `output` USD-per-million-token rates. The worker blocks calls for unknown model IDs or invalid pricing configuration.
+- API errors indicating exhausted credits, a reached spend cap, or missing pricing are not automatically retried.
+- The usage ledger is for internal cost control and accounting; it does not display token counts on customer invoices or collect a creator/customer charge.
+- Customer/creator cost recovery is **not live yet**: checkout remains in demo-payment mode. Before charging, implement and test payment-provider checkout, price disclosure, account/job/order attribution, refunds, and settlement rules. Any recovered cost should be included in the agreed product/creation price or clearly disclosed as a creation service charge—not represented as tokens consumed.
+- OpenAI usage dashboard: https://platform.openai.com/usage
