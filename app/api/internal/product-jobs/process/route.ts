@@ -44,7 +44,21 @@ function priceUsage(model: string, usage: any): UsageRecord {
   return { inputTokens, outputTokens, cachedInputTokens, costUsd, pricingSource };
 }
 
-async function enforceDailyBudget() {
+function assertModelPriceConfigured(model: string) {
+  if (DEFAULT_MODEL_PRICING[model]) return;
+  try {
+    const custom = process.env.PRODUCT_FACTORY_MODEL_PRICING_JSON;
+    const parsed = custom ? JSON.parse(custom) : {};
+    const candidate = parsed?.[model];
+    if (candidate && Number.isFinite(Number(candidate.input)) && Number.isFinite(Number(candidate.output))) return;
+  } catch {
+    throw new Error('Invalid PRODUCT_FACTORY_MODEL_PRICING_JSON; AI work blocked to avoid unpriced usage.');
+  }
+  throw new Error(`No verified price configured for model ${model}; AI work blocked to prevent untracked cost.`);
+}
+
+async function enforceDailyBudget(model: string) {
+  assertModelPriceConfigured(model);
   const configured = Number(process.env.PRODUCT_FACTORY_DAILY_BUDGET_USD ?? '1');
   if (!Number.isFinite(configured) || configured <= 0) throw new Error('PRODUCT_FACTORY_DAILY_BUDGET_USD must be a positive USD amount; AI work blocked.');
   const result = await db.query(
@@ -194,7 +208,7 @@ export async function POST(request: Request) {
 
     async function askResearchModel(system: string, user: unknown): Promise<Record<string, unknown>> {
       const model = process.env.PRODUCT_RESEARCH_MODEL || 'gpt-4.1-mini';
-      await enforceDailyBudget();
+      await enforceDailyBudget(model);
       const response = await fetch('https://api.openai.com/v1/responses', {
         method: 'POST',
         headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
