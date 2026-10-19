@@ -258,7 +258,7 @@ export async function POST(request: Request) {
 
     async function askModel(system: string, user: unknown): Promise<Record<string, unknown>> {
       const model = process.env.PRODUCT_FACTORY_MODEL || 'gpt-4o-mini';
-      await enforceDailyBudget();
+      await enforceDailyBudget(model);
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
