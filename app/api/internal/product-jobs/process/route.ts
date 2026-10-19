@@ -4,6 +4,69 @@ import { db } from '@/lib/db';
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
+
+type UsageRecord = { inputTokens: number; outputTokens: number; cachedInputTokens: number; costUsd: number; pricingSource: string };
+
+const DEFAULT_MODEL_PRICING: Record<string, { input: number; cachedInput: number; output: number }> = {
+  // USD per one million tokens; keep aligned with the OpenAI API pricing page.
+  'gpt-4o-mini': { input: 0.15, cachedInput: 0.075, output: 0.60 },
+  'gpt-4.1-mini': { input: 0.40, cachedInput: 0.10, output: 1.60 },
+};
+
+function priceUsage(model: string, usage: any): UsageRecord {
+  const inputTokens = Math.max(0, Number(usage?.input_tokens ?? usage?.prompt_tokens ?? 0));
+  const outputTokens = Math.max(0, Number(usage?.output_tokens ?? usage?.completion_tokens ?? 0));
+  const cachedInputTokens = Math.max(0, Number(
+    usage?.input_tokens_details?.cached_tokens ?? usage?.prompt_tokens_details?.cached_tokens ?? 0
+  ));
+  let pricing = DEFAULT_MODEL_PRICING[model];
+  let pricingSource = 'built_in_default_verify_against_current_openai_pricing';
+  try {
+    const custom = process.env.PRODUCT_FACTORY_MODEL_PRICING_JSON;
+    if (custom) {
+      const parsed = JSON.parse(custom);
+      const candidate = parsed?.[model];
+      if (candidate && Number.isFinite(Number(candidate.input)) && Number.isFinite(Number(candidate.output))) {
+        pricing = {
+          input: Number(candidate.input),
+          cachedInput: Number.isFinite(Number(candidate.cachedInput)) ? Number(candidate.cachedInput) : Number(candidate.input),
+          output: Number(candidate.output),
+        };
+        pricingSource = 'PRODUCT_FACTORY_MODEL_PRICING_JSON';
+      }
+    }
+  } catch {
+    throw new Error('Invalid PRODUCT_FACTORY_MODEL_PRICING_JSON; AI work blocked to avoid unpriced usage.');
+  }
+  if (!pricing) throw new Error(`No verified price configured for model ${model}; AI work blocked to prevent untracked cost.`);
+  const billableInput = Math.max(0, inputTokens - cachedInputTokens);
+  const costUsd = (billableInput * pricing.input + cachedInputTokens * pricing.cachedInput + outputTokens * pricing.output) / 1_000_000;
+  return { inputTokens, outputTokens, cachedInputTokens, costUsd, pricingSource };
+}
+
+async function enforceDailyBudget() {
+  const configured = Number(process.env.PRODUCT_FACTORY_DAILY_BUDGET_USD ?? '1');
+  if (!Number.isFinite(configured) || configured <= 0) throw new Error('PRODUCT_FACTORY_DAILY_BUDGET_USD must be a positive USD amount; AI work blocked.');
+  const result = await db.query(
+    `SELECT COALESCE(SUM(cost_usd),0)::numeric AS spent
+       FROM factory_ai_usage WHERE created_at >= now() - interval '24 hours'`,
+  );
+  const spent = Number(result.rows[0]?.spent ?? 0);
+  if (spent >= configured) throw new Error(`AI_SPEND_LIMIT_REACHED: 24-hour AI budget of ${configured.toFixed(2)} reached (recorded ${spent.toFixed(4)}). New AI calls are blocked.`);
+}
+
+async function recordAiUsage(job: any, stage: string, model: string, usage: any) {
+  const priced = priceUsage(model, usage);
+  await db.query(
+    `INSERT INTO factory_ai_usage
+       (job_id, requested_by, job_type, stage, model, input_tokens, output_tokens, cached_input_tokens, cost_usd, pricing_source, provider_usage_json)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb)`,
+    [job.id, job.requested_by ?? null, job.job_type, stage, model, priced.inputTokens, priced.outputTokens,
+      priced.cachedInputTokens, priced.costUsd, priced.pricingSource, JSON.stringify(usage ?? {})],
+  );
+  return priced;
+}
+
 const DESIGN_STANDARDS = {
   colorContrast: [
     'Never use black or dark text on dark-blue, saturated-blue, or other dark fills.',
@@ -90,7 +153,7 @@ export async function POST(request: Request) {
   try {
     await client.query('BEGIN');
     const claimed = requestedJobId
-      ? await client.query(`SELECT id, job_type, market_code, locale, category_id, input_json, attempt_count, max_attempts
+      ? await client.query(`SELECT id, job_type, market_code, locale, category_id, requested_by, input_json, attempt_count, max_attempts
           FROM product_factory_jobs WHERE id=$2 AND status='queued' AND available_at <= now()
             AND ($1::boolean = true OR job_type='product_draft')
           FOR UPDATE SKIP LOCKED LIMIT 1`, [Boolean(apiKey), requestedJobId])
@@ -131,6 +194,7 @@ export async function POST(request: Request) {
 
     async function askResearchModel(system: string, user: unknown): Promise<Record<string, unknown>> {
       const model = process.env.PRODUCT_RESEARCH_MODEL || 'gpt-4.1-mini';
+      await enforceDailyBudget();
       const response = await fetch('https://api.openai.com/v1/responses', {
         method: 'POST',
         headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
@@ -151,6 +215,7 @@ export async function POST(request: Request) {
         throw new Error(`AI research provider returned HTTP ${response.status}: ${providerError.slice(0, 700) || 'no error body returned'}`);
       }
       const payload = await response.json();
+      await recordAiUsage(job, 'demand_research', model, payload?.usage);
       let raw = payload?.output_text;
       if (typeof raw !== 'string') {
         const parts = Array.isArray(payload?.output) ? payload.output.flatMap((item: any) =>
@@ -179,6 +244,7 @@ export async function POST(request: Request) {
 
     async function askModel(system: string, user: unknown): Promise<Record<string, unknown>> {
       const model = process.env.PRODUCT_FACTORY_MODEL || 'gpt-4o-mini';
+      await enforceDailyBudget();
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
@@ -195,6 +261,7 @@ export async function POST(request: Request) {
       });
       if (!response.ok) throw new Error(`AI provider returned HTTP ${response.status}`);
       const payload = await response.json();
+      await recordAiUsage(job, job.job_type, model, payload?.usage);
       const raw = payload?.choices?.[0]?.message?.content;
       if (typeof raw !== 'string') throw new Error('AI provider returned no content');
       return JSON.parse(raw) as Record<string, unknown>;
@@ -292,7 +359,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, processed: true, job: saved.rows[0], draftMode: modelUsed });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Job failed';
-    const retry = Number(job.attempt_count) + 1 < Number(job.max_attempts);
+    const nonRetryable = /insufficient_quota|credit_balance_exhausted|AI_SPEND_LIMIT_REACHED|No verified price configured|Invalid PRODUCT_FACTORY_MODEL_PRICING_JSON|PRODUCT_FACTORY_DAILY_BUDGET_USD/.test(message);
+    const retry = !nonRetryable && Number(job.attempt_count) + 1 < Number(job.max_attempts);
     const nextStatus = retry ? 'queued' : 'failed';
     console.error('[factory:worker] job processing failed', { jobId: job.id, jobType: job.job_type, message });
     let persistenceError: string | null = null;
