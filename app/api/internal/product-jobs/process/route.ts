@@ -143,9 +143,13 @@ export async function POST(request: Request) {
             { role: 'user', content: [{ type: 'input_text', text: JSON.stringify(user) }] },
           ],
         }),
-        signal: AbortSignal.timeout(55000),
+        // Leave time inside Vercel's 60-second function limit to persist a failure or result.
+        signal: AbortSignal.timeout(40000),
       });
-      if (!response.ok) throw new Error(`AI research provider returned HTTP ${response.status}`);
+      if (!response.ok) {
+        const providerError = await response.text().catch(() => '');
+        throw new Error(`AI research provider returned HTTP ${response.status}: ${providerError.slice(0, 700) || 'no error body returned'}`);
+      }
       const payload = await response.json();
       let raw = payload?.output_text;
       if (typeof raw !== 'string') {
