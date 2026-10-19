@@ -144,7 +144,17 @@ export default function FactoryControls() {
       if (!response.ok) throw new Error(payload.message || payload.error || 'Factory worker could not process a job');
       if (payload.processed) {
         const finalStatus = payload.job?.status || 'updated';
-        setMessage(`Job ${job ? job.id.slice(0, 8) : ''} finished with status: ${finalStatus}. Check Last error if it was re-queued or failed.`);
+        if (payload.job?.id && payload.job?.result_json != null) {
+          // Open the persisted result immediately; otherwise users may assume processing created nothing.
+          setSelectedDraftId(payload.job.id);
+        }
+        if (payload.job?.job_type === 'demand_research' && finalStatus === 'quality_review') {
+          setMessage('Demand research finished and its report is open below. This is a research report, not a product draft yet. Click “Create product draft” on this research job, then process the newly queued Product draft job.');
+        } else if (payload.job?.job_type === 'product_draft' && finalStatus === 'quality_review') {
+          setMessage('Product draft saved and opened below for review. Check the draft content and release-readiness gates; no product has been published.');
+        } else {
+          setMessage(`Job ${job ? job.id.slice(0, 8) : ''} finished with status: ${finalStatus}. Check Last error if it was re-queued or failed.`);
+        }
       } else {
         setMessage(payload.message || 'No matching queued job was available.');
       }
