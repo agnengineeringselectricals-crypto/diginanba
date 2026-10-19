@@ -137,7 +137,7 @@ export async function POST(request: Request) {
         body: JSON.stringify({
           model,
           tools: [{ type: 'web_search' }],
-          text: { format: { type: 'json_object' } },
+          // Responses API web_search is incompatible with JSON mode; the prompt requests JSON and the result is parsed below.
           input: [
             { role: 'system', content: [{ type: 'input_text', text: system }] },
             { role: 'user', content: [{ type: 'input_text', text: JSON.stringify(user) }] },
