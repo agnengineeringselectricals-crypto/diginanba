@@ -14,16 +14,19 @@ export default function CreatorStudio() {
   const [fieldKey,setFieldKey]=useState('amount');
   const [fieldLabel,setFieldLabel]=useState('Amount');
   const [fieldType,setFieldType]=useState('number');
+  const [creatorName,setCreatorName]=useState('');
   const [error,setError]=useState('');
   const [notice,setNotice]=useState('');
   const [busy,setBusy]=useState(false);
   const [loading,setLoading]=useState(true);
   async function load(){setLoading(true);try{const r=await fetch('/api/creator/products',{cache:'no-store'});const d=await r.json();if(!r.ok)throw new Error(d.error||'Could not load products');setItems(d.products||[]);setError('')}catch(e){setError(e instanceof Error?e.message:'Could not load products')}finally{setLoading(false)}}
   useEffect(()=>{void load()},[]);
+  async function apply(){setBusy(true);setError('');setNotice('');try{const r=await fetch('/api/creator/apply',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({displayName:creatorName})});const d=await r.json();if(!r.ok)throw new Error(d.error||'Could not apply');setNotice(d.message||'Application submitted.');}catch(e){setError(e instanceof Error?e.message:'Could not apply')}finally{setBusy(false)}}
   async function submit(e:React.FormEvent){e.preventDefault();setBusy(true);setError('');setNotice('');try{const r=await fetch('/api/creator/products',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({title,description,buildKind:kind,market,currency,locale:market==='IN'?'en-IN':market==='UK'?'en-GB':'en-US',priceMinor:Math.round(Number(price||0)*100),definition:{schemaVersion:1,description,fields:[{key:fieldKey,label:fieldLabel,type:fieldType,required:false}]}})});const d=await r.json();if(!r.ok)throw new Error(d.error||'Could not save draft');setNotice(d.message||'Draft saved');setTitle('');setDescription('');await load()}catch(e){setError(e instanceof Error?e.message:'Could not save draft')}finally{setBusy(false)}}
   return <main className="wrap"><div className="page-head"><div><span className="eyebrow">CREATOR STUDIO</span><h1>Build inside DigiNanba</h1><p className="muted">Create and save structured product drafts on the marketplace. Every draft belongs to your creator account.</p></div><Link className="btn" href="/seller">Seller Center</Link></div>
-  <div className="checkout-grid" style={{alignItems:'start'}}><section className="panel"><h2>Create product draft</h2><p className="muted">Start with an interactive tool, spreadsheet, template, ebook or course. Publication stays gated until validation and moderation are implemented.</p>
   {error&&<p className="error" role="alert">{error}</p>}{notice&&<p className="badge" role="status">{notice}</p>}
+  <section className="panel" style={{marginBottom:20}}><h2>Creator access</h2><p className="muted">Apply to become a creator. A platform administrator must approve the application before product drafts can be created.</p><div className="button-row"><input aria-label="Creator display name" value={creatorName} onChange={e=>setCreatorName(e.target.value)} placeholder="Public creator name"/><button className="btn" type="button" disabled={busy||creatorName.trim().length<2} onClick={()=>void apply()}>{busy?'Please wait…':'Apply for creator access'}</button></div></section>
+  <div className="checkout-grid" style={{alignItems:'start'}}><section className="panel"><h2>Create product draft</h2><p className="muted">Start with an interactive tool, spreadsheet, template, ebook or course. Publication stays gated until validation and moderation are implemented.</p>
   <form className="auth-form" onSubmit={submit}>
   <label>Product title<input required minLength={3} maxLength={120} value={title} onChange={e=>setTitle(e.target.value)} placeholder="Monthly income and expense tracker"/></label>
   <label>Description<textarea rows={3} maxLength={4000} value={description} onChange={e=>setDescription(e.target.value)} placeholder="What problem does your product solve?"/></label>
