@@ -1,50 +1,22 @@
-'use client';
-
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { auth } from '@/lib/auth';
+import { redirect } from 'next/navigation';
 
-type Item = { slug: string; title: string; price: string; market: string };
-
-export default function Library() {
-  const [items, setItems] = useState<Item[]>([]);
-
-  useEffect(() => {
-    try {
-      setItems(JSON.parse(localStorage.getItem('diginanba-library') || '[]'));
-    } catch {
-      setItems([]);
-    }
-  }, []);
+export default async function Library() {
+  const session = await auth();
+  if (!session?.user) redirect('/login?callbackUrl=%2Faccount%2Flibrary');
 
   return (
-    <main className="wrap">
+    <main className="wrap dn-library-page">
       <Link href="/account" className="muted">← Account</Link>
-      <div className="page-head">
-        <div>
-          <div className="eyebrow">MY DIGITAL LIBRARY</div>
-          <h1>My DigiNanba Library</h1>
-          <p className="muted">Your purchased resources, licenses and future product updates.</p>
-        </div>
-      </div>
-
-      {items.length ? (
-        <div className="product-list-grid">
-          {items.map((x) => (
-            <article className="panel" key={x.slug}>
-              <span className="category">Purchased · {x.market}</span>
-              <h2>{x.title}</h2>
-              <p className="muted">License: Standard digital use</p>
-              <button className="btn primary" type="button">Download</button>
-            </article>
-          ))}
-        </div>
-      ) : (
-        <div className="panel">
-          <h2>Your library is ready for your purchases</h2>
-          <p className="muted">After a successful checkout, digital downloads and future versions will appear here.</p>
-          <Link href="/explore" className="btn primary">Explore products</Link>
-        </div>
-      )}
+      <div className="page-head"><div><div className="eyebrow">MY DIGITAL LIBRARY</div><h1>My DigiNanba Library</h1><p className="muted">Your digital downloads and purchase access.</p></div></div>
+      <section className="panel dn-library-empty">
+        <div className="dn-library-icon" aria-hidden="true">📚</div>
+        <h2>Your library is ready for eligible downloads</h2>
+        <p className="muted">DigiNanba currently supports demo orders only. Secure payment confirmation, purchase entitlements and downloadable file delivery are not enabled yet, so this page will not show fake purchases or inactive download buttons.</p>
+        <div className="dn-library-actions"><Link href="/account/orders" className="btn">View orders</Link><Link href="/explore" className="btn primary">Explore products</Link></div>
+      </section>
+      <style>{`.dn-library-page{padding-bottom:48px}.dn-library-page .page-head{margin-top:18px}.dn-library-empty{padding:34px 24px}.dn-library-icon{font-size:34px}.dn-library-empty h2{margin:12px 0 8px}.dn-library-empty p{max-width:650px;line-height:1.7;font-size:13px}.dn-library-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:20px}@media(max-width:480px){.dn-library-empty{padding:24px 18px}.dn-library-actions{display:grid}.dn-library-actions .btn{text-align:center}}`}</style>
     </main>
   );
 }
