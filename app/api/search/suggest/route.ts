@@ -77,7 +77,7 @@ export async function POST(req: Request) {
   const visitorId = short(typeof body?.visitorId === 'string' ? body.visitorId : null, 100);
   const visitorHash = visitorId ? createHash('sha256').update(visitorId).digest('hex') : null;
   const session = await auth().catch(() => null);
-  const country = short(req.headers.get('x-vercel-ip-country')?.toUpperCase() ?? req.headers.get('cf-ipcountry')?.toUpperCase(), 2);
+  const country = short(req.headers.get('x-vercel-ip-country')?.toUpperCase() ?? req.headers.get('cf-ipcountry')?.toUpperCase() ?? null, 2);
   const region = short(req.headers.get('x-vercel-ip-country-region') ?? req.headers.get('x-vercel-ip-region'), 100);
   const city = short(req.headers.get('x-vercel-ip-city'), 100);
   let geographyId: string | null = null;
