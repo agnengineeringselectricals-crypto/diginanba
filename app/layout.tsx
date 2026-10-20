@@ -1,5 +1,6 @@
 import './globals.css';
 import Providers from './providers';
+import CustomerServiceChat from '@/components/CustomerServiceChat';
 
 export const metadata = {
   metadataBase: new URL('https://diginanba.com'),
@@ -50,6 +51,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body>
         <Providers>{children}</Providers>
+        <CustomerServiceChat />
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }} />
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }} />
       </body>
