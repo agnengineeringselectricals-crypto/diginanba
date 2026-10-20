@@ -56,3 +56,24 @@ Vercel can connect this Next.js project to GitHub so pushes can generate preview
 - secure separation of server-only checkout logic
 
 Before production payments, configure a payment provider, merchant/KYC settings, tax rules, webhook signing, and Vercel environment variables. Vercel recommends keeping secrets server-side and scoping environment variables by Production/Preview/Development; changes to environment variables require a redeploy.
+
+
+## AI factory usage and cost controls
+
+- Apply `db/migrations/009_factory_ai_usage_ledger.sql` in the production Neon database before enabling AI factory processing on this version.
+- Successful OpenAI responses record input, output, cached-input tokens, model, job, requester, pricing basis and calculated USD cost in `factory_ai_usage`.
+- The worker defaults to a **$1.00 rolling 24-hour recorded AI-cost cap**. Override with `PRODUCT_FACTORY_DAILY_BUDGET_USD` only after reviewing the budget.
+- Built-in per-million-token rates exist for the current worker defaults `gpt-4o-mini` and `gpt-4.1-mini`; verify these against the current official API pricing before production use. To set explicit prices, use `PRODUCT_FACTORY_MODEL_PRICING_JSON`, keyed by exact API model ID with `input`, `cachedInput`, and `output` USD-per-million-token rates. The worker blocks calls for unknown model IDs or invalid pricing configuration.
+- API errors indicating exhausted credits, a reached spend cap, or missing pricing are not automatically retried.
+- The usage ledger is for internal cost control and accounting; it does not display token counts on customer invoices or collect a creator/customer charge.
+- Customer/creator cost recovery is **not live yet**: checkout remains in demo-payment mode. Before charging, implement and test payment-provider checkout, price disclosure, account/job/order attribution, refunds, and settlement rules. Any recovered cost should be included in the agreed product/creation price or clearly disclosed as a creation service charge—not represented as tokens consumed.
+- OpenAI usage dashboard: https://platform.openai.com/usage
+
+
+## Shared platform operating-cost recovery
+
+- Migration `db/migrations/010_platform_cost_allocation.sql` adds an internal ledger for actual provider operating expenses and product/creator/order-level allocations. Categories include AI API, database, hosting/compute, storage/bandwidth, monitoring/security, and other attributable platform costs.
+- The default `bundled_platform_operations` policy is **disabled** and has a zero rate. Do not enable cost recovery until the business has entered verified bills, selected a defensible allocation method, configured country/currency/tax handling, and tested checkout and refunds.
+- When enabled through a reviewed pricing implementation, eligible costs should be incorporated into the total product price or a plainly described general service/creation price. Do not display provider-specific cost lines such as "OpenAI tokens", "database", "Vercel hosting", or "ChatGPT subscription" on the customer bill. The final total and any general service/creation charge must still be disclosed before purchase; no hidden or surprise fees.
+- Allocate only real, documented, business-related costs attributable to DigiNanba. A personal ChatGPT subscription is not the same as API usage and must not be automatically treated as a per-product API charge. Include a shared software subscription in platform overhead only if it is legitimately used for the business and allocation is reasonable, documented, and legally permitted.
+- This migration records costs and allocations only; it does not by itself change storefront prices, charge a creator, collect payment, or enable any billing policy. Real payment-provider integration, admin controls, price previews, creator agreements, local tax/consumer-law review, settlement and refund handling are still required before live recovery.
