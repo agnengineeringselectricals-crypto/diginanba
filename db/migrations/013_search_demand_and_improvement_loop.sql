@@ -1,5 +1,5 @@
 -- Search demand intelligence, geographic hierarchy, and community improvement rewards.
--- Search records store normalized query text and coarse location metadata only; raw IP addresses are not stored.
+-- Search records store normalized query text and coarse location metadata only and raw IP addresses are not stored.
 BEGIN;
 
 CREATE TABLE IF NOT EXISTS geography_nodes (
