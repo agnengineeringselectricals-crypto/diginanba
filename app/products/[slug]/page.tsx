@@ -4,6 +4,7 @@ import { getProduct, getProducts } from '@/lib/catalog';
 import type { Market } from '@/lib/market';
 import AddToCartButton from './AddToCartButton';
 import ProductEngagement from './ProductEngagement';
+import ImprovementSuggestionForm from './ImprovementSuggestionForm';
 
 type PageProps = {
   params: Promise<{ slug: string }>;
@@ -119,6 +120,8 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
         price: product.price,
         category: product.category,
       }} />
+
+      <ImprovementSuggestionForm productId={product.id} locale={market === 'IN' ? 'en-IN' : market === 'UK' ? 'en-GB' : 'en-US'} />
 
       <section className="panel product-buying-guide" aria-labelledby="before-buy-heading">
         <h2 id="before-buy-heading">Before you buy</h2>
