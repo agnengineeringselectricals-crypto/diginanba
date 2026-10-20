@@ -20,6 +20,7 @@ export default function CustomerServiceChat() {
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [showQuestions, setShowQuestions] = useState(true);
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -50,6 +51,14 @@ export default function CustomerServiceChat() {
     }
   }
 
+  function clearChat() {
+    setMessages([{ role: 'assistant', content: welcome }]);
+    setInput('');
+    setError('');
+    setBusy(false);
+    setShowQuestions(true);
+  }
+
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     void sendMessage(input);
@@ -65,7 +74,10 @@ export default function CustomerServiceChat() {
               <strong>DigiNanba Support</strong>
               <span><i /> Marketplace help assistant</span>
             </div>
-            <button type="button" className="dn-support-close" onClick={() => setOpen(false)} aria-label="Close support chat">×</button>
+            <div className="dn-support-head-actions">
+              <button type="button" className="dn-support-clear" onClick={clearChat} disabled={busy} aria-label="Clear chat and start a new conversation" title="Clear chat">Clear</button>
+              <button type="button" className="dn-support-close" onClick={() => setOpen(false)} aria-label="Close support chat">×</button>
+            </div>
           </header>
           <div className="dn-support-messages" aria-live="polite">
             {messages.map((message, index) => (
@@ -75,13 +87,18 @@ export default function CustomerServiceChat() {
             ))}
             {busy && <div className="dn-support-message dn-support-assistant dn-support-typing">Thinking…</div>}
             {error && <p className="dn-support-error" role="alert">{error}</p>}
-            {messages.length === 1 && (
-              <div className="dn-support-quick">
-                {quickQuestions.map((question) => (
-                  <button key={question} type="button" onClick={() => void sendMessage(question)} disabled={busy}>{question}</button>
-                ))}
-              </div>
-            )}
+            <div className="dn-support-question-tools">
+              <button type="button" className="dn-support-question-toggle" onClick={() => setShowQuestions((value) => !value)} aria-expanded={showQuestions}>
+                {showQuestions ? 'Hide suggested questions' : 'Suggested questions'} <span aria-hidden="true">{showQuestions ? '−' : '+'}</span>
+              </button>
+              {showQuestions && (
+                <div className="dn-support-quick" aria-label="Predefined support questions">
+                  {quickQuestions.map((question) => (
+                    <button key={question} type="button" onClick={() => void sendMessage(question)} disabled={busy}>{question}</button>
+                  ))}
+                </div>
+              )}
+            </div>
             <div ref={endRef} />
           </div>
           <div className="dn-support-shortcuts">
@@ -109,13 +126,13 @@ export default function CustomerServiceChat() {
         .dn-support-head{display:flex;align-items:center;gap:11px;padding:16px;background:#171a32;color:white}
         .dn-support-avatar{display:grid;place-items:center;width:40px;height:40px;border-radius:50%;background:#7665ff;color:#fff;font-weight:800;font-size:20px}
         .dn-support-head-copy{display:flex;flex:1;flex-direction:column;gap:5px}.dn-support-head-copy strong{font-size:15px}.dn-support-head-copy span{font-size:11px;color:#e2e3ff}.dn-support-head-copy i{display:inline-block;width:7px;height:7px;border-radius:50%;background:#62d9a5;margin-right:5px}
-        .dn-support-close{border:0;background:transparent;color:#fff;font-size:27px;cursor:pointer}
+        .dn-support-head-actions{display:flex;align-items:center;gap:8px}.dn-support-clear{border:1px solid #7777a4;border-radius:8px;padding:6px 8px;background:transparent;color:#fff;font-size:11px;cursor:pointer}.dn-support-clear:disabled{opacity:.5;cursor:not-allowed}.dn-support-close{border:0;background:transparent;color:#fff;font-size:27px;cursor:pointer}
         .dn-support-messages{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding:16px;background:#f7f8fc}
         .dn-support-message{max-width:90%;padding:11px 13px;border-radius:15px;font-size:13px;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere}
         .dn-support-assistant{align-self:flex-start;background:#fff;border:1px solid #e6e8f0;border-bottom-left-radius:5px}
         .dn-support-user{align-self:flex-end;background:#5b46f6;color:#fff;border-bottom-right-radius:5px}
         .dn-support-typing{color:#6b7280;font-style:italic}.dn-support-error{margin:0;color:#b42318;font-size:12px}
-        .dn-support-quick{display:flex;flex-direction:column;align-items:flex-start;gap:7px}.dn-support-quick button{padding:8px 10px;border:1px solid #dcd9ff;border-radius:999px;background:#fff;color:#4b3ad5;font-size:12px;cursor:pointer;text-align:left}.dn-support-quick button:disabled{opacity:.5}
+        .dn-support-question-tools{display:flex;flex-direction:column;align-items:flex-start;gap:8px}.dn-support-question-toggle{display:flex;align-items:center;gap:8px;padding:7px 10px;border:1px solid #dcd9ff;border-radius:9px;background:#efedff;color:#4b3ad5;font-size:11px;font-weight:700;cursor:pointer}.dn-support-quick{display:flex;flex-direction:column;align-items:flex-start;gap:7px}.dn-support-quick button{padding:8px 10px;border:1px solid #dcd9ff;border-radius:999px;background:#fff;color:#4b3ad5;font-size:12px;cursor:pointer;text-align:left}.dn-support-quick button:disabled{opacity:.5}
         .dn-support-shortcuts{display:flex;justify-content:space-around;gap:5px;padding:10px 8px;border-top:1px solid #eceef4}.dn-support-shortcuts a{font-size:11px;color:#5140cf;text-decoration:none}
         .dn-support-form{display:flex;gap:8px;padding:10px 12px;border-top:1px solid #eceef4}.dn-support-form input{flex:1;min-width:0;border:1px solid #dfe2eb;border-radius:12px;padding:12px;font-size:13px;outline-color:#7c6af7}.dn-support-form button{width:42px;border:0;border-radius:12px;background:#5b46f6;color:#fff;font-size:19px;cursor:pointer}.dn-support-form button:disabled{opacity:.4;cursor:not-allowed}
         .dn-support-disclaimer{margin:0;padding:0 12px 10px;color:#777f8f;font-size:10px;line-height:1.4}.dn-support-sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
