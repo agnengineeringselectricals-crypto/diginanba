@@ -115,7 +115,7 @@ export default function CustomerServiceChat() {
         </section>
       )}
       <button type="button" className="dn-support-launcher" onClick={() => setOpen((value) => !value)} aria-expanded={open} aria-label={open ? 'Close customer support chat' : 'Open customer support chat'}>
-        <span aria-hidden="true">{open ? '×' : '☏'}</span>
+        <span aria-hidden="true">{open ? '×' : <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8A8.5 8.5 0 0 1 8.7 3.9a8.4 8.4 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8 8z" /></svg>}</span>
         {!open && <span className="dn-support-launcher-label">Help</span>}
       </button>
       <style jsx global>{`
