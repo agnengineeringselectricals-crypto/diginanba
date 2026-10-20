@@ -69,8 +69,10 @@ async function enforceDailyBudget(model: string) {
   if (spent >= configured) throw new Error(`AI_SPEND_LIMIT_REACHED: 24-hour AI budget of ${configured.toFixed(2)} reached (recorded ${spent.toFixed(4)}). New AI calls are blocked.`);
 }
 
-async function recordAiUsage(job: any, stage: string, model: string, usage: any) {
+async function recordAiUsage(job: any, stage: string, model: string, usage: any, additionalToolCostUsd = 0) {
   const priced = priceUsage(model, usage);
+  // Tool-call fees are separate from token charges. OpenAI currently lists standard web search at $10/1,000 calls.
+  priced.costUsd += Math.max(0, additionalToolCostUsd);
   await db.query(
     `INSERT INTO factory_ai_usage
        (job_id, requested_by, job_type, stage, model, input_tokens, output_tokens, cached_input_tokens, cost_usd, pricing_source, provider_usage_json)
@@ -229,7 +231,10 @@ export async function POST(request: Request) {
         throw new Error(`AI research provider returned HTTP ${response.status}: ${providerError.slice(0, 700) || 'no error body returned'}`);
       }
       const payload = await response.json();
-      await recordAiUsage(job, 'demand_research', model, payload?.usage);
+      const searchCalls = Array.isArray(payload?.output)
+        ? payload.output.filter((item: any) => item?.type === 'web_search_call').length
+        : 0;
+      await recordAiUsage(job, 'demand_research', model, payload?.usage, searchCalls * 0.01);
       let raw = payload?.output_text;
       if (typeof raw !== 'string') {
         const parts = Array.isArray(payload?.output) ? payload.output.flatMap((item: any) =>
@@ -242,7 +247,6 @@ export async function POST(request: Request) {
       result.researchMethod = 'openai_responses_web_search';
       result.researchModel = model;
       const outputItems = Array.isArray(payload?.output) ? payload.output : [];
-      const searchCalls = outputItems.filter((item: any) => item?.type === 'web_search_call');
       const annotations = outputItems.flatMap((item: any) => Array.isArray(item?.content) ? item.content.flatMap((part: any) => Array.isArray(part?.annotations) ? part.annotations : []) : []);
       const candidateList = Array.isArray(result.candidates) ? result.candidates : [];
       result.liveSearchPerformed = searchCalls.length > 0;
