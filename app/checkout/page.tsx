@@ -61,6 +61,7 @@ export default function Checkout() {
     setError('');
     if (!items.length) { setError('Your cart is empty. Add a product before checkout.'); return; }
     if (mixedMarket) { setError('Your cart has more than one storefront currency. Return to your cart and remove items from other markets.'); return; }
+    if (market !== 'IN') { setError('Secure online payments are currently available for India (INR) only. Your cart has not been charged.'); return; }
     if (status !== 'authenticated') { router.push('/login?callbackUrl=/checkout'); return; }
     setBusy(true);
     try {

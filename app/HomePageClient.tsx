@@ -185,22 +185,18 @@ export default function HomePageClient({ initialProducts }: Props) {
 
   function addToCart(product: CatalogProduct) {
     try {
-      const existing = JSON.parse(localStorage.getItem('diginanba-cart') || '[]');
-      const next = Array.isArray(existing) ? [...existing, {
-        slug: product.slug,
-        title: product.title,
-        price: product.price,
-        amountMinor: product.amountMinor,
-        market,
-      }] : [{
-        slug: product.slug,
-        title: product.title,
-        price: product.price,
-        amountMinor: product.amountMinor,
-        market,
-      }];
+      const parsed: unknown = JSON.parse(localStorage.getItem('diginanba-cart') || '[]');
+      const existing = Array.isArray(parsed) ? parsed as Array<Record<string, unknown>> : [];
+      const next = [...existing];
+      const index = next.findIndex((item) => item.slug === product.slug && item.market === market);
+      if (index >= 0) {
+        const quantity = Math.min(10, Math.max(1, Number(next[index].quantity) || 1) + 1);
+        next[index] = { ...next[index], quantity };
+      } else {
+        next.push({ slug: product.slug, title: product.title, price: product.price, amountMinor: product.amountMinor, market, quantity: 1 });
+      }
       localStorage.setItem('diginanba-cart', JSON.stringify(next));
-      setCartCount(next.length);
+      setCartCount(next.reduce((total, item) => total + Math.min(10, Math.max(1, Number(item.quantity) || 1)), 0));
     } catch {
       setCartCount((count) => count + 1);
     }
@@ -349,7 +345,7 @@ export default function HomePageClient({ initialProducts }: Props) {
     </main>
 
     <footer className="ref-footer"><div className="ref-container ref-footer-grid">
-      <div><h3>DigiNanba</h3><p>A global marketplace for practical digital products.</p><div className="ref-note">Checkout requires sign-in. Payments remain in demo mode until a provider is configured.</div></div>
+      <div><h3>DigiNanba</h3><p>A global marketplace for practical digital products.</p><div className="ref-note">Checkout requires sign-in. Secure payment availability is shown at checkout; payment confirmation is required before downloads are unlocked.</div></div>
       <div><h4>Marketplace</h4><Link href="/explore">Explore products</Link><Link href="/categories/ebooks-guides">Categories</Link><Link href="/solutions">Shop by goal</Link><Link href="/bundles">Product bundles</Link><Link href="/compare">Compare products</Link><Link href="/guides">DigiNanba Guides</Link></div>
       <div><h4>Account</h4><Link href="/login">Log in</Link><Link href="/signup">Create account</Link><Link href="/cart">Cart</Link><Link href="/account/orders">Orders &amp; purchases</Link><Link href="/account/wishlist">Wishlist</Link></div>
       <div><h4>For creators</h4><Link href="/signup">Become a seller</Link><Link href="/explore">Seller resources</Link><Link href="/account">My account</Link><Link href="/creator-agreement">Creator Agreement</Link></div>
