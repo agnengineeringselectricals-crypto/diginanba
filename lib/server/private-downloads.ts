@@ -47,7 +47,7 @@ export function createPrivateDownloadUrl(storageKey: string, expiresSeconds = 60
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([key, value]) => `${key}=${value}`).join('&');
   const canonicalRequest = ['GET', canonicalUri, canonicalQuery, `host:${host}\n`, 'host', 'UNSIGNED-PAYLOAD'].join('\n');
-  const stringToSign = ['AWS4-HMAC-SHA256', amzDate, scope, hex(hmac('', canonicalRequest))].join('\n');
+  const stringToSign = ['AWS4-HMAC-SHA256', amzDate, scope, createHash('sha256').update(canonicalRequest, 'utf8').digest('hex')].join('\n');
   const dateKey = hmac(`AWS4${secretKey}`, dateStamp);
   const regionKey = hmac(dateKey, region);
   const serviceKey = hmac(regionKey, 's3');
