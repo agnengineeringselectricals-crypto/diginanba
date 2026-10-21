@@ -64,7 +64,7 @@ export async function POST(req: Request) {
       [input.razorpay_payment_id, payment.payment_id],
     );
     await client.query(
-      `UPDATE orders SET status = 'paid' WHERE id = $1 AND status IN ('pending','payment_pending')`,
+      `UPDATE orders SET status = 'paid' WHERE id = $1 AND status IN ('pending','payment_pending','payment_failed')`,
       [input.orderId],
     );
     await client.query('COMMIT');
