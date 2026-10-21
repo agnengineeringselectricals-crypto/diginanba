@@ -81,7 +81,7 @@ export async function POST(req: Request) {
       }
       await client.query(
         `UPDATE payments SET provider_payment_id = $1, status = 'succeeded', updated_at = now()
-         WHERE id = $2 AND status NOT IN ('succeeded','failed')`,
+         WHERE id = $2 AND status <> 'succeeded'`,
         [providerPaymentId, payment.payment_id],
       );
       await client.query(
