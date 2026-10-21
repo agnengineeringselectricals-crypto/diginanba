@@ -18,7 +18,7 @@ export async function POST(req: Request) {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
   const config = razorpayConfig();
-  if (!config || process.env.PAYMENTS_ENABLED !== 'true') {
+  if (!config || process.env.PAYMENTS_ENABLED !== 'true' || process.env.DIGITAL_DELIVERY_ENABLED !== 'true') {
     return NextResponse.json({ error: 'Live payment verification is not enabled' }, { status: 503 });
   }
 
