@@ -207,15 +207,15 @@ export default function HomePageClient({ initialProducts }: Props) {
       <div className="ref-container ref-nav">
         <Link href="/" className="ref-logo" aria-label="DigiNanba home"><img src="/diginanba-logo.svg" alt="DigiNanba — Global Digital Marketplace" className="ref-logo-image" width="168" height="36" /></Link>
         <form className="ref-searchbox ref-header-inline-search" style={{ position: 'relative' }} onSubmit={runSearch}>
-          <input value={heroQuery} onFocus={() => { if (heroQuery.trim().length >= 2) setSearchSuggestionsOpen(true); }} onChange={(event) => { setHeroQuery(event.target.value); setSearchSuggestionsOpen(true); }} placeholder="Search products, skills or solutions…" aria-label="Search products" autoComplete="off" />
+          <input value={heroQuery} onFocus={() => { if (heroQuery.trim().length >= 2) setSearchSuggestionsOpen(true); }} onChange={(event) => { setHeroQuery(event.target.value); setSearchSuggestionsOpen(true); }} placeholder="Search tools, templates, apps or workflows…" aria-label="Search digital tools and products" autoComplete="off" />
           <button className="ref-primary" type="submit">Search</button>
           {searchSuggestionsOpen && heroQuery.trim().length >= 2 && <div className="dn-live-search-results" role="region" aria-label="Product search suggestions" style={{ position: 'absolute', top: 'calc(100% + 8px)', left: 0, right: 0, zIndex: 1000, background: '#fff', color: '#172033', border: '1px solid #dfe3ed', borderRadius: 12, boxShadow: '0 14px 35px rgba(20,30,60,.18)', maxHeight: 420, overflowY: 'auto', padding: 8 }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 10px', fontSize: 12, color: '#667085' }}><span>Matching products</span><button type="button" onClick={() => setSearchSuggestionsOpen(false)} aria-label="Close suggestions" style={{ border: 0, background: 'transparent', cursor: 'pointer' }}>✕</button></div>
-            {searchLoading && <p style={{ margin: 10, fontSize: 13 }}>Finding relevant products…</p>}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 10px', fontSize: 12, color: '#667085' }}><span>Matching tools &amp; products</span><button type="button" onClick={() => setSearchSuggestionsOpen(false)} aria-label="Close suggestions" style={{ border: 0, background: 'transparent', cursor: 'pointer' }}>✕</button></div>
+            {searchLoading && <p style={{ margin: 10, fontSize: 13 }}>Finding relevant tools and products…</p>}
             {!searchLoading && searchSuggestions.map((product) => <Link key={product.id} href={`/products/${product.slug}?market=${market}`} onClick={() => setSearchSuggestionsOpen(false)} style={{ display: 'block', padding: '10px', borderRadius: 8, textDecoration: 'none', color: 'inherit' }}>
               <strong style={{ display: 'block', fontSize: 14 }}>{product.title}</strong><span style={{ display: 'block', color: '#667085', fontSize: 12, marginTop: 3 }}>{product.category} · {product.price}</span><span style={{ display: 'block', fontSize: 12, marginTop: 4 }}>{product.description.slice(0, 130)}</span>
             </Link>)}
-            {!searchLoading && searchNoResults && <div style={{ padding: 12, fontSize: 13 }}><strong>No close match yet.</strong><p style={{ margin: '5px 0 9px' }}>Your search helps DigiNanba identify what people need next.</p><Link href={`/explore?market=${market}&q=${encodeURIComponent(heroQuery.trim())}`} onClick={() => setSearchSuggestionsOpen(false)}>Explore results and request this product →</Link></div>}
+            {!searchLoading && searchNoResults && <div style={{ padding: 12, fontSize: 13 }}><strong>No close match yet.</strong><p style={{ margin: '5px 0 9px' }}>Explore related listings or tell DigiNanba what kind of tool you need. New-tool requests are not a promise that a product is already available.</p><Link href={`/explore?market=${market}&q=${encodeURIComponent(heroQuery.trim())}`} onClick={() => setSearchSuggestionsOpen(false)}>Explore related results →</Link></div>}
             {!searchLoading && searchSuggestions.length > 0 && <button type="submit" style={{ width: '100%', textAlign: 'left', padding: 10, border: 0, borderTop: '1px solid #e7eaf0', background: 'transparent', cursor: 'pointer' }}>See all results for “{heroQuery.trim()}” →</button>}
           </div>}
         </form>
@@ -258,8 +258,8 @@ export default function HomePageClient({ initialProducts }: Props) {
       <section className="ref-hero">
         <div className="ref-container ref-market-grid">
           <div className="ref-market-left">
-            <form className="dn-goal-search dn-hero-goal-search" onSubmit={(event)=>{event.preventDefault();const input=event.currentTarget.elements.namedItem('goal') as HTMLInputElement;const value=input.value.trim();if(value){const params=new URLSearchParams({market,q:value});window.location.href='/explore?'+params.toString();}}}><input name="goal" aria-label="Describe what you want to accomplish" placeholder="What do you want to do? e.g. plan a budget, grow sales…" /><button className="ref-primary" type="submit">Find tools →</button></form>
-            <h1>Find the digital tools that solve your problem.</h1>
+            <form className="dn-goal-search dn-hero-goal-search" onSubmit={(event)=>{event.preventDefault();const input=event.currentTarget.elements.namedItem('goal') as HTMLInputElement;const value=input.value.trim();if(value){const params=new URLSearchParams({market,q:value});window.location.href='/explore?'+params.toString();}}}><input name="goal" aria-label="Describe what you want to accomplish" placeholder="What do you need? e.g. HR workflow, inventory, study planner, meal planner…" /><button className="ref-primary" type="submit">Find tools →</button></form>
+            <h1>Find the digital tools that solve your problem.</h1><p className="dn-marketplace-intro">Discover existing products first. Review the options, then choose a tool that fits your work, studies, business, home or organization.</p>
             <div className="ref-category-panel" id="categories">
               <div className="ref-category-scroll" aria-label="Scroll to browse all product categories"><div className="ref-categories">{categories.map(([icon, label]) => <button className="ref-category" key={label} onClick={() => chooseCategory(label)}><span className="ref-category-icon">{icon}</span><span className="ref-category-copy"><strong>{label}</strong><small>Explore products</small></span></button>)}</div></div>
             </div>
@@ -310,7 +310,7 @@ export default function HomePageClient({ initialProducts }: Props) {
       <CreatorEarningsShowcase />
 
       <section className="ref-section dn-feature-map"><div className="ref-container">
-        <div className="ref-section-head"><div><h2>Shop smarter with DigiNanba</h2><p>Discover useful products, compare your options, save favorites and keep track of your purchases.</p></div></div>
+        <div className="ref-section-head"><div><h2>Find, review and choose with confidence</h2><p>Explore digital resources for everyday life, learning, independent work, small businesses and teams. Review the product details before deciding.</p></div></div>
         <div className="dn-feature-grid">
           <Link href="/explore"><span>🔎</span><strong>Discover digital tools</strong><small>Search, browse categories and find resources for your goals.</small></Link>
           <Link href="/compare"><span>⚖️</span><strong>Compare products</strong><small>Review features, descriptions and prices side by side before choosing.</small></Link>
@@ -319,13 +319,13 @@ export default function HomePageClient({ initialProducts }: Props) {
           <Link href="/explore"><span>ⓘ</span><strong>Review product details</strong><small>Check descriptions, prices and product information before choosing.</small></Link>
           <Link href="/account/orders"><span>🧾</span><strong>Orders & purchases</strong><small>View your order history from your signed-in account.</small></Link>
           <Link href="/account/library"><span>📚</span><strong>Customer library</strong><small>Find digital items made available to your account after an eligible order is fulfilled.</small></Link>
-          <Link href="/signup"><span>✨</span><strong>Creator opportunities</strong><small>Explore ways to bring your original digital resources to the DigiNanba marketplace.</small></Link>
+          <Link href="/signup"><span>✨</span><strong>Create from what you know</strong><small>Students, homemakers, retired people, professionals and organizations can all have useful ideas worth turning into digital resources.</small></Link>
           <Link href="/guides"><span>🌍</span><strong>Learn and grow</strong><small>Read practical guides and discover new ways to work.</small></Link>
         </div>
       </div></section>
 
       <section id="needs" className="ref-section"><div className="ref-container">
-        <div className="ref-section-head"><div><h2>What are you trying to do?</h2><p>Choose a goal or browse a category to find resources relevant to your work.</p></div></div>
+        <div className="ref-section-head"><div><h2>What would you like to get done?</h2><p>From school projects and household planning to freelance work, business operations and organization workflows, start with the problem you want to solve.</p></div></div>
         <div className="ref-needs">{needs.map(([icon, label, target]) => <button className="ref-need" key={label} onClick={() => chooseNeed(target)}>{icon} {label}</button>)}</div>
       </div></section>
       <section className="ref-section ref-discovery-row"><div className="ref-container">

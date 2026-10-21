@@ -173,3 +173,8 @@
 .dn-buyer-compare-link:hover{text-decoration:underline}
 @media(max-width:700px){.dn-buyer-confidence{padding:20px 0}.dn-buyer-confidence-inner{gap:14px}.dn-buyer-confidence-points{grid-template-columns:minmax(0,1fr);gap:8px}.dn-buyer-confidence-points>div{padding:12px}.dn-buyer-confidence-actions{flex-wrap:wrap}}
 @media(prefers-reduced-motion:reduce){.dn-buyer-confidence *{scroll-behavior:auto}}
+
+
+/* Inclusive marketplace discovery copy. */
+.dn-marketplace-intro{max-width:600px;margin:9px 0 15px;color:#5f6b7e;font-size:13px;line-height:1.6}
+@media(max-width:700px){.dn-marketplace-intro{font-size:12px;margin:7px 0 12px}}
