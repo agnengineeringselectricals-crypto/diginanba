@@ -5,6 +5,7 @@ import type { Market } from '@/lib/market';
 import AddToCartButton from './AddToCartButton';
 import ProductEngagement from './ProductEngagement';
 import ImprovementSuggestionForm from './ImprovementSuggestionForm';
+import CustomizationRequestForm from '@/components/CustomizationRequestForm';
 
 type PageProps = {
   params: Promise<{ slug: string }>;
@@ -120,6 +121,8 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
         price: product.price,
         category: product.category,
       }} />
+
+      <CustomizationRequestForm productId={product.id} productTitle={product.title} locale={market === 'IN' ? 'en-IN' : market === 'UK' ? 'en-GB' : 'en-US'} />
 
       <ImprovementSuggestionForm productId={product.id} locale={market === 'IN' ? 'en-IN' : market === 'UK' ? 'en-GB' : 'en-US'} />
 

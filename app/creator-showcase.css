@@ -173,3 +173,41 @@
 .dn-buyer-compare-link:hover{text-decoration:underline}
 @media(max-width:700px){.dn-buyer-confidence{padding:20px 0}.dn-buyer-confidence-inner{gap:14px}.dn-buyer-confidence-points{grid-template-columns:minmax(0,1fr);gap:8px}.dn-buyer-confidence-points>div{padding:12px}.dn-buyer-confidence-actions{flex-wrap:wrap}}
 @media(prefers-reduced-motion:reduce){.dn-buyer-confidence *{scroll-behavior:auto}}
+
+
+/* Inclusive marketplace discovery copy. */
+.dn-marketplace-intro{max-width:600px;margin:9px 0 15px;color:#5f6b7e;font-size:13px;line-height:1.6}
+@media(max-width:700px){.dn-marketplace-intro{font-size:12px;margin:7px 0 12px}}
+
+
+/* Organization discovery: links to existing catalog search, without implying every workflow is already available. */
+.dn-organization-pathways{padding:34px 0;background:#fff;border-top:1px solid #e8edf4;border-bottom:1px solid #e8edf4}
+.dn-organization-heading{max-width:850px;margin-bottom:20px}
+.dn-organization-kicker{display:inline-block;color:#3659a8;font-size:10px;font-weight:850;letter-spacing:.13em}
+.dn-organization-heading h2{margin:8px 0;color:#17243b;font-size:clamp(25px,3vw,36px);line-height:1.15;letter-spacing:-.7px}
+.dn-organization-heading p{margin:0;color:#5e6b80;font-size:13px;line-height:1.65}
+.dn-organization-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px}
+.dn-organization-card{display:flex;flex-direction:column;align-items:flex-start;gap:10px;min-height:205px;padding:20px;border:1px solid #e0e7f0;border-radius:15px;background:#f8faff;color:#17243b;text-decoration:none;transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease}
+.dn-organization-card:hover{transform:translateY(-2px);border-color:#a9bce8;box-shadow:0 10px 25px rgba(40,60,100,.07)}
+.dn-organization-card>span{display:grid;place-items:center;width:42px;height:42px;border-radius:12px;background:#eaf0ff;font-size:22px}
+.dn-organization-card strong{font-size:15px;line-height:1.35}
+.dn-organization-card small{color:#5e6b80;font-size:12px;line-height:1.6}
+.dn-organization-card em{margin-top:auto;color:#3159a5;font-size:12px;font-style:normal;font-weight:800}
+.dn-organization-note{margin:14px 0 0;color:#69758a;font-size:11px;line-height:1.6}
+@media(max-width:700px){.dn-organization-pathways{padding:25px 0}.dn-organization-grid{grid-template-columns:1fr;gap:9px}.dn-organization-card{min-height:0;padding:16px}.dn-organization-card em{margin-top:2px}}
+@media(prefers-reduced-motion:reduce){.dn-organization-card{transition:none}}
+
+.dn-customization-prompt{padding:28px 0;background:linear-gradient(120deg,#eef4ff,#f7f9ff);border-top:1px solid #dfe7fa;border-bottom:1px solid #dfe7fa}
+.dn-customization-inner{display:flex;align-items:center;justify-content:space-between;gap:22px}
+.dn-customization-inner>div{max-width:760px}
+.dn-customization-inner h2{margin:8px 0;color:#17243b;font-size:clamp(23px,2.6vw,32px);line-height:1.18;letter-spacing:-.5px}
+.dn-customization-inner p{margin:0;color:#5e6b80;font-size:13px;line-height:1.65}
+.dn-customization-inner .ref-primary{flex-shrink:0;text-decoration:none;white-space:nowrap}
+@media(max-width:700px){.dn-customization-inner{align-items:flex-start;flex-direction:column;gap:14px}.dn-customization-inner .ref-primary{white-space:normal}}
+
+.dn-organization-workspace-cta{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:18px;padding:17px 19px;border:1px solid #dce5f5;border-radius:13px;background:#fff}
+.dn-organization-workspace-cta>div{display:grid;gap:4px}
+.dn-organization-workspace-cta strong{color:#17243b;font-size:14px}
+.dn-organization-workspace-cta span{color:#5e6b80;font-size:12px;line-height:1.5}
+.dn-organization-workspace-cta a{text-decoration:none;white-space:nowrap}
+@media(max-width:700px){.dn-organization-workspace-cta{align-items:flex-start;flex-direction:column}}

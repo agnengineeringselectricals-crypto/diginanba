@@ -1,105 +1,143 @@
-import { timingSafeEqual } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { verifyHexSignature } from '@/lib/server/razorpay';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const supportedEvents = new Set(['payment.succeeded', 'payment.failed']);
-
-function secretMatches(received: string | null, expected: string) {
-  if (!received) return false;
-  const a = Buffer.from(received);
-  const b = Buffer.from(expected);
-  return a.length === b.length && timingSafeEqual(a, b);
-}
+type RazorpayEvent = {
+  event?: string;
+  payload?: { payment?: { entity?: {
+    id?: string;
+    order_id?: string;
+    amount?: number;
+    currency?: string;
+    status?: string;
+  } } };
+};
 
 export async function POST(req: Request) {
-  // This is a private, shared-secret relay endpoint, not a provider-native
-  // webhook verifier. Do not connect a payment provider directly until its
-  // signature verification and raw-body requirements are implemented.
-  const secret = process.env.PAYMENT_WEBHOOK_SECRET;
-  if (!secret) {
-    return NextResponse.json({ error: 'Payment webhook is not configured' }, { status: 503 });
-  }
-  if (!secretMatches(req.headers.get('x-diginanba-webhook-secret'), secret)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
+  if (!secret) return NextResponse.json({ error: 'Razorpay webhook is not configured' }, { status: 503 });
+
+  // Verify the exact raw request body before parsing it.
+  const rawBody = await req.text();
+  const signature = req.headers.get('x-razorpay-signature');
+  if (!verifyHexSignature(rawBody, signature, secret)) {
+    return NextResponse.json({ error: 'Invalid webhook signature' }, { status: 401 });
   }
 
-  let body: unknown;
+  const eventId = req.headers.get('x-razorpay-event-id')?.trim();
+  if (!eventId || eventId.length > 200) {
+    return NextResponse.json({ error: 'Missing or invalid Razorpay event ID' }, { status: 400 });
+  }
+
+  let event: RazorpayEvent;
   try {
-    body = await req.json();
+    event = JSON.parse(rawBody) as RazorpayEvent;
   } catch {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
-  if (!body || typeof body !== 'object' || Array.isArray(body)) {
-    return NextResponse.json({ error: 'Invalid event body' }, { status: 400 });
+
+  const eventType = event.event;
+  if (typeof eventType === 'string' && eventType.startsWith('subscription.')) {
+    const subscription = (event as RazorpayEvent & { payload?: { subscription?: { entity?: { id?:string; plan_id?:string; status?:string; current_start?:number; current_end?:number; notes?:Record<string,string> } } } }).payload?.subscription?.entity;
+    if (!subscription?.id || !subscription.status) return NextResponse.json({ error: 'Incomplete subscription event' }, { status: 400 });
+    const statusMap:Record<string,string>={created:'created',authenticated:'authenticated',active:'active',pending:'pending',halted:'halted',paused:'paused',cancelled:'cancelled',completed:'completed',expired:'expired'};
+    const mapped=statusMap[subscription.status];
+    if(!mapped)return NextResponse.json({received:true,ignored:true});
+    const client=await db.connect();
+    try{
+      await client.query('BEGIN');
+      const inserted=await client.query(`INSERT INTO payment_events(payment_id,provider,event_id,event_type,payload) VALUES(NULL,'razorpay',$1,$2,$3::jsonb) ON CONFLICT(event_id) DO NOTHING RETURNING id`,[eventId,String(eventType),JSON.stringify(event)]);
+      if(!inserted.rowCount){await client.query('COMMIT');return NextResponse.json({received:true,duplicate:true})}
+      const updated=await client.query(`UPDATE organization_subscriptions SET status=$1,current_period_start=CASE WHEN $2::bigint IS NULL THEN current_period_start ELSE to_timestamp($2) END,current_period_end=CASE WHEN $3::bigint IS NULL THEN current_period_end ELSE to_timestamp($3) END,last_provider_event_at=now(),updated_at=now() WHERE provider='razorpay' AND provider_subscription_id=$4 AND provider_plan_id=$5 RETURNING id`,[mapped,subscription.current_start??null,subscription.current_end??null,subscription.id,subscription.plan_id??'']);
+      if(!updated.rowCount){await client.query('ROLLBACK');return NextResponse.json({error:'Unknown organization subscription'}, {status:404})}
+      await client.query('COMMIT');
+      return NextResponse.json({received:true,subscriptionStatus:mapped});
+    }catch(error){await client.query('ROLLBACK').catch(()=>undefined);console.error('Razorpay subscription webhook failed',error);return NextResponse.json({error:'Subscription webhook processing failed'},{status:500})}finally{client.release()}
   }
-
-  const input = body as Record<string, unknown>;
-  const eventId = typeof input.eventId === 'string' ? input.eventId.trim() : '';
-  const type = typeof input.type === 'string' ? input.type.trim() : '';
-  const paymentId = typeof input.paymentId === 'string' ? input.paymentId.trim() : '';
-  const provider = typeof input.provider === 'string' ? input.provider.trim() : 'internal-relay';
-
-  if (!eventId || eventId.length > 200 || !paymentId || paymentId.length > 200 ||
-      !provider || provider.length > 80 || !supportedEvents.has(type)) {
-    return NextResponse.json({ error: 'Invalid or unsupported payment event' }, { status: 400 });
+  if (!['payment.captured', 'payment.failed'].includes(String(eventType))) {
+    // Acknowledge unrelated signed events so Razorpay does not retry forever.
+    return NextResponse.json({ received: true, ignored: true });
+  }
+  const payment = event.payload?.payment?.entity;
+  if (!payment?.id || !payment.order_id || !Number.isSafeInteger(payment.amount) || !payment.currency) {
+    return NextResponse.json({ error: 'Incomplete payment event' }, { status: 400 });
+  }
+  if ((eventType === 'payment.captured' && payment.status !== 'captured') ||
+      (eventType === 'payment.failed' && payment.status !== 'failed')) {
+    return NextResponse.json({ error: 'Payment event status mismatch' }, { status: 400 });
   }
 
   const client = await db.connect();
   try {
     await client.query('BEGIN');
-
-    // Lock the payment before accepting an event. Unknown IDs must never
-    // create event records that could be mistaken for processed payments.
-    const paymentResult = await client.query(
-      'SELECT id, order_id, status FROM payments WHERE id = $1 FOR UPDATE',
-      [paymentId],
+    const result = await client.query(
+      `SELECT p.id AS payment_id, p.order_id, p.amount_minor, p.currency_code, p.status AS payment_status,
+              o.user_id, o.status AS order_status
+       FROM payments p JOIN orders o ON o.id = p.order_id
+       WHERE p.provider = 'razorpay' AND p.provider_order_id = $1
+       FOR UPDATE OF p, o`,
+      [payment.order_id],
     );
-    const payment = paymentResult.rows[0];
-    if (!payment) {
+    const record = result.rows[0];
+    if (!record) {
       await client.query('ROLLBACK');
-      return NextResponse.json({ error: 'Payment not found' }, { status: 404 });
+      // Unknown orders are not recorded as successful events; return an error for investigation.
+      return NextResponse.json({ error: 'Unknown Razorpay order' }, { status: 404 });
+    }
+    if (Number(payment.amount) !== Number(record.amount_minor) ||
+        payment.currency !== String(record.currency_code).trim()) {
+      await client.query('ROLLBACK');
+      return NextResponse.json({ error: 'Payment amount or currency mismatch' }, { status: 409 });
     }
 
-    const eventResult = await client.query(
+    const inserted = await client.query(
       `INSERT INTO payment_events(payment_id, provider, event_id, event_type, payload)
-       VALUES($1, $2, $3, $4, $5)
-       ON CONFLICT(event_id) DO NOTHING
-       RETURNING id`,
-      [paymentId, provider, eventId, type, body],
+       VALUES($1, 'razorpay', $2, $3, $4::jsonb)
+       ON CONFLICT(event_id) DO NOTHING RETURNING id`,
+      [record.payment_id, eventId, String(eventType), JSON.stringify(event)],
     );
-
-    if (!eventResult.rowCount) {
+    if (!inserted.rowCount) {
       await client.query('COMMIT');
       return NextResponse.json({ received: true, duplicate: true });
     }
 
-    const currentStatus = String(payment.status);
-    if (currentStatus === 'succeeded' || currentStatus === 'failed') {
-      // Terminal payment states are immutable; record the event for audit,
-      // but do not let a late/out-of-order event rewrite the order.
+    if (record.payment_status === 'succeeded' || record.payment_status === 'failed') {
       await client.query('COMMIT');
       return NextResponse.json({ received: true, ignored: 'payment_already_terminal' });
     }
 
-    const nextStatus = type === 'payment.succeeded' ? 'succeeded' : 'failed';
-    const nextOrderStatus = nextStatus === 'succeeded' ? 'paid' : 'payment_failed';
-
-    await client.query(
-      'UPDATE payments SET status = $1, updated_at = now() WHERE id = $2',
-      [nextStatus, paymentId],
-    );
-    await client.query(
-      'UPDATE orders SET status = $1 WHERE id = $2 AND status IN (\'pending\', \'payment_pending\')',
-      [nextOrderStatus, payment.order_id],
-    );
+    if (eventType === 'payment.captured') {
+      await client.query(
+        `UPDATE payments SET provider_payment_id = $1, status = 'succeeded', updated_at = now()
+         WHERE id = $2 AND status = 'pending'`,
+        [payment.id, record.payment_id],
+      );
+      await client.query(
+        `UPDATE orders SET status = 'paid' WHERE id = $1 AND status IN ('pending', 'payment_pending')`,
+        [record.order_id],
+      );
+      await client.query(
+        `INSERT INTO entitlements(user_id, order_item_id, status)
+         SELECT o.user_id, oi.id, 'active'
+         FROM orders o JOIN order_items oi ON oi.order_id = o.id
+         WHERE o.id = $1
+         ON CONFLICT(user_id, order_item_id) DO NOTHING`,
+        [record.order_id],
+      );
+    } else {
+      // A failed payment attempt does not mean the Razorpay order itself is terminal.
+      // Razorpay Checkout can retry another payment against the same provider order.
+      // Record the signed event above, but keep the order/payment pending so a later
+      // captured event or successful client verification can complete fulfillment.
+    }
 
     await client.query('COMMIT');
     return NextResponse.json({ received: true });
   } catch {
-    await client.query('ROLLBACK');
+    await client.query('ROLLBACK').catch(() => undefined);
     return NextResponse.json({ error: 'Webhook processing failed' }, { status: 500 });
   } finally {
     client.release();
