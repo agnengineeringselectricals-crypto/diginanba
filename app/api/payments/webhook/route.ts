@@ -40,6 +40,23 @@ export async function POST(req: Request) {
   }
 
   const eventType = event.event;
+  if (typeof eventType === 'string' && eventType.startsWith('subscription.')) {
+    const subscription = (event as RazorpayEvent & { payload?: { subscription?: { entity?: { id?:string; plan_id?:string; status?:string; current_start?:number; current_end?:number; notes?:Record<string,string> } } } }).payload?.subscription?.entity;
+    if (!subscription?.id || !subscription.status) return NextResponse.json({ error: 'Incomplete subscription event' }, { status: 400 });
+    const statusMap:Record<string,string>={created:'created',authenticated:'authenticated',active:'active',pending:'pending',halted:'halted',paused:'paused',cancelled:'cancelled',completed:'completed',expired:'expired'};
+    const mapped=statusMap[subscription.status];
+    if(!mapped)return NextResponse.json({received:true,ignored:true});
+    const client=await db.connect();
+    try{
+      await client.query('BEGIN');
+      const inserted=await client.query(`INSERT INTO payment_events(payment_id,provider,event_id,event_type,payload) VALUES(NULL,'razorpay',$1,$2,$3::jsonb) ON CONFLICT(event_id) DO NOTHING RETURNING id`,[eventId,String(eventType),JSON.stringify(event)]);
+      if(!inserted.rowCount){await client.query('COMMIT');return NextResponse.json({received:true,duplicate:true})}
+      const updated=await client.query(`UPDATE organization_subscriptions SET status=$1,current_period_start=CASE WHEN $2::bigint IS NULL THEN current_period_start ELSE to_timestamp($2) END,current_period_end=CASE WHEN $3::bigint IS NULL THEN current_period_end ELSE to_timestamp($3) END,last_provider_event_at=now(),updated_at=now() WHERE provider='razorpay' AND provider_subscription_id=$4 AND provider_plan_id=$5 RETURNING id`,[mapped,subscription.current_start??null,subscription.current_end??null,subscription.id,subscription.plan_id??'']);
+      if(!updated.rowCount){await client.query('ROLLBACK');return NextResponse.json({error:'Unknown organization subscription'}, {status:404})}
+      await client.query('COMMIT');
+      return NextResponse.json({received:true,subscriptionStatus:mapped});
+    }catch(error){await client.query('ROLLBACK').catch(()=>undefined);console.error('Razorpay subscription webhook failed',error);return NextResponse.json({error:'Subscription webhook processing failed'},{status:500})}finally{client.release()}
+  }
   if (!['payment.captured', 'payment.failed'].includes(String(eventType))) {
     // Acknowledge unrelated signed events so Razorpay does not retry forever.
     return NextResponse.json({ received: true, ignored: true });

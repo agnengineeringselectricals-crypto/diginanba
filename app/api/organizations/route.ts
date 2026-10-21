@@ -1,0 +1,14 @@
+import { NextResponse } from 'next/server';
+import { z } from 'zod';
+import { randomUUID } from 'node:crypto';
+import { auth } from '@/lib/auth';
+import { db } from '@/lib/db';
+export const runtime='nodejs';
+const schema=z.object({name:z.string().trim().min(2).max(120),countryCode:z.enum(['IN','US','UK']).default('IN')});
+function slugify(s:string){return s.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,90)||'organization'}
+export async function GET(){const session=await auth();if(!session?.user?.id)return NextResponse.json({error:'Sign in to access organization workspaces.'},{status:401});try{const r=await db.query(`SELECT o.id,o.name,o.slug,o.billing_country_code,o.status,m.role,
+ s.plan_code,s.billing_interval,s.status AS subscription_status,s.checkout_url,s.currency_code,s.amount_minor,s.current_period_end
+ FROM organization_memberships m JOIN organization_accounts o ON o.id=m.organization_id
+ LEFT JOIN organization_subscriptions s ON s.organization_id=o.id
+ WHERE m.user_id=$1 AND m.status='active' ORDER BY o.created_at DESC LIMIT 50`,[session.user.id]);return NextResponse.json({organizations:r.rows,subscriptionsEnabled:process.env.ORGANIZATION_SUBSCRIPTIONS_ENABLED==='true'})}catch(e){console.error('Organization workspace lookup failed',e);return NextResponse.json({error:'Organization workspaces are temporarily unavailable.'},{status:503})}}
+export async function POST(request:Request){const session=await auth();if(!session?.user?.id)return NextResponse.json({error:'Sign in to create an organization workspace.'},{status:401});const parsed=schema.safeParse(await request.json().catch(()=>null));if(!parsed.success)return NextResponse.json({error:'Enter an organization name between 2 and 120 characters.'},{status:400});const client=await db.connect();try{await client.query('BEGIN');const base=slugify(parsed.data.name);const slug=base+'-'+randomUUID().slice(0,6);const created=await client.query(`INSERT INTO organization_accounts(name,slug,owner_user_id,billing_country_code) VALUES($1,$2,$3,$4) RETURNING id,name,slug,billing_country_code,status`,[parsed.data.name,slug,session.user.id,parsed.data.countryCode]);await client.query(`INSERT INTO organization_memberships(organization_id,user_id,role,status) VALUES($1,$2,'owner','active')`,[created.rows[0].id,session.user.id]);await client.query('COMMIT');return NextResponse.json({organization:created.rows[0],message:'Organization workspace created. Invite and billing controls are being prepared; no subscription or charge has started.'},{status:201})}catch(e){await client.query('ROLLBACK').catch(()=>undefined);console.error('Organization workspace creation failed',e);return NextResponse.json({error:'Could not create the organization workspace.'},{status:503})}finally{client.release()}}
