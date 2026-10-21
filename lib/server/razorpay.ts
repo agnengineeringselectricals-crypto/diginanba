@@ -36,7 +36,6 @@ export async function createRazorpayOrder(input: {
       amount: input.amount,
       currency: input.currency,
       receipt: input.receipt.slice(0, 40),
-      payment_capture: 1,
     }),
     cache: 'no-store',
   });
