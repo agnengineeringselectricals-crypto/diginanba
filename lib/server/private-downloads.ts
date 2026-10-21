@@ -1,5 +1,5 @@
 import 'server-only';
-import { createHmac } from 'node:crypto';
+import { createHash, createHmac } from 'node:crypto';
 
 function hmac(key: Buffer | string, value: string) {
   return createHmac('sha256', key).update(value, 'utf8').digest();
