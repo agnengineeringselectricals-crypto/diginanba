@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { fetchRazorpayPayment, verifyRazorpayCheckoutSignature } from '@/lib/server/razorpay';
+import { grantPaidOrderEntitlements } from '@/lib/server/payment-fulfillment';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
