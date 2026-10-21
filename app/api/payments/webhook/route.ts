@@ -48,8 +48,9 @@ export async function POST(req: Request) {
   if (!payment?.id || !payment.order_id || !Number.isSafeInteger(payment.amount) || !payment.currency) {
     return NextResponse.json({ error: 'Incomplete payment event' }, { status: 400 });
   }
-  if (eventType === 'payment.captured' && payment.status !== 'captured') {
-    return NextResponse.json({ error: 'Payment capture status mismatch' }, { status: 400 });
+  if ((eventType === 'payment.captured' && payment.status !== 'captured') ||
+      (eventType === 'payment.failed' && payment.status !== 'failed')) {
+    return NextResponse.json({ error: 'Payment event status mismatch' }, { status: 400 });
   }
 
   const client = await db.connect();
