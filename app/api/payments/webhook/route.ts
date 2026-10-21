@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { fetchRazorpayPayment, verifyRazorpayWebhookSignature } from '@/lib/server/razorpay';
+import { grantPaidOrderEntitlements } from '@/lib/server/payment-fulfillment';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -88,6 +89,7 @@ export async function POST(req: Request) {
         `UPDATE orders SET status = 'paid' WHERE id = $1 AND status IN ('pending','payment_pending','payment_failed')`,
         [payment.order_id],
       );
+      await grantPaidOrderEntitlements(client, payment.order_id);
     } else if (verified.status === 'failed') {
       await client.query(
         `UPDATE payments SET provider_payment_id = $1, status = 'failed', updated_at = now()
