@@ -18,17 +18,12 @@ export async function POST(req: Request) {
   if (!session?.user?.id) return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
 
   try {
+    // Fail before creating any order records while the payment gate is closed.
+    if (process.env.RAZORPAY_CHECKOUT_ENABLED !== 'true') {
+      return NextResponse.json({ error: 'Online payments are not enabled yet. No order or payment was created.' }, { status: 503 });
+    }
     const body = schema.parse(await req.json());
     const order = await createPendingOrder(session.user.id, body.market, body.items);
-
-    // Payments remain off unless explicitly enabled. This prevents deploying code
-    // from accidentally turning on charges before test-mode verification.
-    if (process.env.RAZORPAY_CHECKOUT_ENABLED !== 'true') {
-      return NextResponse.json({
-        orderId: order.id, currency: order.currency, subtotalMinor: order.subtotalMinor,
-        paymentMode: 'demo', message: 'Payment checkout is not enabled yet.',
-      });
-    }
 
     const providerOrder = await createRazorpayOrder({
       amount: order.subtotalMinor,
