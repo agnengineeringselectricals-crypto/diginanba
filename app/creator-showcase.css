@@ -196,3 +196,11 @@
 .dn-organization-note{margin:14px 0 0;color:#69758a;font-size:11px;line-height:1.6}
 @media(max-width:700px){.dn-organization-pathways{padding:25px 0}.dn-organization-grid{grid-template-columns:1fr;gap:9px}.dn-organization-card{min-height:0;padding:16px}.dn-organization-card em{margin-top:2px}}
 @media(prefers-reduced-motion:reduce){.dn-organization-card{transition:none}}
+
+.dn-customization-prompt{padding:28px 0;background:linear-gradient(120deg,#eef4ff,#f7f9ff);border-top:1px solid #dfe7fa;border-bottom:1px solid #dfe7fa}
+.dn-customization-inner{display:flex;align-items:center;justify-content:space-between;gap:22px}
+.dn-customization-inner>div{max-width:760px}
+.dn-customization-inner h2{margin:8px 0;color:#17243b;font-size:clamp(23px,2.6vw,32px);line-height:1.18;letter-spacing:-.5px}
+.dn-customization-inner p{margin:0;color:#5e6b80;font-size:13px;line-height:1.65}
+.dn-customization-inner .ref-primary{flex-shrink:0;text-decoration:none;white-space:nowrap}
+@media(max-width:700px){.dn-customization-inner{align-items:flex-start;flex-direction:column;gap:14px}.dn-customization-inner .ref-primary{white-space:normal}}

@@ -215,7 +215,7 @@ export default function HomePageClient({ initialProducts }: Props) {
             {!searchLoading && searchSuggestions.map((product) => <Link key={product.id} href={`/products/${product.slug}?market=${market}`} onClick={() => setSearchSuggestionsOpen(false)} style={{ display: 'block', padding: '10px', borderRadius: 8, textDecoration: 'none', color: 'inherit' }}>
               <strong style={{ display: 'block', fontSize: 14 }}>{product.title}</strong><span style={{ display: 'block', color: '#667085', fontSize: 12, marginTop: 3 }}>{product.category} · {product.price}</span><span style={{ display: 'block', fontSize: 12, marginTop: 4 }}>{product.description.slice(0, 130)}</span>
             </Link>)}
-            {!searchLoading && searchNoResults && <div style={{ padding: 12, fontSize: 13 }}><strong>No close match yet.</strong><p style={{ margin: '5px 0 9px' }}>Explore related listings or tell DigiNanba what kind of tool you need. New-tool requests are not a promise that a product is already available.</p><Link href={`/explore?market=${market}&q=${encodeURIComponent(heroQuery.trim())}`} onClick={() => setSearchSuggestionsOpen(false)}>Explore related results →</Link></div>}
+            {!searchLoading && searchNoResults && <div style={{ padding: 12, fontSize: 13 }}><strong>No close match yet.</strong><p style={{ margin: '5px 0 9px' }}>Explore related listings or tell DigiNanba what kind of tool you need. New-tool requests are not a promise that a product is already available.</p><Link href={`/customize?q=${encodeURIComponent(heroQuery.trim())}`} onClick={() => setSearchSuggestionsOpen(false)}>Request a tailored tool →</Link></div>}
             {!searchLoading && searchSuggestions.length > 0 && <button type="submit" style={{ width: '100%', textAlign: 'left', padding: 10, border: 0, borderTop: '1px solid #e7eaf0', background: 'transparent', cursor: 'pointer' }}>See all results for “{heroQuery.trim()}” →</button>}
           </div>}
         </form>
@@ -308,6 +308,13 @@ export default function HomePageClient({ initialProducts }: Props) {
       </section>
 
       <CreatorEarningsShowcase />
+
+      <section className="dn-customization-prompt" aria-labelledby="dn-customization-title">
+        <div className="ref-container dn-customization-inner">
+          <div><span className="dn-organization-kicker">YOUR IDEA MATTERS</span><h2 id="dn-customization-title">Can’t find the right tool? Describe what you need.</h2><p>Request a localized edition, editable file, household planner, business workflow or a new digital tool. Creators—including homemakers—can turn practical ideas into useful resources.</p></div>
+          <Link className="ref-primary" href={`/customize?locale=${market==='IN'?'en-IN':market==='UK'?'en-GB':'en-US'}`}>Request a tailored tool →</Link>
+        </div>
+      </section>
 
       <section className="dn-organization-pathways" aria-labelledby="dn-organization-title">
         <div className="ref-container">
