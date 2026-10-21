@@ -85,7 +85,7 @@ export async function POST(req: Request) {
         [providerPaymentId, payment.payment_id],
       );
       await client.query(
-        `UPDATE orders SET status = 'paid' WHERE id = $1 AND status IN ('pending','payment_pending')`,
+        `UPDATE orders SET status = 'paid' WHERE id = $1 AND status IN ('pending','payment_pending','payment_failed')`,
         [payment.order_id],
       );
     } else if (verified.status === 'failed') {
