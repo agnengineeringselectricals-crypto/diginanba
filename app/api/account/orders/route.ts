@@ -28,6 +28,7 @@ export async function GET() {
         currency: row.currency,
       }).format(Number(row.totalMinor) / 100),
       status: row.status,
+      canRequestRefund: row.status === 'paid',
     }));
     return NextResponse.json({ orders });
   } catch {
