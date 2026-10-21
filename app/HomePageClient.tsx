@@ -309,6 +309,20 @@ export default function HomePageClient({ initialProducts }: Props) {
 
       <CreatorEarningsShowcase />
 
+      <section className="dn-organization-pathways" aria-labelledby="dn-organization-title">
+        <div className="ref-container">
+          <div className="dn-organization-heading">
+            <div><span className="dn-organization-kicker">FOR ORGANIZATIONS &amp; TEAMS</span><h2 id="dn-organization-title">Find tools for the way your organization works.</h2><p>Explore existing resources for department workflows and business operations. Review each listing to confirm its capabilities, access model and pricing before adopting it.</p></div>
+          </div>
+          <div className="dn-organization-grid">
+            <Link href={`/explore?market=${market}&q=${encodeURIComponent('HR employee onboarding workflow')}`} className="dn-organization-card"><span aria-hidden="true">👥</span><strong>HR &amp; people workflows</strong><small>Explore onboarding checklists, recruitment trackers, training resources and employee process templates.</small><em>Find HR tools →</em></Link>
+            <Link href={`/explore?market=${market}&q=${encodeURIComponent('inventory stock billing invoices')}`} className="dn-organization-card"><span aria-hidden="true">📦</span><strong>Inventory, billing &amp; finance</strong><small>Look for stock registers, invoice templates, purchase tracking and reporting resources.</small><em>Find operations tools →</em></Link>
+            <Link href={`/explore?market=${market}&q=${encodeURIComponent('project management approval workflow')}`} className="dn-organization-card"><span aria-hidden="true">🗂️</span><strong>Projects &amp; approvals</strong><small>Discover project trackers, task planning, approval flows and team operating templates.</small><em>Find workflow tools →</em></Link>
+          </div>
+          <p className="dn-organization-note">Subscription choices—including monthly, six-month or annual terms—will depend on the individual tool or organization plan. Only the billing options explicitly shown on a listing should be treated as available.</p>
+        </div>
+      </section>
+
       <section className="ref-section dn-feature-map"><div className="ref-container">
         <div className="ref-section-head"><div><h2>Find, review and choose with confidence</h2><p>Explore digital resources for everyday life, learning, independent work, small businesses and teams. Review the product details before deciding.</p></div></div>
         <div className="dn-feature-grid">
