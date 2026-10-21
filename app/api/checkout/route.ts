@@ -17,6 +17,7 @@ export async function POST(req: Request) {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
 
+  let createdOrderId: string | null = null;
   try {
     // Fail before creating any order records while the payment gate is closed.
     if (process.env.RAZORPAY_CHECKOUT_ENABLED !== 'true') {
@@ -24,6 +25,7 @@ export async function POST(req: Request) {
     }
     const body = schema.parse(await req.json());
     const order = await createPendingOrder(session.user.id, body.market, body.items);
+    createdOrderId = order.id;
 
     const providerOrder = await createRazorpayOrder({
       amount: order.subtotalMinor,
@@ -60,6 +62,14 @@ export async function POST(req: Request) {
       paymentMode: 'razorpay',
     });
   } catch (error) {
+    if (createdOrderId) {
+      try {
+        await db.query(
+          "UPDATE orders SET status = 'checkout_failed' WHERE id = $1 AND status IN ('pending','payment_pending')",
+          [createdOrderId],
+        );
+      } catch { /* preserve the original checkout error */ }
+    }
     return NextResponse.json({
       error: error instanceof Error ? error.message : 'Checkout failed',
     }, { status: 400 });
