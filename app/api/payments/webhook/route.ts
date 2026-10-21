@@ -1,100 +1,104 @@
-import { timingSafeEqual } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { fetchRazorpayPayment, verifyRazorpayWebhookSignature } from '@/lib/server/razorpay';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const supportedEvents = new Set(['payment.succeeded', 'payment.failed']);
-
-function secretMatches(received: string | null, expected: string) {
-  if (!received) return false;
-  const a = Buffer.from(received);
-  const b = Buffer.from(expected);
-  return a.length === b.length && timingSafeEqual(a, b);
-}
-
 export async function POST(req: Request) {
-  // This is a private, shared-secret relay endpoint, not a provider-native
-  // webhook verifier. Do not connect a payment provider directly until its
-  // signature verification and raw-body requirements are implemented.
-  const secret = process.env.PAYMENT_WEBHOOK_SECRET;
-  if (!secret) {
-    return NextResponse.json({ error: 'Payment webhook is not configured' }, { status: 503 });
-  }
-  if (!secretMatches(req.headers.get('x-diginanba-webhook-secret'), secret)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  // Verify the provider signature against the exact raw request body before parsing.
+  const rawBody = await req.text();
+  if (!verifyRazorpayWebhookSignature(rawBody, req.headers.get('x-razorpay-signature'))) {
+    return NextResponse.json({ error: 'Invalid webhook signature' }, { status: 401 });
   }
 
-  let body: unknown;
+  let event: Record<string, any>;
   try {
-    body = await req.json();
+    const parsed = JSON.parse(rawBody);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('Invalid body');
+    event = parsed;
   } catch {
-    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
-  }
-  if (!body || typeof body !== 'object' || Array.isArray(body)) {
     return NextResponse.json({ error: 'Invalid event body' }, { status: 400 });
   }
 
-  const input = body as Record<string, unknown>;
-  const eventId = typeof input.eventId === 'string' ? input.eventId.trim() : '';
-  const type = typeof input.type === 'string' ? input.type.trim() : '';
-  const paymentId = typeof input.paymentId === 'string' ? input.paymentId.trim() : '';
-  const provider = typeof input.provider === 'string' ? input.provider.trim() : 'internal-relay';
+  const eventId = req.headers.get('x-razorpay-event-id')?.trim();
+  const eventType = typeof event.event === 'string' ? event.event : '';
+  if (!eventId || eventId.length > 200) return NextResponse.json({ error: 'Missing event ID' }, { status: 400 });
+  if (!['payment.captured', 'payment.failed'].includes(eventType)) {
+    return NextResponse.json({ received: true, ignored: true });
+  }
 
-  if (!eventId || eventId.length > 200 || !paymentId || paymentId.length > 200 ||
-      !provider || provider.length > 80 || !supportedEvents.has(type)) {
-    return NextResponse.json({ error: 'Invalid or unsupported payment event' }, { status: 400 });
+  const entity = event.payload?.payment?.entity;
+  const providerPaymentId = typeof entity?.id === 'string' ? entity.id : '';
+  const providerOrderId = typeof entity?.order_id === 'string' ? entity.order_id : '';
+  if (!providerPaymentId || !providerOrderId) {
+    return NextResponse.json({ error: 'Missing payment identifiers' }, { status: 400 });
+  }
+
+  let verified;
+  try { verified = await fetchRazorpayPayment(providerPaymentId); }
+  catch { return NextResponse.json({ error: 'Could not verify provider payment' }, { status: 502 }); }
+  if (verified.id !== providerPaymentId || verified.order_id !== providerOrderId) {
+    return NextResponse.json({ error: 'Provider payment identifiers do not match' }, { status: 409 });
   }
 
   const client = await db.connect();
   try {
     await client.query('BEGIN');
-
-    // Lock the payment before accepting an event. Unknown IDs must never
-    // create event records that could be mistaken for processed payments.
-    const paymentResult = await client.query(
-      'SELECT id, order_id, status FROM payments WHERE id = $1 FOR UPDATE',
-      [paymentId],
+    const result = await client.query(
+      `SELECT p.id AS payment_id, p.order_id, p.amount_minor, p.currency_code, p.status
+       FROM payments p WHERE p.provider = 'razorpay' AND p.provider_order_id = $1
+       FOR UPDATE`,
+      [providerOrderId],
     );
-    const payment = paymentResult.rows[0];
+    const payment = result.rows[0];
     if (!payment) {
       await client.query('ROLLBACK');
-      return NextResponse.json({ error: 'Payment not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Payment order not found' }, { status: 404 });
     }
 
-    const eventResult = await client.query(
+    const inserted = await client.query(
       `INSERT INTO payment_events(payment_id, provider, event_id, event_type, payload)
-       VALUES($1, $2, $3, $4, $5)
-       ON CONFLICT(event_id) DO NOTHING
-       RETURNING id`,
-      [paymentId, provider, eventId, type, body],
+       VALUES($1, 'razorpay', $2, $3, $4)
+       ON CONFLICT(event_id) DO NOTHING RETURNING id`,
+      [payment.payment_id, eventId, eventType, event],
     );
-
-    if (!eventResult.rowCount) {
+    if (!inserted.rowCount) {
       await client.query('COMMIT');
       return NextResponse.json({ received: true, duplicate: true });
     }
 
-    const currentStatus = String(payment.status);
-    if (currentStatus === 'succeeded' || currentStatus === 'failed') {
-      // Terminal payment states are immutable; record the event for audit,
-      // but do not let a late/out-of-order event rewrite the order.
+    if (Number(verified.amount) !== Number(payment.amount_minor) ||
+        verified.currency !== String(payment.currency_code).trim()) {
       await client.query('COMMIT');
-      return NextResponse.json({ received: true, ignored: 'payment_already_terminal' });
+      return NextResponse.json({ received: true, ignored: 'amount_or_currency_mismatch' });
     }
 
-    const nextStatus = type === 'payment.succeeded' ? 'succeeded' : 'failed';
-    const nextOrderStatus = nextStatus === 'succeeded' ? 'paid' : 'payment_failed';
-
-    await client.query(
-      'UPDATE payments SET status = $1, updated_at = now() WHERE id = $2',
-      [nextStatus, paymentId],
-    );
-    await client.query(
-      'UPDATE orders SET status = $1 WHERE id = $2 AND status IN (\'pending\', \'payment_pending\')',
-      [nextOrderStatus, payment.order_id],
-    );
+    if (eventType === 'payment.captured') {
+      if (verified.status !== 'captured' || verified.captured !== true) {
+        await client.query('COMMIT');
+        return NextResponse.json({ received: true, ignored: 'payment_not_captured' });
+      }
+      await client.query(
+        `UPDATE payments SET provider_payment_id = $1, status = 'succeeded', updated_at = now()
+         WHERE id = $2 AND status NOT IN ('succeeded','failed')`,
+        [providerPaymentId, payment.payment_id],
+      );
+      await client.query(
+        `UPDATE orders SET status = 'paid' WHERE id = $1 AND status IN ('pending','payment_pending')`,
+        [payment.order_id],
+      );
+    } else if (verified.status === 'failed') {
+      await client.query(
+        `UPDATE payments SET provider_payment_id = $1, status = 'failed', updated_at = now()
+         WHERE id = $2 AND status NOT IN ('succeeded','failed')`,
+        [providerPaymentId, payment.payment_id],
+      );
+      await client.query(
+        `UPDATE orders SET status = 'payment_failed' WHERE id = $1 AND status IN ('pending','payment_pending')`,
+        [payment.order_id],
+      );
+    }
 
     await client.query('COMMIT');
     return NextResponse.json({ received: true });
