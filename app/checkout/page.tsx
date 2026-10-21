@@ -8,7 +8,7 @@ import { useRouter } from 'next/navigation';
 type Market = 'US' | 'UK' | 'IN';
 type Item = { slug: string; title: string; price: string; amountMinor: number; market: Market; quantity?: number };
 type VerifyResult = { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string };
-type CheckoutResult = { orderId: string; paymentMode: 'demo' | 'razorpay'; error?: string; razorpay?: { keyId: string; orderId: string; amount: number; currency: string; name: string; description: string } };
+type CheckoutResult = { orderId: string; paymentMode: 'razorpay'; error?: string; razorpay?: { keyId: string; orderId: string; amount: number; currency: string; name: string; description: string } };
 declare global { interface Window { Razorpay?: new (options: Record<string, unknown>) => { open: () => void; on: (event: string, callback: (error: unknown) => void) => void } } }
 
 function normalize(items: Item[]) {
@@ -72,12 +72,7 @@ export default function Checkout() {
       });
       const data = await response.json() as CheckoutResult;
       if (!response.ok) throw new Error(data.error || 'Checkout failed');
-      if (data.paymentMode === 'demo') {
-        localStorage.removeItem('diginanba-cart');
-        router.push('/order-success?orderId=' + encodeURIComponent(data.orderId));
-        return;
-      }
-      if (!data.razorpay) throw new Error('The payment provider response was incomplete.');
+      if (data.paymentMode !== 'razorpay' || !data.razorpay) throw new Error('Secure payment was not initialized. No order was marked paid; please retry later.');
       if (!(await loadRazorpay()) || !window.Razorpay) throw new Error('Secure checkout could not load. Please try again.');
       const checkout = new window.Razorpay({
         key: data.razorpay.keyId,
