@@ -23,7 +23,8 @@ export async function POST(req: Request) {
   }
 
   // Payments stay closed unless both the payment and secure-delivery gates are enabled.
-  if (process.env.PAYMENTS_ENABLED !== 'true' || process.env.DIGITAL_DELIVERY_ENABLED !== 'true' || !razorpayConfig()) {
+  const razorpay = razorpayConfig();
+  if (process.env.PAYMENTS_ENABLED !== 'true' || process.env.DIGITAL_DELIVERY_ENABLED !== 'true' || !razorpay) {
     return NextResponse.json({
       error: 'Online checkout is temporarily unavailable. No payment has been taken.',
     }, { status: 503 });
@@ -81,7 +82,7 @@ export async function POST(req: Request) {
       orderId: order.id,
       paymentMode: 'razorpay',
       razorpay: {
-        keyId: providerOrder.keyId,
+        keyId: razorpay.keyId,
         orderId: providerOrder.id,
         amount: providerOrder.amount,
         currency: providerOrder.currency,
