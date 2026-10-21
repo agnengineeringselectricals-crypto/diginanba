@@ -68,6 +68,7 @@ export async function POST(req: Request) {
       `UPDATE orders SET status = 'paid' WHERE id = $1 AND status IN ('pending','payment_pending','payment_failed')`,
       [input.orderId],
     );
+    await grantPaidOrderEntitlements(client, input.orderId);
     await client.query('COMMIT');
     return NextResponse.json({ verified: true, orderId: input.orderId });
   } catch {
