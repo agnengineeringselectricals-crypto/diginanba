@@ -111,15 +111,10 @@ export async function POST(req: Request) {
         [record.order_id],
       );
     } else {
-      await client.query(
-        `UPDATE payments SET provider_payment_id = $1, status = 'failed', updated_at = now()
-         WHERE id = $2 AND status = 'pending'`,
-        [payment.id, record.payment_id],
-      );
-      await client.query(
-        `UPDATE orders SET status = 'payment_failed' WHERE id = $1 AND status IN ('pending', 'payment_pending')`,
-        [record.order_id],
-      );
+      // A failed payment attempt does not mean the Razorpay order itself is terminal.
+      // Razorpay Checkout can retry another payment against the same provider order.
+      // Record the signed event above, but keep the order/payment pending so a later
+      // captured event or successful client verification can complete fulfillment.
     }
 
     await client.query('COMMIT');
