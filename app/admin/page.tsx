@@ -24,6 +24,7 @@ async function countRows(metric: 'users' | 'products' | 'orders' | 'categories' 
 const adminAreas = [
   { href: '/admin/business', icon: '↗', number: '01', title: 'Business analytics', description: 'Review business performance with daily, weekly, monthly, yearly and custom-range graphs for products, users, orders and paid order value.', detail: 'PERFORMANCE & TRENDS', color: '#087f8c', tint: '#e6f7f7' },
   { href: '/admin/catalog', icon: '▦', number: '02', title: 'Catalog management', description: 'Review product records, editions, pricing and publishing status.', detail: 'PRODUCTS & CATEGORIES', color: '#6757f5', tint: '#f0edff' },
+  { href: '/admin/creator-review', icon: '✎', number: '08', title: 'Creator & custom requests', description: 'Review creator publication submissions and manage customer customization requests.', detail: 'CREATOR PUBLISHING', color: '#176b45', tint: '#e8f7ee' },
   { href: '/admin/users', icon: '♙', number: '03', title: 'Users & access', description: 'Manage administrator access and review role assignments.', detail: 'ACCOUNTS & PERMISSIONS', color: '#087f8c', tint: '#e6f7f7' },
   { href: '/admin/orders', icon: '↗', number: '04', title: 'Orders & finance', description: 'Monitor order activity and prepare for payment operations.', detail: 'ORDERS & SETTLEMENTS', color: '#b76b12', tint: '#fff4e4' },
   { href: '/admin/factory', icon: '✦', number: '05', title: 'AI Product Factory', description: 'Review private product-generation operations and factory readiness.', detail: 'AUTOMATION & AI', color: '#a044b5', tint: '#faedff' },
@@ -48,6 +49,7 @@ export default async function AdminPage() {
   const areaRoles: Record<string, string[]> = {
     '/admin/business': ['Super Admin', 'Operations Admin', 'Finance Manager', 'Read-Only Analyst'],
     '/admin/catalog': ['Super Admin', 'Operations Admin', 'Catalog Manager'],
+    '/admin/creator-review': ['Super Admin', 'Operations Admin', 'Catalog Manager'],
     '/admin/users': ['Super Admin', 'Operations Admin', 'Support Agent'],
     '/admin/orders': ['Super Admin', 'Operations Admin', 'Finance Manager'],
     '/admin/factory': ['Super Admin', 'AI Factory Manager'],
@@ -105,6 +107,7 @@ export default async function AdminPage() {
             { href: '/admin/business', label: 'Business analytics', roles: ['Super Admin', 'Operations Admin', 'Finance Manager', 'Read-Only Analyst'] },
             { href: '/admin', label: 'Overview', roles: ['Super Admin', 'Operations Admin', 'Catalog Manager', 'Finance Manager', 'Support Agent', 'AI Factory Manager', 'Read-Only Analyst'] },
             { href: '/admin/catalog', label: 'Products', roles: ['Super Admin', 'Operations Admin', 'Catalog Manager'] },
+            { href: '/admin/creator-review', label: 'Creator review', roles: ['Super Admin', 'Operations Admin', 'Catalog Manager'] },
             { href: '/admin/users', label: 'Users', roles: ['Super Admin', 'Operations Admin', 'Support Agent'] },
             { href: '/admin/orders', label: 'Orders & Finance', roles: ['Super Admin', 'Operations Admin', 'Finance Manager'] },
             { href: '/admin/factory', label: 'AI Product Factory', roles: ['Super Admin', 'AI Factory Manager'] },

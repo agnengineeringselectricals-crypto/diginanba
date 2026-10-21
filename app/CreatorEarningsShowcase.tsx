@@ -9,6 +9,7 @@ const creatorPaths = [
   { icon: '🧑‍💻', title: 'Freelancers', audience: 'Package repeatable professional work', ideas: 'Client onboarding kits, design assets, project templates', href: '/explore?q=freelance' },
   { icon: '🚀', title: 'Entrepreneurs', audience: 'Productize specialist knowledge', ideas: 'Business playbooks, calculators, launch checklists, SOPs', href: '/explore?q=business' },
   { icon: '🏢', title: 'Businesses & teams', audience: 'Create resources that solve repeat problems', ideas: 'Training packs, workflow templates, team toolkits, licensed resources', href: '/explore?q=business' },
+  { icon: '🧓', title: 'Retired professionals', audience: 'Share experience, skills and practical knowledge', ideas: 'Career guides, hobby lessons, mentoring worksheets, checklists', href: '/explore?q=guides' },
   { icon: '🧑‍🏫', title: 'Teachers & educators', audience: 'Make learning resources reusable', ideas: 'Lesson plans, worksheets, rubrics, classroom activity packs', href: '/explore?q=education' },
 ];
 
@@ -17,9 +18,9 @@ export default function CreatorEarningsShowcase() {
     <div className="dn-creator-wrap">
       <div className="dn-creator-hero">
         <div className="dn-creator-hero-copy">
-          <span className="dn-creator-kicker">For creators · makers · professionals</span>
-          <h2 id="dn-creator-title">Turn what you know into digital products.</h2>
-          <p>Start with a useful skill, solve a specific problem, and shape the solution into a resource people can use. Explore ideas for your experience and audience—without promises of guaranteed income.</p>
+          <span className="dn-creator-kicker">For everyone with an idea · creators · makers</span>
+          <h2 id="dn-creator-title">Anyone can create something useful.</h2>
+          <p>You could be a school student with guardian support, a college student, homemaker, freelancer, professional, retired person, educator or organization. Turn your knowledge, creativity, daily-life experience or repeatable work into useful digital resources. Explore ideas without promises of guaranteed income.</p>
           <div className="dn-creator-hero-actions">
             <Link className="dn-creator-cta" href="/signup">Get started <span aria-hidden="true">→</span></Link>
             <Link className="dn-creator-secondary-cta" href="/explore">Explore digital products</Link>
@@ -34,8 +35,8 @@ export default function CreatorEarningsShowcase() {
       </div>
 
       <div className="dn-creator-path-heading">
-        <div><span className="dn-creator-kicker">Find your starting point</span><h3>Ideas for different creator journeys</h3></div>
-        <p>Choose a path to explore relevant digital product examples.</p>
+        <div><span className="dn-creator-kicker">Find your starting point</span><h3>Ideas for every kind of creator</h3></div>
+        <p>Everyday know-how counts too—from home budgeting and meal planning to professional workflows and team toolkits.</p>
       </div>
       <div className="dn-creator-path-grid">
         {creatorPaths.map((path) => <article className="dn-creator-path-card" key={path.title}>
