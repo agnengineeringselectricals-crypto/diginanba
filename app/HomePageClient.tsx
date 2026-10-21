@@ -67,9 +67,9 @@ const categoryMatches: Record<string, string[]> = {
   'Personal / Lifestyle': ['Personal / Lifestyle', 'Personal & Lifestyle'],
 };
 
-type Props = { initialProducts: CatalogProduct[] };
+type Props = { initialProducts: CatalogProduct[]; initialMarket: Market };
 
-export default function HomePageClient({ initialProducts }: Props) {
+export default function HomePageClient({ initialProducts, initialMarket }: Props) {
   const [market, setMarket] = useState<Market>('US');
   const [products, setProducts] = useState(initialProducts);
   const [query, setQuery] = useState('');
@@ -88,21 +88,17 @@ export default function HomePageClient({ initialProducts }: Props) {
   const [selectedLanguage, setSelectedLanguage] = useState('English');
 
   useEffect(() => {
-    let selected = localStorage.getItem('diginanba-market') as Market | null;
-    if (selected !== 'US' && selected !== 'UK' && selected !== 'IN') {
-      const language = (navigator.language || '').toLowerCase();
-      const timezone = (Intl.DateTimeFormat().resolvedOptions().timeZone || '').toLowerCase();
-      selected = language.endsWith('-in') || timezone.includes('kolkata') || timezone.includes('calcutta') ? 'IN' : language.endsWith('-gb') || timezone.includes('london') ? 'UK' : 'US';
-    }
+    const savedMarket = localStorage.getItem('diginanba-market') as Market | null;
+    const selected: Market = savedMarket === 'US' || savedMarket === 'UK' || savedMarket === 'IN' ? savedMarket : initialMarket;
     setMarket(selected);
     const language = (navigator.language || 'en-US').toLowerCase();
-    const localeCountry = language.split('-')[1]?.toUpperCase() || (selected === 'UK' ? 'GB' : selected === 'IN' ? 'IN' : 'US');
+    const localeCountry = selected === 'UK' ? 'GB' : selected === 'IN' ? 'IN' : 'US';
     const languagePart = (language.split('-')[0] || 'en').toUpperCase().slice(0, 2);
     const flags: Record<string, string> = { US:'🇺🇸', GB:'🇬🇧', IN:'🇮🇳', CA:'🇨🇦', AU:'🇦🇺', DE:'🇩🇪', FR:'🇫🇷', ES:'🇪🇸', IT:'🇮🇹', JP:'🇯🇵', CN:'🇨🇳', BR:'🇧🇷', AE:'🇦🇪', SG:'🇸🇬' };
     setCountryCode(localeCountry);
     setLanguageCode(languagePart);
     setSelectedLanguage(({en:'English',hi:'हिन्दी',ta:'தமிழ்',te:'తెలుగు',bn:'বাংলা',mr:'मराठी',gu:'ગુજરાતી',kn:'ಕನ್ನಡ',ml:'മലയാളം',pa:'ਪੰਜਾਬੀ',ur:'اردو',fr:'Français',de:'Deutsch',es:'Español',zh:'中文',ja:'日本語',pt:'Português',ar:'العربية'} as Record<string,string>)[language.split('-')[0]] || 'English');
-    setCountryFlag(flags[localeCountry] || (selected === 'UK' ? '🇬🇧' : '🇺🇸'));
+    setCountryFlag(flags[localeCountry] || '🇺🇸');
     try {
       const cart = JSON.parse(localStorage.getItem('diginanba-cart') || '[]');
       setCartCount(Array.isArray(cart) ? cart.length : 0);
@@ -220,18 +216,18 @@ export default function HomePageClient({ initialProducts }: Props) {
           </div>}
         </form>
         <div className="ref-actions">
-          <label className="ref-market-select-label" aria-label="Choose storefront market"><span className="ref-language-flag">{market === 'IN' ? '🇮🇳' : market === 'UK' ? '🇬🇧' : '🇺🇸'}</span><select aria-label="Storefront country and currency" value={market} onChange={(event) => { const next = event.target.value as Market; setMarket(next); setCountryCode(next === 'IN' ? 'IN' : next === 'UK' ? 'GB' : 'US'); setCountryFlag(next === 'IN' ? '🇮🇳' : next === 'UK' ? '🇬🇧' : '🇺🇸'); localStorage.setItem('diginanba-market', next); }} style={{ maxWidth: 132, border: '1px solid #dfe3ed', borderRadius: 8, padding: '7px 5px', background: 'white', color: 'inherit', fontSize: 12 }}><option value="US">US · USD</option><option value="UK">UK · GBP</option><option value="IN">India · INR</option></select></label>
           <Link className="ref-login" href="/login">Log in</Link>
           <Link className="ref-signup" href="/signup">Sign up</Link>
           <Link className="ref-cart" href="/cart" aria-label={`Cart, ${cartCount} items`}><svg className="ref-cart-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h2l2.2 11.2a2 2 0 0 0 2 1.6h7.9a2 2 0 0 0 1.9-1.4L21 8H7" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><circle cx="10" cy="20" r="1.3" fill="currentColor"/><circle cx="18" cy="20" r="1.3" fill="currentColor"/></svg><span className="ref-count">{cartCount}</span></Link>
           <div className="ref-language-wrap">
-            {availableLanguages.length > 1 ? <button className="ref-language" onClick={() => setLanguageOpen((open) => !open)} aria-expanded={languageOpen} aria-label={`Choose language for ${countryCode}`} title={`Language: ${selectedLanguage}`}>
-              <span className="ref-language-flag">{countryFlag}</span><span className="ref-language-chevron">▾</span>
-            </button> : <div className="ref-language ref-language-static" aria-label={`Country: ${countryCode}; language: ${selectedLanguage}`} title={`Language: ${selectedLanguage}`}>
-              <span className="ref-language-flag">{countryFlag}</span>
-            </div>}
-            {languageOpen && availableLanguages.length > 1 && <div className="ref-language-menu" role="menu" aria-label="Available languages">
-              {availableLanguages.map((language) => <button key={language.code} role="menuitem" className={language.code === languageCode ? 'active' : ''} onClick={() => { setLanguageCode(language.code); setSelectedLanguage(language.label); setLanguageOpen(false); }}>{language.label}</button>)}
+            <button className="ref-language" onClick={() => setLanguageOpen((open) => !open)} aria-expanded={languageOpen} aria-label={`Country and language: ${countryCode}, ${selectedLanguage}`} title={`Country: ${countryCode} · Language: ${selectedLanguage}`}>
+              <span className="ref-language-flag">{countryFlag}</span><span>{languageCode}</span><span className="ref-language-chevron">▾</span>
+            </button>
+            {languageOpen && <div className="ref-language-menu" role="menu" aria-label="Country and language settings">
+              <strong className="ref-language-menu-heading">Store country</strong>
+              {[{market:'US' as Market,code:'US',flag:'🇺🇸',label:'United States'},{market:'UK' as Market,code:'GB',flag:'🇬🇧',label:'United Kingdom'},{market:'IN' as Market,code:'IN',flag:'🇮🇳',label:'India'}].map((option) => <button key={option.market} role="menuitem" className={market === option.market ? 'active' : ''} onClick={() => { setMarket(option.market); setCountryCode(option.code); setCountryFlag(option.flag); localStorage.setItem('diginanba-market', option.market); setLanguageOpen(false); }}>{option.flag} {option.label}</button>)}
+              <strong className="ref-language-menu-heading">Language preference</strong>
+              {availableLanguages.map((language) => <button key={language.code} role="menuitem" className={language.code === languageCode ? 'active' : ''} onClick={() => { setLanguageCode(language.code); setSelectedLanguage(language.label); setLanguageOpen(false); }}>{language.code} · {language.label}</button>)}
             </div>}
           </div>
         </div>
