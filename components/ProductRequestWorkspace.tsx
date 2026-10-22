@@ -159,7 +159,6 @@ const productKinds: { value: ProductKind; label: string }[] = [
   { value: "Wedding planner", label: "Wedding planner" },
   { value: "Family organizer", label: "Family organizer" },
   { value: "Personal productivity tool", label: "Personal productivity tool" },
-  { value: "Custom product type", label: "Custom product type" },
 ];
 
 export default function ProductRequestWorkspace() {
@@ -310,9 +309,9 @@ export default function ProductRequestWorkspace() {
       </label>
       {searchingProducts && <p className="dn-pw-search-status" role="status">Searching existing products…</p>}
       {hasSearchedProducts && !searchingProducts && <div className="dn-pw-existing-results" aria-live="polite">
-        {existingProducts.length > 0 ? <><strong>Possible matches already available</strong><div className="dn-pw-existing-grid">{existingProducts.slice(0,8).map((product) => <article className="dn-pw-existing-card" key={product.id}><strong>{product.title}</strong><span>{product.category}</span><p>{product.description}</p>{product.price && <small>{product.price}</small>}</article>)}</div><p className="dn-pw-search-hint">Review the matches above before creating a duplicate. You can browse the marketplace for more details.</p></> : <p>No matching published products were found in the current catalog. You can start a new creation brief.</p>}
+        {existingProducts.length > 0 ? <><strong>Possible matches already available</strong><div className="dn-pw-existing-grid">{existingProducts.slice(0,8).map((product) => <article className="dn-pw-existing-card" key={product.id}><strong>{product.title}</strong><span>{product.category}</span><p>{product.description}</p>{product.price && <small>{product.price}</small>}</article>)}</div><p className="dn-pw-search-hint">Review these matches before creating a duplicate. If they are not the right fit, refine your search to check for a more suitable existing product.</p><a className="dn-pw-marketplace-link" href="/explore">Browse the marketplace →</a></> : <p>No matching published products were found in the current catalog. You can start a new creation brief.</p>}
       </div>}
-      <div className="dn-pw-create-new-row"><div><strong>Didn’t find the tool you need?</strong><p>Continue to describe a new product. The product-type field will suggest matching types as you type.</p></div><button type="button" className="dn-pw-start" onClick={() => setCreateMode(true)}>{createMode ? 'New product form opened ✓' : 'Create a new product →'}</button></div>
+      <div className="dn-pw-create-new-row"><div><strong>{hasSearchedProducts && !searchingProducts && existingProducts.length === 0 ? "No existing match found" : "First, search the existing catalog"}</strong><p>{hasSearchedProducts && !searchingProducts && existingProducts.length === 0 ? "You can now start a new product brief. Product types will be suggested as you type, and you can save a missing type." : "Enter at least 2 characters. If products match, review them or refine your search. The new-product option appears when no matching products are found."}</p></div><button type="button" className="dn-pw-start" disabled={!hasSearchedProducts || searchingProducts || existingProducts.length > 0} onClick={() => setCreateMode(true)}>{createMode ? "New product form opened ✓" : "Create a new product →"}</button></div>
     </div>}
     {expanded && createMode && <div className="dn-pw-builder">
       <div className="dn-pw-assistant">
