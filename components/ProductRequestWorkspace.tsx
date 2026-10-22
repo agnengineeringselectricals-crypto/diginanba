@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from 'react';
 import './product-request-workspace.css';
 
-type ProductKind = 'interactive_tool' | 'spreadsheet' | 'template' | 'ebook_guide' | 'software_app' | 'design_asset' | 'workflow' | 'not_sure';
+type ProductKind = 'interactive_tool' | 'spreadsheet' | 'template' | 'ebook_guide' | 'software_app' | 'design_asset' | 'workflow' | 'not_sure' | 'custom';
 const productKinds: { value: ProductKind; label: string }[] = [
   { value: 'interactive_tool', label: 'Interactive web tool or dashboard' },
   { value: 'spreadsheet', label: 'Excel / Google Sheets tool or tracker' },
@@ -13,23 +13,26 @@ const productKinds: { value: ProductKind; label: string }[] = [
   { value: 'design_asset', label: 'Design asset or creative resource' },
   { value: 'workflow', label: 'Business or personal workflow' },
   { value: 'not_sure', label: 'Help me choose the right type' },
+  { value: 'custom', label: 'Other — add my own product type' },
 ];
 
 export default function ProductRequestWorkspace() {
   const [expanded, setExpanded] = useState(false);
   const [idea, setIdea] = useState('');
   const [kind, setKind] = useState<ProductKind>('interactive_tool');
+  const [customKind, setCustomKind] = useState('');
   const [previewOpen, setPreviewOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [requestRef, setRequestRef] = useState('');
 
-  const canPreview = idea.trim().length >= 5;
+  const selectedKindLabel = kind === 'custom' ? (customKind.trim() || 'Custom product type (to be specified)') : (productKinds.find((item) => item.value === kind)?.label ?? kind);
+  const canPreview = idea.trim().length >= 5 && (kind !== 'custom' || customKind.trim().length >= 2);
   const description = [
     'Product/tool description supplied by the requester:',
     idea.trim(),
-    'Product type: ' + (productKinds.find((item) => item.value === kind)?.label ?? kind),
+    'Product type: ' + selectedKindLabel,
     'Distribution intent: make the finalized product available to customers globally.',
     'Creator intent: the creator may use their own product and may choose to submit it for publishing and earning after reviewing the finished design.',
     'Future improvements: the creator should be able to request or make feature updates to their product after publication, subject to review.',
@@ -64,7 +67,7 @@ export default function ProductRequestWorkspace() {
           targetAudience: '',
           keyFeatures: [],
           priceExpectation: 'help_recommend',
-          productKind: kind,
+          productKind: kind === 'custom' ? 'custom: ' + customKind.trim() : kind,
           requestSource: 'homepage_product_workspace',
         }),
       });
@@ -117,6 +120,10 @@ export default function ProductRequestWorkspace() {
               {productKinds.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
             </select>
           </label>
+          {kind === 'custom' && <label className="dn-pw-field-full">Add your product type
+            <input required minLength={2} maxLength={120} value={customKind} onChange={(event) => setCustomKind(event.target.value)} placeholder="e.g. AI-powered lesson planner, invoice generator, music practice app" />
+            <small>Use your own words. DigiNanba will treat this as a custom type for review instead of forcing it into the listed categories.</small>
+          </label>}
         </div>
         <div className="dn-pw-global-note"><span className="dn-pw-global-icon">◎</span><div><strong>Designed for global availability</strong><p>The goal is to offer finalized products worldwide, display prices in each customer's local currency, and let creators choose their own pricing currency. Actual currency conversion requires a current exchange-rate source at checkout.</p></div></div>
         <div className="dn-pw-form-footer"><p>Review your product brief in the preview before submitting it.</p><button type="submit" className="dn-pw-start" disabled={!canPreview}>Preview &amp; finalize brief →</button></div>
@@ -127,7 +134,7 @@ export default function ProductRequestWorkspace() {
     {previewOpen && <div className="dn-pw-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) setPreviewOpen(false); }}>
       <section className="dn-pw-modal" role="dialog" aria-modal="true" aria-labelledby="dn-pw-preview-title">
         <div className="dn-pw-modal-header"><div><span className="dn-pw-kicker">BRIEF PREVIEW</span><h3 id="dn-pw-preview-title">Review your product idea</h3><p>Make sure this describes what you want before sending it to DigiNanba.</p></div><button type="button" onClick={() => setPreviewOpen(false)} disabled={busy} aria-label="Close preview">×</button></div>
-        <div className="dn-pw-preview-tags"><span>{productKinds.find((item) => item.value === kind)?.label ?? kind}</span><span>Global marketplace intent</span></div>
+        <div className="dn-pw-preview-tags"><span>{selectedKindLabel}</span><span>Global marketplace intent</span></div>
         <h4>{idea.trim().split(/\n/)[0].slice(0, 160) || 'Untitled product idea'}</h4>
         <div className="dn-pw-description-preview">{idea.trim()}</div>
         <div className="dn-pw-stage-list">
