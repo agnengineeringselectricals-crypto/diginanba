@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import './product-request-workspace.css';
 
 type ProductKind = 'interactive_tool' | 'spreadsheet' | 'template' | 'ebook_guide' | 'software_app' | 'design_asset' | 'workflow' | 'not_sure' | 'custom';
@@ -19,16 +19,45 @@ const productKinds: { value: ProductKind; label: string }[] = [
 export default function ProductRequestWorkspace() {
   const [expanded, setExpanded] = useState(false);
   const [idea, setIdea] = useState('');
-  const [kind, setKind] = useState<ProductKind>('interactive_tool');
+  const [kind, setKind] = useState<string>('interactive_tool');
   const [customKind, setCustomKind] = useState('');
+  const [savedCustomTypes, setSavedCustomTypes] = useState<string[]>([]);
+  const [typeSaveMessage, setTypeSaveMessage] = useState('');
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('diginanba-saved-product-types');
+      if (saved) {
+        const parsed: unknown = JSON.parse(saved);
+        if (Array.isArray(parsed)) setSavedCustomTypes(parsed.filter((item): item is string => typeof item === 'string').slice(0, 100));
+      }
+    } catch { /* Ignore unavailable or malformed local preferences. */ }
+  }, []);
+
+  function saveCustomType() {
+    const value = customKind.trim().replace(/\\s+/g, ' ');
+    if (value.length < 2) {
+      setTypeSaveMessage('Enter a product type with at least 2 characters.');
+      return;
+    }
+    const existing = savedCustomTypes.find((item) => item.toLocaleLowerCase() === value.toLocaleLowerCase());
+    const savedName = existing ?? value;
+    const next = existing ? savedCustomTypes : [...savedCustomTypes, value].slice(-100);
+    setSavedCustomTypes(next);
+    try { localStorage.setItem('diginanba-saved-product-types', JSON.stringify(next)); } catch { /* Keep the type available for this session if storage is blocked. */ }
+    setKind('custom:' + savedName);
+    setCustomKind('');
+    setTypeSaveMessage('Saved “' + savedName + '” and selected it.');
+  }
   const [previewOpen, setPreviewOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [requestRef, setRequestRef] = useState('');
 
-  const selectedKindLabel = kind === 'custom' ? (customKind.trim() || 'Custom product type (to be specified)') : (productKinds.find((item) => item.value === kind)?.label ?? kind);
-  const canPreview = idea.trim().length >= 5 && (kind !== 'custom' || customKind.trim().length >= 2);
+  const isAddingCustomType = kind === 'custom';
+  const selectedKindLabel = kind.startsWith('custom:') ? kind.slice(7) : isAddingCustomType ? (customKind.trim() || 'Custom product type (to be specified)') : (productKinds.find((item) => item.value === kind)?.label ?? kind);
+  const canPreview = idea.trim().length >= 5 && (!isAddingCustomType || customKind.trim().length >= 2);
   const description = [
     'Product/tool description supplied by the requester:',
     idea.trim(),
@@ -67,7 +96,7 @@ export default function ProductRequestWorkspace() {
           targetAudience: '',
           keyFeatures: [],
           priceExpectation: 'help_recommend',
-          productKind: kind === 'custom' ? 'custom: ' + customKind.trim() : kind,
+          productKind: kind.startsWith('custom:') ? kind.slice(7) : isAddingCustomType ? customKind.trim() : kind,
           requestSource: 'homepage_product_workspace',
         }),
       });
@@ -116,14 +145,15 @@ export default function ProductRequestWorkspace() {
             <small>Only the description and product type are required. You can request new features or improvements later.</small>
           </label>
           <label className="dn-pw-field-full">What kind of product is it?
-            <select value={kind} onChange={(event) => setKind(event.target.value as ProductKind)}>
+            <select value={kind} onChange={(event) => { setKind(event.target.value); setTypeSaveMessage(''); }}>
               {productKinds.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+              {savedCustomTypes.map((item) => <option key={'custom:' + item} value={'custom:' + item}>{item} (custom)</option>)}
             </select>
           </label>
-          {kind === 'custom' && <label className="dn-pw-field-full">Add your product type
-            <input required minLength={2} maxLength={120} value={customKind} onChange={(event) => setCustomKind(event.target.value)} placeholder="e.g. AI-powered lesson planner, invoice generator, music practice app" />
-            <small>Use your own words. DigiNanba will treat this as a custom type for review instead of forcing it into the listed categories.</small>
-          </label>}
+          {isAddingCustomType && <div className="dn-pw-field-full dn-pw-custom-type-field"><label htmlFor="dn-pw-custom-type">Add your product type
+            <input id="dn-pw-custom-type" required minLength={2} maxLength={120} value={customKind} onChange={(event) => { setCustomKind(event.target.value); setTypeSaveMessage(''); }} placeholder="e.g. AI-powered lesson planner, invoice generator, music practice app" />
+            <small>Save this type to add it to the product-type list. It will be selected automatically and remembered in this browser.</small>
+          </label><button type="button" className="dn-pw-back dn-pw-save-type" onClick={saveCustomType} disabled={customKind.trim().length < 2}>Save type &amp; select it</button>{typeSaveMessage && <p className="dn-pw-type-save-message" role="status">{typeSaveMessage}</p>}</div>}
         </div>
         <div className="dn-pw-global-note"><span className="dn-pw-global-icon">◎</span><div><strong>Designed for global availability</strong><p>The goal is to offer finalized products worldwide, display prices in each customer's local currency, and let creators choose their own pricing currency. Actual currency conversion requires a current exchange-rate source at checkout.</p></div></div>
         <div className="dn-pw-form-footer"><p>Review your product brief in the preview before submitting it.</p><button type="submit" className="dn-pw-start" disabled={!canPreview}>Preview &amp; finalize brief →</button></div>
