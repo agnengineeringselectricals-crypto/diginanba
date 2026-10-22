@@ -335,7 +335,7 @@ export default function ProductRequestWorkspace() {
             </datalist>
             <small>Start typing—for example, “invoice”, “keyboard”, “AI”, “tracker” or “planner”—to see matching suggestions. If your type is missing, save your own below.</small>
           </label>
-          {!exactKnownType && kindQuery.trim().length >= 2 && <div className="dn-pw-field-full dn-pw-custom-type-field"><button type="button" className="dn-pw-back dn-pw-save-type" onClick={saveCustomType}>Save “{kindQuery.trim()}” as a product type &amp; select it</button>{typeSaveMessage && <p className="dn-pw-type-save-message" role="status">{typeSaveMessage}</p>}</div>}
+          {!exactKnownType && kindQuery.trim().length >= 2 && <div className="dn-pw-field-full dn-pw-custom-type-field"><button type="button" className="dn-pw-back dn-pw-save-type" onClick={() => saveCustomType()}>Save “{kindQuery.trim()}” as a product type &amp; select it</button>{typeSaveMessage && <p className="dn-pw-type-save-message" role="status">{typeSaveMessage}</p>}</div>}
         </div>
         <div className="dn-pw-global-note"><span className="dn-pw-global-icon">◎</span><div><strong>Designed for global availability</strong><p>The goal is to offer finalized products worldwide, display prices in each customer's local currency, and let creators choose their own pricing currency. Actual currency conversion requires a current exchange-rate source at checkout.</p></div></div>
         <div className="dn-pw-form-footer"><p>Review your product brief in the preview before submitting it.</p><button type="submit" className="dn-pw-start" disabled={!canPreview}>Preview &amp; finalize brief →</button></div>
