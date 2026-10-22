@@ -285,6 +285,8 @@ export default function HomePageClient({ initialProducts, initialMarket }: Props
         </div>
       </section>
 
+      <div className="ref-container"><ProductRequestWorkspace /></div>
+
       <section className="dn-buyer-confidence" aria-labelledby="dn-buyer-confidence-title">
         <div className="ref-container dn-buyer-confidence-inner">
           <div className="dn-buyer-confidence-intro">
@@ -305,8 +307,6 @@ export default function HomePageClient({ initialProducts, initialMarket }: Props
       </section>
 
       <CreatorEarningsShowcase />
-
-      <div className="ref-container"><ProductRequestWorkspace /></div>
 
       <section className="dn-organization-pathways" aria-labelledby="dn-organization-title">
         <div className="ref-container">
