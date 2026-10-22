@@ -770,3 +770,7 @@ a.ref-need:hover .ref-solution-link{text-decoration:underline}
 .ref-language-menu button{width:100%;text-align:left}
 @media(max-width:700px){.ref-market-left>h1{font-size:clamp(10px,3.2vw,20px);white-space:nowrap;letter-spacing:-.55px;line-height:1.25;margin-bottom:12px}.ref-nav{gap:8px}.ref-actions{gap:6px}.ref-language{padding:8px 9px;min-width:54px}.ref-signup,.ref-login{padding:8px 9px;font-size:12px}}
 @media(max-width:380px){.ref-logo-image{width:120px;height:auto}.ref-actions{gap:4px}.ref-language{padding:7px 6px}.ref-signup,.ref-login{padding:7px 6px;font-size:11px}.ref-nav{height:58px}}
+
+/* Homepage hero without the featured-products side column */
+.ref-market-grid-single{grid-template-columns:minmax(0,1fr)}
+.ref-market-grid-single .ref-market-left{width:100%}
