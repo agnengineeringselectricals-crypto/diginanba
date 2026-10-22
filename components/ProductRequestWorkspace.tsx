@@ -162,7 +162,7 @@ const productKinds: { value: ProductKind; label: string }[] = [
 ];
 
 export default function ProductRequestWorkspace() {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded] = useState(true);
   const [productSearch, setProductSearch] = useState('');
   const [existingProducts, setExistingProducts] = useState<{id:string;slug:string;title:string;description:string;category:string;price?:string}[]>([]);
   const [searchingProducts, setSearchingProducts] = useState(false);
@@ -285,37 +285,27 @@ export default function ProductRequestWorkspace() {
   return <section className="dn-product-workspace" id="create-your-tool" aria-labelledby="dn-product-workspace-title">
     <div className="dn-pw-heading">
       <div>
-        <span className="dn-pw-kicker">YOUR IDEA → YOUR PRODUCT</span>
-        <h2 id="dn-product-workspace-title">What would you like DigiNanba to create?</h2>
-        <p>First search DigiNanba to see whether the tool or product already exists. If you cannot find it, start a new creation brief.</p>
+        <span className="dn-pw-kicker">DIGITAL TOOLS · TEMPLATES · AI</span>
+        <h2 id="dn-product-workspace-title">What do you want to make or find?</h2>
       </div>
       <div className="dn-pw-orbit" aria-hidden="true"><span>✦</span><i>✧</i><b>↗</b></div>
     </div>
-    <div className="dn-pw-launch">
-      <div className="dn-pw-launch-copy">
-        <span className="dn-pw-status"><span /> SIMPLE PRODUCT BUILDER</span>
-        <h3>Search first. Create only when you need something new.</h3>
-        <p>Search existing published products as you type. If the right tool is not available, create a new product brief and choose from suggested types—or add your own.</p>
-        <div className="dn-pw-benefits"><span>✓ Simple to start</span><span>✓ Preview before submit</span><span>✓ Global marketplace intent</span></div>
+    <div className="dn-pw-builder dn-pw-search-first">
+      <div className="dn-pw-search-toolbar">
+        <label className="dn-pw-field-full dn-pw-product-search-label">
+          <span className="dn-pw-search-caption">Find a digital tool or product</span>
+          <input type="search" list="dn-pw-product-search-types" value={productSearch} onChange={(event) => { setProductSearch(event.target.value); setCreateMode(false); }} placeholder="Search templates, AI tools, dashboards, planners…" autoComplete="off" />
+          <datalist id="dn-pw-product-search-types">{productKinds.map((item) => <option key={item.value} value={item.label} />)}{savedCustomTypes.map((item) => <option key={"search-" + item} value={item} />)}</datalist>
+        </label>
+        <button type="button" className="dn-pw-start dn-pw-create-cta" onClick={() => { setCreateMode(true); setError(''); setSuccess(''); }}>＋ Create a product</button>
       </div>
-      <button type="button" className="dn-pw-start" onClick={() => { setExpanded((value) => !value); setSuccess(''); setError(''); }} aria-expanded={expanded}>
-        {expanded ? 'Close search & builder ↑' : 'Search tools & products →'}
-      </button>
-    </div>
-    {expanded && <div className="dn-pw-builder dn-pw-search-first">
-      <label className="dn-pw-field-full dn-pw-product-search-label">Search existing tools and products
-        <input type="search" list="dn-pw-product-search-types" value={productSearch} onChange={(event) => { setProductSearch(event.target.value); setCreateMode(false); }} placeholder="Try invoice generator, keyboard shortcut tool, AI planner…" autoComplete="off" />
-        <datalist id="dn-pw-product-search-types">{productKinds.map((item) => <option key={item.value} value={item.label} />)}{savedCustomTypes.map((item) => <option key={"search-" + item} value={item} />)}</datalist>
-        <small>Search published DigiNanba products by name, description, or category. Start typing to see matches.</small>
-      </label>
       {productSearch.trim().length >= 2 && !productKinds.some((item) => item.label.toLocaleLowerCase() === productSearch.trim().toLocaleLowerCase()) && !savedCustomTypes.some((item) => item.toLocaleLowerCase() === productSearch.trim().toLocaleLowerCase()) && <button type="button" className="dn-pw-save-search-type" onClick={() => saveCustomType(productSearch)}>＋ Save “{productSearch.trim()}” as a product type</button>}
       {typeSaveMessage && <p className="dn-pw-type-save-message" role="status">{typeSaveMessage}</p>}
       {searchingProducts && <p className="dn-pw-search-status" role="status">Searching existing products…</p>}
       {hasSearchedProducts && !searchingProducts && <div className="dn-pw-existing-results" aria-live="polite">
         {existingProducts.length > 0 ? <><strong>Possible matches already available</strong><div className="dn-pw-existing-grid">{existingProducts.slice(0,8).map((product) => <article className="dn-pw-existing-card" key={product.id}><strong>{product.title}</strong><span>{product.category}</span><p>{product.description}</p>{product.price && <small>{product.price}</small>}</article>)}</div><p className="dn-pw-search-hint">Review these matches before creating a duplicate. If they are not the right fit, refine your search to check for a more suitable existing product.</p><a className="dn-pw-marketplace-link" href="/explore">Browse the marketplace →</a></> : <p>No matching published products were found in the current catalog. You can start a new creation brief.</p>}
       </div>}
-      <div className="dn-pw-create-new-row"><div><strong>{hasSearchedProducts && !searchingProducts && existingProducts.length === 0 ? "No existing match found" : "First, search the existing catalog"}</strong><p>{hasSearchedProducts && !searchingProducts && existingProducts.length === 0 ? "You can now start a new product brief. Product types will be suggested as you type, and you can save a missing type." : "Enter at least 2 characters. If products match, review them or refine your search. The new-product option appears when no matching products are found."}</p></div><button type="button" className="dn-pw-start" disabled={!hasSearchedProducts || searchingProducts || existingProducts.length > 0} onClick={() => setCreateMode(true)}>{createMode ? "New product form opened ✓" : "Create a new product →"}</button></div>
-    </div>}
+    </div>
     {expanded && createMode && <div className="dn-pw-builder">
       <div className="dn-pw-assistant">
         <div className="dn-pw-assistant-avatar">DN</div>
