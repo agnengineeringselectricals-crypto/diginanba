@@ -252,6 +252,9 @@ export default function HomePageClient({ initialProducts, initialMarket }: Props
     </nav>
 
     <main id="home">
+
+      <div className="ref-container"><ProductRequestWorkspace /></div>
+
       <section className="ref-hero">
         <div className="ref-container ref-market-grid">
           <div className="ref-market-left">
@@ -284,8 +287,6 @@ export default function HomePageClient({ initialProducts, initialMarket }: Props
           </aside>
         </div>
       </section>
-
-      <div className="ref-container"><ProductRequestWorkspace /></div>
 
       <section className="dn-buyer-confidence" aria-labelledby="dn-buyer-confidence-title">
         <div className="ref-container dn-buyer-confidence-inner">
