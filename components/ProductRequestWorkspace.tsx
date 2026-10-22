@@ -164,6 +164,11 @@ const productKinds: { value: ProductKind; label: string }[] = [
 
 export default function ProductRequestWorkspace() {
   const [expanded, setExpanded] = useState(false);
+  const [productSearch, setProductSearch] = useState('');
+  const [existingProducts, setExistingProducts] = useState<{id:string;slug:string;title:string;description:string;category:string;price?:string}[]>([]);
+  const [searchingProducts, setSearchingProducts] = useState(false);
+  const [hasSearchedProducts, setHasSearchedProducts] = useState(false);
+  const [createMode, setCreateMode] = useState(false);
   const [idea, setIdea] = useState('');
   const [kind, setKind] = useState<string>('Interactive web tool or dashboard');
   const [kindQuery, setKindQuery] = useState<string>('Interactive web tool or dashboard');
@@ -180,6 +185,23 @@ export default function ProductRequestWorkspace() {
       }
     } catch { /* Ignore unavailable or malformed local preferences. */ }
   }, []);
+
+  useEffect(() => {
+    const query = productSearch.trim();
+    if (query.length < 2) { setExistingProducts([]); setHasSearchedProducts(false); setSearchingProducts(false); return; }
+    let active = true;
+    const controller = new AbortController();
+    const timer = setTimeout(async () => {
+      setSearchingProducts(true);
+      try {
+        const response = await fetch('/api/products?market=IN&q=' + encodeURIComponent(query), { signal: controller.signal });
+        const data = await response.json();
+        if (active) { setExistingProducts(Array.isArray(data.products) ? data.products : []); setHasSearchedProducts(true); }
+      } catch { if (active) { setExistingProducts([]); setHasSearchedProducts(true); } }
+      finally { if (active) setSearchingProducts(false); }
+    }, 250);
+    return () => { active = false; clearTimeout(timer); controller.abort(); };
+  }, [productSearch]);
 
   function saveCustomType() {
     const value = (kindQuery || customKind).trim().replace(/\s+/g, ' ');
@@ -266,22 +288,33 @@ export default function ProductRequestWorkspace() {
       <div>
         <span className="dn-pw-kicker">YOUR IDEA → YOUR PRODUCT</span>
         <h2 id="dn-product-workspace-title">What would you like DigiNanba to create?</h2>
-        <p>Describe the product or tool in your own words. Everyone can explore the preview; creators can decide whether to publish and earn after their design is finalized.</p>
+        <p>First search DigiNanba to see whether the tool or product already exists. If you cannot find it, start a new creation brief.</p>
       </div>
       <div className="dn-pw-orbit" aria-hidden="true"><span>✦</span><i>✧</i><b>↗</b></div>
     </div>
     <div className="dn-pw-launch">
       <div className="dn-pw-launch-copy">
         <span className="dn-pw-status"><span /> SIMPLE PRODUCT BUILDER</span>
-        <h3>One description. One product type. DigiNanba helps with the next steps.</h3>
-        <p>Products are intended for a global marketplace. Pricing is handled after the design is finalized—not while you are describing your idea.</p>
+        <h3>Search first. Create only when you need something new.</h3>
+        <p>Search existing published products as you type. If the right tool is not available, create a new product brief and choose from suggested types—or add your own.</p>
         <div className="dn-pw-benefits"><span>✓ Simple to start</span><span>✓ Preview before submit</span><span>✓ Global marketplace intent</span></div>
       </div>
       <button type="button" className="dn-pw-start" onClick={() => { setExpanded((value) => !value); setSuccess(''); setError(''); }} aria-expanded={expanded}>
-        {expanded ? 'Close builder ↑' : 'Describe your idea →'}
+        {expanded ? 'Close search & builder ↑' : 'Search tools & products →'}
       </button>
     </div>
-    {expanded && <div className="dn-pw-builder">
+    {expanded && <div className="dn-pw-builder dn-pw-search-first">
+      <label className="dn-pw-field-full dn-pw-product-search-label">Search existing tools and products
+        <input type="search" value={productSearch} onChange={(event) => { setProductSearch(event.target.value); setCreateMode(false); }} placeholder="Try invoice generator, keyboard shortcut tool, AI planner…" autoComplete="off" />
+        <small>Search published DigiNanba products by name, description, or category. Start typing to see matches.</small>
+      </label>
+      {searchingProducts && <p className="dn-pw-search-status" role="status">Searching existing products…</p>}
+      {hasSearchedProducts && !searchingProducts && <div className="dn-pw-existing-results" aria-live="polite">
+        {existingProducts.length > 0 ? <><strong>Possible matches already available</strong><div className="dn-pw-existing-grid">{existingProducts.slice(0,8).map((product) => <article className="dn-pw-existing-card" key={product.id}><strong>{product.title}</strong><span>{product.category}</span><p>{product.description}</p>{product.price && <small>{product.price}</small>}</article>)}</div><p className="dn-pw-search-hint">Review the matches above before creating a duplicate. You can browse the marketplace for more details.</p></> : <p>No matching published products were found in the current catalog. You can start a new creation brief.</p>}
+      </div>}
+      <div className="dn-pw-create-new-row"><div><strong>Didn’t find the tool you need?</strong><p>Continue to describe a new product. The product-type field will suggest matching types as you type.</p></div><button type="button" className="dn-pw-start" onClick={() => setCreateMode(true)}>{createMode ? 'New product form opened ✓' : 'Create a new product →'}</button></div>
+    </div>}
+    {expanded && createMode && <div className="dn-pw-builder">
       <div className="dn-pw-assistant">
         <div className="dn-pw-assistant-avatar">DN</div>
         <div><strong>DigiNanba Product Guide</strong><p>Tell us what you want to create. You do not need to specify every feature or decide on a price now. You can review this brief before submitting it.</p></div>
