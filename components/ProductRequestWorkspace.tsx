@@ -202,8 +202,8 @@ export default function ProductRequestWorkspace() {
     return () => { active = false; clearTimeout(timer); controller.abort(); };
   }, [productSearch]);
 
-  function saveCustomType() {
-    const value = (kindQuery || customKind).trim().replace(/\s+/g, ' ');
+  function saveCustomType(rawValue = kindQuery) {
+    const value = (rawValue || customKind).trim().replace(/\s+/g, ' ');
     if (value.length < 2) {
       setTypeSaveMessage('Enter a product type with at least 2 characters.');
       return;
@@ -304,9 +304,12 @@ export default function ProductRequestWorkspace() {
     </div>
     {expanded && <div className="dn-pw-builder dn-pw-search-first">
       <label className="dn-pw-field-full dn-pw-product-search-label">Search existing tools and products
-        <input type="search" value={productSearch} onChange={(event) => { setProductSearch(event.target.value); setCreateMode(false); }} placeholder="Try invoice generator, keyboard shortcut tool, AI planner…" autoComplete="off" />
+        <input type="search" list="dn-pw-product-search-types" value={productSearch} onChange={(event) => { setProductSearch(event.target.value); setCreateMode(false); }} placeholder="Try invoice generator, keyboard shortcut tool, AI planner…" autoComplete="off" />
+        <datalist id="dn-pw-product-search-types">{productKinds.map((item) => <option key={item.value} value={item.label} />)}{savedCustomTypes.map((item) => <option key={"search-" + item} value={item} />)}</datalist>
         <small>Search published DigiNanba products by name, description, or category. Start typing to see matches.</small>
       </label>
+      {productSearch.trim().length >= 2 && !productKinds.some((item) => item.label.toLocaleLowerCase() === productSearch.trim().toLocaleLowerCase()) && !savedCustomTypes.some((item) => item.toLocaleLowerCase() === productSearch.trim().toLocaleLowerCase()) && <button type="button" className="dn-pw-save-search-type" onClick={() => saveCustomType(productSearch)}>＋ Save “{productSearch.trim()}” as a product type</button>}
+      {typeSaveMessage && <p className="dn-pw-type-save-message" role="status">{typeSaveMessage}</p>}
       {searchingProducts && <p className="dn-pw-search-status" role="status">Searching existing products…</p>}
       {hasSearchedProducts && !searchingProducts && <div className="dn-pw-existing-results" aria-live="polite">
         {existingProducts.length > 0 ? <><strong>Possible matches already available</strong><div className="dn-pw-existing-grid">{existingProducts.slice(0,8).map((product) => <article className="dn-pw-existing-card" key={product.id}><strong>{product.title}</strong><span>{product.category}</span><p>{product.description}</p>{product.price && <small>{product.price}</small>}</article>)}</div><p className="dn-pw-search-hint">Review these matches before creating a duplicate. If they are not the right fit, refine your search to check for a more suitable existing product.</p><a className="dn-pw-marketplace-link" href="/explore">Browse the marketplace →</a></> : <p>No matching published products were found in the current catalog. You can start a new creation brief.</p>}
