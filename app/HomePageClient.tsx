@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import type { CatalogProduct } from '@/lib/catalog';
 import type { Market } from '@/lib/market';
 import CreatorEarningsShowcase from './CreatorEarningsShowcase';
+import ProductRequestWorkspace from '@/components/ProductRequestWorkspace';
 import './creator-showcase.css';
 
 const categories = [
@@ -305,12 +306,7 @@ export default function HomePageClient({ initialProducts, initialMarket }: Props
 
       <CreatorEarningsShowcase />
 
-      <section className="dn-customization-prompt" aria-labelledby="dn-customization-title">
-        <div className="ref-container dn-customization-inner">
-          <div><span className="dn-organization-kicker">YOUR IDEA MATTERS</span><h2 id="dn-customization-title">Can’t find the right tool? Describe what you need.</h2><p>Request a localized edition, editable file, household planner, business workflow or a new digital tool. Creators—including homemakers—can turn practical ideas into useful resources.</p></div>
-          <Link className="ref-primary" href={`/customize?locale=${market==='IN'?'en-IN':market==='UK'?'en-GB':'en-US'}`}>Request a tailored tool →</Link>
-        </div>
-      </section>
+      <div className="ref-container"><ProductRequestWorkspace /></div>
 
       <section className="dn-organization-pathways" aria-labelledby="dn-organization-title">
         <div className="ref-container">
