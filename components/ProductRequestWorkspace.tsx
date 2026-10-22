@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useState, type FormEvent } from 'react';
 import './product-request-workspace.css';
 
@@ -187,18 +188,25 @@ export default function ProductRequestWorkspace() {
 
   useEffect(() => {
     const query = productSearch.trim();
-    if (query.length < 2) { setExistingProducts([]); setHasSearchedProducts(false); setSearchingProducts(false); return; }
     let active = true;
     const controller = new AbortController();
     const timer = setTimeout(async () => {
       setSearchingProducts(true);
       try {
-        const response = await fetch('/api/products?market=IN&q=' + encodeURIComponent(query), { signal: controller.signal });
+        const params = new URLSearchParams({ market: 'IN' });
+        if (query.length >= 2) params.set('q', query);
+        const response = await fetch('/api/products?' + params.toString(), { signal: controller.signal });
         const data = await response.json();
-        if (active) { setExistingProducts(Array.isArray(data.products) ? data.products : []); setHasSearchedProducts(true); }
-      } catch { if (active) { setExistingProducts([]); setHasSearchedProducts(true); } }
-      finally { if (active) setSearchingProducts(false); }
-    }, 250);
+        if (active) {
+          setExistingProducts(Array.isArray(data.products) ? data.products : []);
+          setHasSearchedProducts(query.length >= 2);
+        }
+      } catch {
+        if (active) { setExistingProducts([]); setHasSearchedProducts(query.length >= 2); }
+      } finally {
+        if (active) setSearchingProducts(false);
+      }
+    }, query.length >= 2 ? 250 : 0);
     return () => { active = false; clearTimeout(timer); controller.abort(); };
   }, [productSearch]);
 
@@ -302,10 +310,14 @@ export default function ProductRequestWorkspace() {
       </div>
       {productSearch.trim().length >= 2 && !productKinds.some((item) => item.label.toLocaleLowerCase() === productSearch.trim().toLocaleLowerCase()) && !savedCustomTypes.some((item) => item.toLocaleLowerCase() === productSearch.trim().toLocaleLowerCase()) && <button type="button" className="dn-pw-save-search-type" onClick={() => saveCustomType(productSearch)}>＋ Save “{productSearch.trim()}” as a product type</button>}
       {typeSaveMessage && <p className="dn-pw-type-save-message" role="status">{typeSaveMessage}</p>}
-      {searchingProducts && <p className="dn-pw-search-status" role="status">Searching existing products…</p>}
-      {hasSearchedProducts && !searchingProducts && <div className="dn-pw-existing-results" aria-live="polite">
-        {existingProducts.length > 0 ? <><strong>Search results</strong><div className="dn-pw-existing-grid">{existingProducts.slice(0,8).map((product) => <article className="dn-pw-existing-card" key={product.id}><strong>{product.title}</strong><span>{product.category}</span><p>{product.description}</p>{product.price && <small>{product.price}</small>}</article>)}</div><a className="dn-pw-marketplace-link" href="/explore">Browse the marketplace →</a></> : <p>No results found.</p>}
-      </div>}
+      <div className="dn-pw-existing-results" aria-live="polite">
+        <div className="dn-pw-existing-heading"><strong>{productSearch.trim().length >= 2 ? 'Matching products and tools' : 'Explore existing products'}</strong><span>{productSearch.trim().length >= 2 ? 'Relevant matches from the marketplace' : 'Start here, or type to find something specific'}</span></div>
+        {searchingProducts && <p className="dn-pw-search-status" role="status">Finding relevant products…</p>}
+        {!searchingProducts && existingProducts.length > 0 ? <div className="dn-pw-existing-roller">{existingProducts.slice(0,12).map((product) => <Link className="dn-pw-existing-card" key={product.id} href={`/products/${product.slug}?market=IN`}>
+          <span className="dn-pw-existing-card-icon" aria-hidden="true">✦</span><strong>{product.title}</strong><span className="dn-pw-existing-category">{product.category}</span><p>{product.description}</p>{product.price && <small>{product.price}</small>}<span className="dn-pw-existing-open">View product →</span>
+        </Link>)}</div> : !searchingProducts && hasSearchedProducts ? <p className="dn-pw-no-results">No matching products found yet. Try a broader search, or use <strong>Create a product</strong> to submit a new idea.</p> : null}
+        <a className="dn-pw-marketplace-link" href={productSearch.trim().length >= 2 ? `/explore?market=IN&q=${encodeURIComponent(productSearch.trim())}` : '/explore?market=IN'}>Browse all marketplace products →</a>
+      </div>
     </div>
     {expanded && createMode && <div className="dn-pw-builder">
       <div className="dn-pw-assistant">
