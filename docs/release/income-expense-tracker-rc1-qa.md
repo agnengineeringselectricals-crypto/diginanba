@@ -10,8 +10,10 @@
 - **Standard:** Manual income/expense entry plus manually pasted bank-statement CSV rows with human review.
 - **Advanced:** Automated companion service is a specification only; it is not implemented by this workbook.
 
-## Static checks
-The workbook was inspected programmatically. **13/13 static checks passed**:
+## Test results
+
+### Static workbook checks
+**13/13 static checks passed**:
 - Six expected worksheets are present: Start Here, Bank Statement Import, Income, Expenses, Monthly Summary, Profit and Loss.
 - All 12 months (January–December 2026) have monthly summary formulas.
 - Monthly income and expense use date-bounded SUMIFS; net is income minus expenses.
@@ -23,13 +25,24 @@ The workbook was inspected programmatically. **13/13 static checks passed**:
 - Independent Python calculation over the fictional test data reconciles: income ₹328,800; expenses ₹90,300; net ₹238,500, with sample entries across all 12 months.
 - The Advanced service is not represented as implemented.
 
+### Spreadsheet-engine test
+**5/5 LibreOffice headless checks passed**:
+- Opened, recalculated, saved, and round-tripped the workbook through LibreOffice.
+- Cached numeric results were present for income, expenses, and net across all 12 months.
+- Every monthly net result equalled income minus expenses.
+- Recalculated annual totals matched income ₹328,800; expenses ₹90,300; net ₹238,500.
+- Profit/loss status formula outputs were populated for all 12 months.
+
+A recalculated review copy was generated as DigiNanba_Income_Expense_Tracker_RC1_LibreOffice_Checked.xlsx.
+
 ## Not yet verified — release blockers
-1. **Live compatibility:** Open and test the file in current Microsoft Excel and Google Sheets. Verify formula recalculation, date parsing, formatting, validation, and editing.
-2. **Human review:** Inspect the actual workbook and its customer instructions; replace/remove fictional rows before real use.
-3. **Localization:** Only the en-IN draft has been reviewed. Any other language/market needs translation and fluent human review.
-4. **Advanced version:** Implement separately; complete security/privacy review and end-to-end tests before describing it as an available automated service.
-5. **Commercial readiness:** Review pricing, support/refund terms, privacy disclosures, and operating costs.
-6. **Owner approval:** Record explicit approval before publication.
+1. **Microsoft Excel:** Live test in a current Microsoft Excel application is still required.
+2. **Google Sheets:** Import the workbook into Google Sheets and verify formulas, date parsing, formatting, validation, and editing. LibreOffice testing is not a substitute for this.
+3. **Human review:** Inspect the actual workbook and customer instructions; replace/remove fictional rows before real use.
+4. **Localization:** Only the en-IN draft has been reviewed. Any other language/market needs translation and fluent human review.
+5. **Advanced version:** Implement separately; complete security/privacy review and end-to-end tests before describing it as an available automated service. Bank/UPI access requires a verified integration and consent model; this workbook does not provide it.
+6. **Commercial readiness:** Review pricing, support/refund terms, privacy disclosures, and operating costs.
+7. **Owner approval:** Record explicit approval before publication.
 
 ## Known limitations
 - Bank statement import is manual CSV copy/paste; it does not connect to a bank/UPI account or automatically post transactions.
@@ -38,4 +51,4 @@ The workbook was inspected programmatically. **13/13 static checks passed**:
 - Inventory, depreciation, receivables/payables, and tax filing are out of scope.
 
 ## Release decision
-**HOLD.** Static workbook checks pass, but external application compatibility, human review, localization readiness, and explicit owner approval are still outstanding. Do not publish either version automatically.
+**HOLD.** Static workbook checks and LibreOffice recalculation pass. Microsoft Excel and Google Sheets compatibility, human review, localization readiness, advanced service implementation, commercial review, and explicit owner approval remain outstanding. Do not publish either version automatically.
