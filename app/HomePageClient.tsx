@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import type { CatalogProduct } from '@/lib/catalog';
 import type { Market } from '@/lib/market';
 import CreatorEarningsShowcase from './CreatorEarningsShowcase';
+import ProductRequestWorkspace from '@/components/ProductRequestWorkspace';
 import './creator-showcase.css';
 
 const categories = [
@@ -251,8 +252,11 @@ export default function HomePageClient({ initialProducts, initialMarket }: Props
     </nav>
 
     <main id="home">
+
+      <div className="ref-container"><ProductRequestWorkspace /></div>
+
       <section className="ref-hero">
-        <div className="ref-container ref-market-grid">
+        <div className="ref-container ref-market-grid ref-market-grid-single">
           <div className="ref-market-left">
             <form className="dn-goal-search dn-hero-goal-search" onSubmit={(event)=>{event.preventDefault();const input=event.currentTarget.elements.namedItem('goal') as HTMLInputElement;const value=input.value.trim();if(value){const params=new URLSearchParams({market,q:value});window.location.href='/explore?'+params.toString();}}}><input name="goal" aria-label="Describe what you want to accomplish" placeholder="What do you need? e.g. HR workflow, inventory, study planner, meal planner…" /><button className="ref-primary" type="submit">Find tools →</button></form>
             <h1>Find the digital tools that solve your problem.</h1><p className="dn-marketplace-intro">Discover existing products first. Review the options, then choose a tool that fits your work, studies, business, home or organization.</p>
@@ -261,26 +265,6 @@ export default function HomePageClient({ initialProducts, initialMarket }: Props
             </div>
           </div>
 
-          <aside className="ref-featured-panel" aria-label="Featured digital products">
-            <div className="ref-featured-head"><div><h2>Featured digital tools</h2><p>Practical resources to help you get things done.</p></div><Link href="/explore" className="ref-view-product">Explore all →</Link></div>
-            <div className="ref-featured-grid">
-              {products.slice(0, 6).map((product) => <article className="ref-featured-card dn-clickable-card" key={product.id}>
-                <Link className="dn-card-hit-area" href={`/products/${product.slug}?market=${market}`} aria-label={`View ${product.title}`} tabIndex={-1} />
-                <Link className="ref-featured-art" href={`/products/${product.slug}?market=${market}`} aria-label={`View ${product.title}`}>
-                  {categories.find(([, , dbName]) => dbName === product.category)?.[0] ?? '✦'}
-                </Link>
-                <div className="ref-featured-body">
-                  <span className="ref-tag">{product.category}</span>
-                  <h3><Link href={`/products/${product.slug}?market=${market}`}>{product.title}</Link></h3>
-                  <p>{product.description}</p>
-                  <div className="ref-featured-footer">
-                    <span className="ref-price">{product.price}</span>
-                    <button className="ref-add-cart" onClick={(event) => { event.stopPropagation(); addToCart(product); }}>Add to cart</button>
-                  </div>
-                </div>
-              </article>)}
-            </div>
-          </aside>
         </div>
       </section>
 
@@ -304,13 +288,6 @@ export default function HomePageClient({ initialProducts, initialMarket }: Props
       </section>
 
       <CreatorEarningsShowcase />
-
-      <section className="dn-customization-prompt" aria-labelledby="dn-customization-title">
-        <div className="ref-container dn-customization-inner">
-          <div><span className="dn-organization-kicker">YOUR IDEA MATTERS</span><h2 id="dn-customization-title">Can’t find the right tool? Describe what you need.</h2><p>Request a localized edition, editable file, household planner, business workflow or a new digital tool. Creators—including homemakers—can turn practical ideas into useful resources.</p></div>
-          <Link className="ref-primary" href={`/customize?locale=${market==='IN'?'en-IN':market==='UK'?'en-GB':'en-US'}`}>Request a tailored tool →</Link>
-        </div>
-      </section>
 
       <section className="dn-organization-pathways" aria-labelledby="dn-organization-title">
         <div className="ref-container">
