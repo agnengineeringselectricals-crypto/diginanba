@@ -46,10 +46,10 @@ export default function ProductRequestWorkspace() {
     'Intended audience: ' + audience.trim(),
     'Problem or outcome: ' + problem.trim(),
     'Desired features: ' + (features.trim() || 'Please recommend suitable features'),
-    'Intended use: ' + intent.replaceAll('_', ' '),
-    'Preferred format: ' + format.replaceAll('_', ' '),
+    'Intended use: ' + intent.replace(/_/g, ' '),
+    'Preferred format: ' + format.replace(/_/g, ' '),
     'Target market: ' + market + ' / ' + locale,
-    'Pricing preference: ' + price.replaceAll('_', ' '),
+    'Pricing preference: ' + price.replace(/_/g, ' '),
   ].join('\n\n'), [role, idea, kind, audience, problem, features, intent, format, market, locale, price]);
 
   function changeMarket(value: Market) {
@@ -214,10 +214,10 @@ export default function ProductRequestWorkspace() {
           <div><dt>Who it helps</dt><dd>{audience || 'Not specified'}</dd></div>
           <div><dt>Problem / desired result</dt><dd>{problem || 'Not specified'}</dd></div>
           <div><dt>Requested features</dt><dd>{features.trim() || 'Ask DigiNanba to recommend suitable features'}</dd></div>
-          <div><dt>Intended use</dt><dd>{intent.replaceAll('_', ' ')}</dd></div>
-          <div><dt>Format</dt><dd>{format.replaceAll('_', ' ')}</dd></div>
-          {isCreator && <div><dt>Pricing approach</dt><dd>{price.replaceAll('_', ' ')}</dd></div>}
-          <div><dt>Budget preference</dt><dd>{budget.replaceAll('_', ' ')}</dd></div>
+          <div><dt>Intended use</dt><dd>{intent.replace(/_/g, ' ')}</dd></div>
+          <div><dt>Format</dt><dd>{format.replace(/_/g, ' ')}</dd></div>
+          {isCreator && <div><dt>Pricing approach</dt><dd>{price.replace(/_/g, ' ')}</dd></div>}
+          <div><dt>Budget preference</dt><dd>{budget.replace(/_/g, ' ')}</dd></div>
         </dl>
         <p className="dn-pw-disclaimer">Submitting asks DigiNanba to review the brief. It is not an order, contract, automatic AI-generated deliverable, guaranteed publication, or promise of earnings or delivery date.</p>
         {error && <p className="dn-pw-error" role="alert">{error}</p>}
