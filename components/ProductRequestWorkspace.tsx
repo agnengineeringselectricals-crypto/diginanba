@@ -303,7 +303,7 @@ export default function ProductRequestWorkspace() {
       {typeSaveMessage && <p className="dn-pw-type-save-message" role="status">{typeSaveMessage}</p>}
       {searchingProducts && <p className="dn-pw-search-status" role="status">Searching existing products…</p>}
       {hasSearchedProducts && !searchingProducts && <div className="dn-pw-existing-results" aria-live="polite">
-        {existingProducts.length > 0 ? <><strong>Possible matches already available</strong><div className="dn-pw-existing-grid">{existingProducts.slice(0,8).map((product) => <article className="dn-pw-existing-card" key={product.id}><strong>{product.title}</strong><span>{product.category}</span><p>{product.description}</p>{product.price && <small>{product.price}</small>}</article>)}</div><p className="dn-pw-search-hint">Review these matches before creating a duplicate. If they are not the right fit, refine your search to check for a more suitable existing product.</p><a className="dn-pw-marketplace-link" href="/explore">Browse the marketplace →</a></> : <p>No matching published products were found in the current catalog. You can start a new creation brief.</p>}
+        {existingProducts.length > 0 ? <><strong>Search results</strong><div className="dn-pw-existing-grid">{existingProducts.slice(0,8).map((product) => <article className="dn-pw-existing-card" key={product.id}><strong>{product.title}</strong><span>{product.category}</span><p>{product.description}</p>{product.price && <small>{product.price}</small>}</article>)}</div><a className="dn-pw-marketplace-link" href="/explore">Browse the marketplace →</a></> : <p>No results found.</p>}
       </div>}
     </div>
     {expanded && createMode && <div className="dn-pw-builder">
