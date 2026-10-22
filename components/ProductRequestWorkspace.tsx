@@ -285,8 +285,9 @@ export default function ProductRequestWorkspace() {
   return <section className="dn-product-workspace" id="create-your-tool" aria-labelledby="dn-product-workspace-title">
     <div className="dn-pw-heading">
       <div>
-        <span className="dn-pw-kicker">DIGITAL TOOLS · TEMPLATES · AI</span>
-        <h2 id="dn-product-workspace-title">What do you want to make or find?</h2>
+        <h2 className="dn-pw-brand-mantra" id="dn-product-workspace-title" aria-label="Discover, Create and Earn">
+          <span>Discover</span><span className="dn-pw-mantra-create">Create</span><span className="dn-pw-mantra-earn">and Earn</span>
+        </h2>
       </div>
       <div className="dn-pw-orbit" aria-hidden="true"><span>✦</span><i>✧</i><b>↗</b></div>
     </div>
