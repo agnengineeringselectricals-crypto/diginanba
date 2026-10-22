@@ -3,23 +3,170 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import './product-request-workspace.css';
 
-type ProductKind = 'interactive_tool' | 'spreadsheet' | 'template' | 'ebook_guide' | 'software_app' | 'design_asset' | 'workflow' | 'not_sure' | 'custom';
+type ProductKind = string;
 const productKinds: { value: ProductKind; label: string }[] = [
-  { value: 'interactive_tool', label: 'Interactive web tool or dashboard' },
-  { value: 'spreadsheet', label: 'Excel / Google Sheets tool or tracker' },
-  { value: 'template', label: 'Editable template or document' },
-  { value: 'ebook_guide', label: 'Ebook, guide or learning resource' },
-  { value: 'software_app', label: 'Software, app or automation' },
-  { value: 'design_asset', label: 'Design asset or creative resource' },
-  { value: 'workflow', label: 'Business or personal workflow' },
-  { value: 'not_sure', label: 'Help me choose the right type' },
-  { value: 'custom', label: 'Other — add my own product type' },
+  { value: "Interactive web tool or dashboard", label: "Interactive web tool or dashboard" },
+  { value: "AI assistant or chatbot", label: "AI assistant or chatbot" },
+  { value: "AI agent or automation", label: "AI agent or automation" },
+  { value: "Website or landing page", label: "Website or landing page" },
+  { value: "Mobile app", label: "Mobile app" },
+  { value: "Web application", label: "Web application" },
+  { value: "Browser extension", label: "Browser extension" },
+  { value: "API or developer tool", label: "API or developer tool" },
+  { value: "SaaS business tool", label: "SaaS business tool" },
+  { value: "CRM or customer manager", label: "CRM or customer manager" },
+  { value: "Project management tool", label: "Project management tool" },
+  { value: "Task manager", label: "Task manager" },
+  { value: "Team collaboration tool", label: "Team collaboration tool" },
+  { value: "Appointment booking system", label: "Appointment booking system" },
+  { value: "Calendar and scheduling tool", label: "Calendar and scheduling tool" },
+  { value: "Invoice generator", label: "Invoice generator" },
+  { value: "Quotation or estimate generator", label: "Quotation or estimate generator" },
+  { value: "Receipt maker", label: "Receipt maker" },
+  { value: "Billing and accounting tool", label: "Billing and accounting tool" },
+  { value: "GST calculator or tool", label: "GST calculator or tool" },
+  { value: "Tax calculator", label: "Tax calculator" },
+  { value: "Payroll tool", label: "Payroll tool" },
+  { value: "Inventory management system", label: "Inventory management system" },
+  { value: "Stock and warehouse tracker", label: "Stock and warehouse tracker" },
+  { value: "Order management tool", label: "Order management tool" },
+  { value: "Point of sale (POS) tool", label: "Point of sale (POS) tool" },
+  { value: "Customer support helpdesk", label: "Customer support helpdesk" },
+  { value: "Live chat tool", label: "Live chat tool" },
+  { value: "Email marketing tool", label: "Email marketing tool" },
+  { value: "Social media scheduler", label: "Social media scheduler" },
+  { value: "SEO analysis tool", label: "SEO analysis tool" },
+  { value: "Keyword research tool", label: "Keyword research tool" },
+  { value: "Website analytics dashboard", label: "Website analytics dashboard" },
+  { value: "Lead generation tool", label: "Lead generation tool" },
+  { value: "Sales funnel builder", label: "Sales funnel builder" },
+  { value: "Marketing campaign planner", label: "Marketing campaign planner" },
+  { value: "Affiliate marketing tracker", label: "Affiliate marketing tracker" },
+  { value: "E-commerce store tool", label: "E-commerce store tool" },
+  { value: "Product catalog builder", label: "Product catalog builder" },
+  { value: "Price comparison tool", label: "Price comparison tool" },
+  { value: "Subscription management tool", label: "Subscription management tool" },
+  { value: "Payment tracking tool", label: "Payment tracking tool" },
+  { value: "Personal finance tracker", label: "Personal finance tracker" },
+  { value: "Budget planner", label: "Budget planner" },
+  { value: "Income and expense tracker", label: "Income and expense tracker" },
+  { value: "Loan and EMI calculator", label: "Loan and EMI calculator" },
+  { value: "Investment tracker", label: "Investment tracker" },
+  { value: "Savings goal planner", label: "Savings goal planner" },
+  { value: "Excel spreadsheet", label: "Excel spreadsheet" },
+  { value: "Google Sheets spreadsheet", label: "Google Sheets spreadsheet" },
+  { value: "Excel / Google Sheets dashboard", label: "Excel / Google Sheets dashboard" },
+  { value: "Financial model spreadsheet", label: "Financial model spreadsheet" },
+  { value: "Business plan template", label: "Business plan template" },
+  { value: "Budget spreadsheet", label: "Budget spreadsheet" },
+  { value: "Invoice spreadsheet", label: "Invoice spreadsheet" },
+  { value: "Expense tracker spreadsheet", label: "Expense tracker spreadsheet" },
+  { value: "Inventory spreadsheet", label: "Inventory spreadsheet" },
+  { value: "Sales tracker spreadsheet", label: "Sales tracker spreadsheet" },
+  { value: "Attendance tracker", label: "Attendance tracker" },
+  { value: "Timesheet", label: "Timesheet" },
+  { value: "Project tracker spreadsheet", label: "Project tracker spreadsheet" },
+  { value: "Habit tracker", label: "Habit tracker" },
+  { value: "Workout tracker", label: "Workout tracker" },
+  { value: "Meal planner", label: "Meal planner" },
+  { value: "Study planner", label: "Study planner" },
+  { value: "Lesson planner", label: "Lesson planner" },
+  { value: "Student progress tracker", label: "Student progress tracker" },
+  { value: "School management tool", label: "School management tool" },
+  { value: "Quiz or assessment builder", label: "Quiz or assessment builder" },
+  { value: "Flashcard creator", label: "Flashcard creator" },
+  { value: "Online course", label: "Online course" },
+  { value: "Ebook", label: "Ebook" },
+  { value: "How-to guide", label: "How-to guide" },
+  { value: "Research report", label: "Research report" },
+  { value: "Checklist", label: "Checklist" },
+  { value: "Workbook", label: "Workbook" },
+  { value: "Printable planner", label: "Printable planner" },
+  { value: "Resume or CV template", label: "Resume or CV template" },
+  { value: "Cover letter template", label: "Cover letter template" },
+  { value: "Proposal template", label: "Proposal template" },
+  { value: "Contract or policy template", label: "Contract or policy template" },
+  { value: "Business document template", label: "Business document template" },
+  { value: "Presentation template", label: "Presentation template" },
+  { value: "PowerPoint slide deck", label: "PowerPoint slide deck" },
+  { value: "Pitch deck", label: "Pitch deck" },
+  { value: "Report template", label: "Report template" },
+  { value: "Meeting notes template", label: "Meeting notes template" },
+  { value: "SOP or process document", label: "SOP or process document" },
+  { value: "Notion template", label: "Notion template" },
+  { value: "Airtable base", label: "Airtable base" },
+  { value: "Database template", label: "Database template" },
+  { value: "Form builder", label: "Form builder" },
+  { value: "Survey builder", label: "Survey builder" },
+  { value: "Workflow builder", label: "Workflow builder" },
+  { value: "No-code automation", label: "No-code automation" },
+  { value: "Zapier or Make workflow", label: "Zapier or Make workflow" },
+  { value: "Data import/export tool", label: "Data import/export tool" },
+  { value: "Data cleaning tool", label: "Data cleaning tool" },
+  { value: "Data visualization dashboard", label: "Data visualization dashboard" },
+  { value: "Chart or graph builder", label: "Chart or graph builder" },
+  { value: "PDF tool", label: "PDF tool" },
+  { value: "Document converter", label: "Document converter" },
+  { value: "Image editor", label: "Image editor" },
+  { value: "Photo editing preset", label: "Photo editing preset" },
+  { value: "Logo design", label: "Logo design" },
+  { value: "Brand identity kit", label: "Brand identity kit" },
+  { value: "Social media graphics", label: "Social media graphics" },
+  { value: "Ad creative template", label: "Ad creative template" },
+  { value: "Video editing template", label: "Video editing template" },
+  { value: "Animation asset", label: "Animation asset" },
+  { value: "Audio or music asset", label: "Audio or music asset" },
+  { value: "Podcast toolkit", label: "Podcast toolkit" },
+  { value: "Content writing tool", label: "Content writing tool" },
+  { value: "Copywriting template", label: "Copywriting template" },
+  { value: "Translation or localization tool", label: "Translation or localization tool" },
+  { value: "Language learning resource", label: "Language learning resource" },
+  { value: "AI image generator workflow", label: "AI image generator workflow" },
+  { value: "AI video creation workflow", label: "AI video creation workflow" },
+  { value: "Prompt library", label: "Prompt library" },
+  { value: "Prompt template", label: "Prompt template" },
+  { value: "Design system or UI kit", label: "Design system or UI kit" },
+  { value: "Website UI component kit", label: "Website UI component kit" },
+  { value: "Figma resource", label: "Figma resource" },
+  { value: "Icon pack", label: "Icon pack" },
+  { value: "Font or typography resource", label: "Font or typography resource" },
+  { value: "3D asset", label: "3D asset" },
+  { value: "Game asset", label: "Game asset" },
+  { value: "Game or interactive experience", label: "Game or interactive experience" },
+  { value: "E-learning resource", label: "E-learning resource" },
+  { value: "Health and wellness tracker", label: "Health and wellness tracker" },
+  { value: "Fitness planner", label: "Fitness planner" },
+  { value: "Travel planner", label: "Travel planner" },
+  { value: "Trip budget tool", label: "Trip budget tool" },
+  { value: "Real estate calculator", label: "Real estate calculator" },
+  { value: "Construction estimator", label: "Construction estimator" },
+  { value: "Electrical calculator or engineering tool", label: "Electrical calculator or engineering tool" },
+  { value: "Engineering design tool", label: "Engineering design tool" },
+  { value: "CAD resource", label: "CAD resource" },
+  { value: "Manufacturing workflow", label: "Manufacturing workflow" },
+  { value: "Agriculture planning tool", label: "Agriculture planning tool" },
+  { value: "Restaurant management tool", label: "Restaurant management tool" },
+  { value: "Retail management tool", label: "Retail management tool" },
+  { value: "Freelancer business toolkit", label: "Freelancer business toolkit" },
+  { value: "Small business toolkit", label: "Small business toolkit" },
+  { value: "Nonprofit management tool", label: "Nonprofit management tool" },
+  { value: "Legal research or document tool", label: "Legal research or document tool" },
+  { value: "HR recruitment tool", label: "HR recruitment tool" },
+  { value: "Employee onboarding tool", label: "Employee onboarding tool" },
+  { value: "Performance review tool", label: "Performance review tool" },
+  { value: "Customer survey tool", label: "Customer survey tool" },
+  { value: "Event planning tool", label: "Event planning tool" },
+  { value: "Wedding planner", label: "Wedding planner" },
+  { value: "Family organizer", label: "Family organizer" },
+  { value: "Personal productivity tool", label: "Personal productivity tool" },
+  { value: "Custom product type", label: "Custom product type" },
 ];
 
 export default function ProductRequestWorkspace() {
   const [expanded, setExpanded] = useState(false);
   const [idea, setIdea] = useState('');
-  const [kind, setKind] = useState<string>('interactive_tool');
+  const [kind, setKind] = useState<string>('Interactive web tool or dashboard');
+  const [kindQuery, setKindQuery] = useState<string>('Interactive web tool or dashboard');
   const [customKind, setCustomKind] = useState('');
   const [savedCustomTypes, setSavedCustomTypes] = useState<string[]>([]);
   const [typeSaveMessage, setTypeSaveMessage] = useState('');
@@ -35,7 +182,7 @@ export default function ProductRequestWorkspace() {
   }, []);
 
   function saveCustomType() {
-    const value = customKind.trim().replace(/\\s+/g, ' ');
+    const value = (kindQuery || customKind).trim().replace(/\s+/g, ' ');
     if (value.length < 2) {
       setTypeSaveMessage('Enter a product type with at least 2 characters.');
       return;
@@ -45,7 +192,8 @@ export default function ProductRequestWorkspace() {
     const next = existing ? savedCustomTypes : [...savedCustomTypes, value].slice(-100);
     setSavedCustomTypes(next);
     try { localStorage.setItem('diginanba-saved-product-types', JSON.stringify(next)); } catch { /* Keep the type available for this session if storage is blocked. */ }
-    setKind('custom:' + savedName);
+    setKind(savedName);
+    setKindQuery(savedName);
     setCustomKind('');
     setTypeSaveMessage('Saved “' + savedName + '” and selected it.');
   }
@@ -55,9 +203,9 @@ export default function ProductRequestWorkspace() {
   const [success, setSuccess] = useState('');
   const [requestRef, setRequestRef] = useState('');
 
-  const isAddingCustomType = kind === 'custom';
-  const selectedKindLabel = kind.startsWith('custom:') ? kind.slice(7) : isAddingCustomType ? (customKind.trim() || 'Custom product type (to be specified)') : (productKinds.find((item) => item.value === kind)?.label ?? kind);
-  const canPreview = idea.trim().length >= 5 && (!isAddingCustomType || customKind.trim().length >= 2);
+  const selectedKindLabel = kind.trim() || 'Product type not selected';
+  const exactKnownType = productKinds.some((item) => item.label.toLocaleLowerCase() === kindQuery.trim().toLocaleLowerCase()) || savedCustomTypes.some((item) => item.toLocaleLowerCase() === kindQuery.trim().toLocaleLowerCase());
+  const canPreview = idea.trim().length >= 5 && kind.trim().length >= 2;
   const description = [
     'Product/tool description supplied by the requester:',
     idea.trim(),
@@ -96,7 +244,7 @@ export default function ProductRequestWorkspace() {
           targetAudience: '',
           keyFeatures: [],
           priceExpectation: 'help_recommend',
-          productKind: kind.startsWith('custom:') ? kind.slice(7) : isAddingCustomType ? customKind.trim() : kind,
+          productKind: selectedKindLabel,
           requestSource: 'homepage_product_workspace',
         }),
       });
@@ -145,15 +293,14 @@ export default function ProductRequestWorkspace() {
             <small>Only the description and product type are required. You can request new features or improvements later.</small>
           </label>
           <label className="dn-pw-field-full">What kind of product is it?
-            <select value={kind} onChange={(event) => { setKind(event.target.value); setTypeSaveMessage(''); }}>
-              {productKinds.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
-              {savedCustomTypes.map((item) => <option key={'custom:' + item} value={'custom:' + item}>{item} (custom)</option>)}
-            </select>
+            <input list="dn-pw-product-types" value={kindQuery} maxLength={120} onChange={(event) => { const value = event.target.value; setKindQuery(value); setKind(value); setTypeSaveMessage(''); }} placeholder="Start typing a product type…" autoComplete="off" required />
+            <datalist id="dn-pw-product-types">
+              {productKinds.map((item) => <option key={item.value} value={item.label} />)}
+              {savedCustomTypes.map((item) => <option key={'saved-' + item} value={item} />)}
+            </datalist>
+            <small>Start typing—for example, “invoice”, “keyboard”, “AI”, “tracker” or “planner”—to see matching suggestions. If your type is missing, save your own below.</small>
           </label>
-          {isAddingCustomType && <div className="dn-pw-field-full dn-pw-custom-type-field"><label htmlFor="dn-pw-custom-type">Add your product type
-            <input id="dn-pw-custom-type" required minLength={2} maxLength={120} value={customKind} onChange={(event) => { setCustomKind(event.target.value); setTypeSaveMessage(''); }} placeholder="e.g. AI-powered lesson planner, invoice generator, music practice app" />
-            <small>Save this type to add it to the product-type list. It will be selected automatically and remembered in this browser.</small>
-          </label><button type="button" className="dn-pw-back dn-pw-save-type" onClick={saveCustomType} disabled={customKind.trim().length < 2}>Save type &amp; select it</button>{typeSaveMessage && <p className="dn-pw-type-save-message" role="status">{typeSaveMessage}</p>}</div>}
+          {!exactKnownType && kindQuery.trim().length >= 2 && <div className="dn-pw-field-full dn-pw-custom-type-field"><button type="button" className="dn-pw-back dn-pw-save-type" onClick={saveCustomType}>Save “{kindQuery.trim()}” as a product type &amp; select it</button>{typeSaveMessage && <p className="dn-pw-type-save-message" role="status">{typeSaveMessage}</p>}</div>}
         </div>
         <div className="dn-pw-global-note"><span className="dn-pw-global-icon">◎</span><div><strong>Designed for global availability</strong><p>The goal is to offer finalized products worldwide, display prices in each customer's local currency, and let creators choose their own pricing currency. Actual currency conversion requires a current exchange-rate source at checkout.</p></div></div>
         <div className="dn-pw-form-footer"><p>Review your product brief in the preview before submitting it.</p><button type="submit" className="dn-pw-start" disabled={!canPreview}>Preview &amp; finalize brief →</button></div>
