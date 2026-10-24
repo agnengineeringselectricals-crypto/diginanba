@@ -204,19 +204,8 @@ export default function HomePageClient({ initialProducts, initialMarket }: Props
     <header className="ref-header">
       <div className="ref-container ref-nav">
         <Link href="/" className="ref-logo" aria-label="DigiNanba home"><img src="/diginanba-logo.svg" alt="DigiNanba — Global Digital Marketplace" className="ref-logo-image" width="168" height="36" /></Link>
-        <div className="dn-joy-strip" aria-label="DigiNanba celebrates people of every generation and creator success">
-          <div className="dn-joy-scene dn-joy-kids">
-            <img src="https://media0.giphy.com/media/l2JJHEW1lToNnJzxe/200.gif" alt="Children dancing happily" loading="eager" />
-            <span>Big dreams start small</span>
-          </div>
-          <div className="dn-joy-scene dn-joy-elders">
-            <img src="https://media.giphy.com/media/LqlgsS3Noy4wuQ1XfU/giphy.gif" alt="Older people dancing and enjoying life" loading="eager" />
-            <span>Joy at every age</span>
-          </div>
-          <div className="dn-joy-scene dn-joy-earn">
-            <img src="https://media.giphy.com/media/3ohzdYw3qQ2zd3q8Xy/giphy.gif" alt="Celebrating earnings and financial success" loading="eager" />
-            <span>Create. Earn. Celebrate.</span>
-          </div>
+        <div className="dn-joy-strip" aria-label="Animated DigiNanba community: nine smiling people jumping, with letters spelling DigiNanba and creators celebrating earnings">
+          <img src="/diginanba-jumping-community.svg" alt="Nine smiling hand-drawn people, including grandparents, jumping with colorful DigiNanba letters and a few people holding outlined cash" width="1260" height="190" />
         </div>
         <div className="ref-actions">
           <div className="ref-account-wrap" style={{ position: 'relative' }}>
