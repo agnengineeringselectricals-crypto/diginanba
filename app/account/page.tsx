@@ -7,7 +7,7 @@ const destinations = [
   { icon: '📚', title: 'My DigiNanba Library', description: 'Access purchased resources and future updates.', href: '/account/library', action: 'Open library' },
   { icon: '🧾', title: 'Orders & purchases', description: 'Review your order history and payment status.', href: '/account/orders', action: 'View orders' },
   { icon: '❤️', title: 'Wishlist', description: 'Keep useful products saved for later.', href: '/account/wishlist', action: 'View wishlist' },
-  { icon: '⚙️', title: 'Settings & preferences', description: 'Manage region, language, notifications and display preferences.', href: '/account/settings', action: 'Manage settings' },
+  { icon: '⚙️', title: 'Settings & preferences', description: 'Manage your region, language and display preferences.', href: '/account/settings', action: 'Manage settings' },
   { icon: '🛍️', title: 'Creator Studio', description: 'Apply to create products and manage your product drafts.', href: '/seller/studio', action: 'Open studio' },
 ];
 export default async function AccountPage() {
@@ -21,6 +21,6 @@ export default async function AccountPage() {
     <div className="dn-account-shortcuts"><Link href="/explore"><span>🔎</span><b>Discover products</b><span>→</span></Link><Link href="/account/library"><span>📚</span><b>My library</b><span>→</span></Link><Link href="/account/settings"><span>⚙️</span><b>Preferences</b><span>→</span></Link></div>
     <div className="dn-account-section-title"><div><h2>Your account</h2><p>Choose what you would like to do next.</p></div></div>
     <div className="dn-account-grid">{destinations.map((item) => <Link className="dn-account-card" href={item.href} key={item.href}><span className="dn-account-card-icon">{item.icon}</span><h3>{item.title}</h3><p>{item.description}</p><span className="dn-account-card-action">{item.action} <span>→</span></span></Link>)}</div>
-    <p className="dn-account-footnote">Your order history and library reflect the data currently available to your account. Download access appears only when fulfillment is implemented for a purchase.</p>
+    <p className="dn-account-footnote">Your order history and library show the information currently available to your account. Download access appears when a purchase includes an available digital file.</p>
   </main>;
 }
