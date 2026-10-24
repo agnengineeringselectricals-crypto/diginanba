@@ -82,6 +82,7 @@ export default function HomePageClient({ initialProducts, initialMarket }: Props
   const [category, setCategory] = useState('All');
   const [sort, setSort] = useState('featured');
   const [languageOpen, setLanguageOpen] = useState(false);
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [countryCode, setCountryCode] = useState('US');
   const [cartCount, setCartCount] = useState(0);
   const [languageCode, setLanguageCode] = useState('EN');
@@ -217,8 +218,29 @@ export default function HomePageClient({ initialProducts, initialMarket }: Props
           </div>}
         </form>
         <div className="ref-actions">
-          <Link className="ref-login" href="/login">Log in</Link>
-          <Link className="ref-signup" href="/signup">Sign up</Link>
+          <div className="ref-account-wrap" style={{ position: 'relative' }}>
+            <button
+              type="button"
+              className="ref-account-button"
+              onClick={() => setAccountMenuOpen((open) => !open)}
+              aria-expanded={accountMenuOpen}
+              aria-haspopup="menu"
+              aria-label="My Account — log in or create an account"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 8, border: '1px solid #d8deea', borderRadius: 999, background: '#fff', color: '#172033', padding: '6px 12px 6px 7px', font: 'inherit', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
+            >
+              <span aria-hidden="true" style={{ width: 30, height: 30, borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: '#eaf0ff', color: '#344c9a', flex: '0 0 30px' }}>
+                <svg viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="8" r="3.2" />
+                  <path d="M5.5 20c.4-3.5 2.8-5.5 6.5-5.5s6.1 2 6.5 5.5" />
+                </svg>
+              </span>
+              <span>My Account</span><span aria-hidden="true" style={{ fontSize: 11 }}>▾</span>
+            </button>
+            {accountMenuOpen && <div role="menu" aria-label="My Account options" style={{ position: 'absolute', top: 'calc(100% + 8px)', right: 0, zIndex: 1100, width: 210, padding: 8, background: '#fff', border: '1px solid #e0e5ee', borderRadius: 12, boxShadow: '0 14px 32px rgba(20,30,60,.18)' }}>
+              <Link role="menuitem" href="/login" onClick={() => setAccountMenuOpen(false)} style={{ display: 'block', padding: '11px 12px', borderRadius: 8, color: '#172033', textDecoration: 'none', fontWeight: 600 }}>Log in</Link>
+              <Link role="menuitem" href="/signup" onClick={() => setAccountMenuOpen(false)} style={{ display: 'block', padding: '11px 12px', borderRadius: 8, color: '#172033', textDecoration: 'none', fontWeight: 600 }}>Create an account</Link>
+            </div>}
+          </div>
           <Link className="ref-cart" href="/cart" aria-label={`Cart, ${cartCount} items`}><svg className="ref-cart-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h2l2.2 11.2a2 2 0 0 0 2 1.6h7.9a2 2 0 0 0 1.9-1.4L21 8H7" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><circle cx="10" cy="20" r="1.3" fill="currentColor"/><circle cx="18" cy="20" r="1.3" fill="currentColor"/></svg><span className="ref-count">{cartCount}</span></Link>
           <div className="ref-language-wrap">
             <button className="ref-language" onClick={() => setLanguageOpen((open) => !open)} aria-expanded={languageOpen} aria-label={`Country and language: ${countryCode}, ${selectedLanguage}`} title={`Country: ${countryCode} · Language: ${selectedLanguage}`}>
