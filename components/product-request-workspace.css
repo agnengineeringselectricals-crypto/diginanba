@@ -46,3 +46,15 @@
 @keyframes dn-pw-earn-glow{from{box-shadow:0 0 0 2px #fff,0 0 12px rgba(142,68,255,.42),0 0 22px rgba(249,115,22,.22)}to{box-shadow:0 0 0 2px #fff,0 0 20px rgba(142,68,255,.72),0 0 34px rgba(249,115,22,.4)}}
 @media(prefers-reduced-motion:reduce){.dn-pw-create-earn{animation:none}}
 @media(max-width:650px){.dn-pw-no-match-card{align-items:stretch;flex-direction:column}.dn-pw-no-match-card .dn-pw-create-earn{width:100%}}
+
+
+/* Homepage Discover / Create / Earn: one unified panel, not nested panels. */
+.dn-product-workspace{margin:22px auto 30px;padding:clamp(18px,2.5vw,30px);border:1px solid #e0e5f2;border-radius:22px;background:#fff;box-shadow:0 12px 32px rgba(41,47,95,.055)}
+.dn-pw-heading{margin-bottom:18px}
+.dn-pw-orbit{display:none}
+.dn-pw-builder.dn-pw-search-first{margin:0;padding:0;border:0;border-radius:0;background:transparent}
+.dn-pw-search-toolbar{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:12px;padding:0;border:0;border-radius:0;background:transparent;box-shadow:none}
+.dn-pw-existing-results{margin-top:18px;padding:0;border:0;border-radius:0;background:transparent;box-shadow:none;overflow:visible}
+.dn-pw-existing-heading{margin-bottom:12px}
+.dn-pw-existing-roller{padding:2px 2px 12px}
+@media(max-width:650px){.dn-product-workspace{margin:16px auto 22px;padding:16px;border-radius:17px}.dn-pw-heading{margin-bottom:14px}.dn-pw-search-toolbar{grid-template-columns:minmax(0,1fr);gap:10px}.dn-pw-existing-results{margin-top:15px}}
