@@ -174,19 +174,6 @@ export default function ProductRequestWorkspace() {
   const [kind, setKind] = useState<string>('Interactive web tool or dashboard');
   const [kindQuery, setKindQuery] = useState<string>('Interactive web tool or dashboard');
   const [customKind, setCustomKind] = useState('');
-  const [savedCustomTypes, setSavedCustomTypes] = useState<string[]>([]);
-  const [typeSaveMessage, setTypeSaveMessage] = useState('');
-
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem('diginanba-saved-product-types');
-      if (saved) {
-        const parsed: unknown = JSON.parse(saved);
-        if (Array.isArray(parsed)) setSavedCustomTypes(parsed.filter((item): item is string => typeof item === 'string').slice(0, 100));
-      }
-    } catch { /* Ignore unavailable or malformed local preferences. */ }
-  }, []);
-
   useEffect(() => {
     if (!createMode) return;
     const timer = window.setTimeout(() => {
@@ -220,22 +207,6 @@ export default function ProductRequestWorkspace() {
     return () => { active = false; clearTimeout(timer); controller.abort(); };
   }, [productSearch]);
 
-  function saveCustomType(rawValue = kindQuery) {
-    const value = (rawValue || customKind).trim().replace(/\s+/g, ' ');
-    if (value.length < 2) {
-      setTypeSaveMessage('Enter a product type with at least 2 characters.');
-      return;
-    }
-    const existing = savedCustomTypes.find((item) => item.toLocaleLowerCase() === value.toLocaleLowerCase());
-    const savedName = existing ?? value;
-    const next = existing ? savedCustomTypes : [...savedCustomTypes, value].slice(-100);
-    setSavedCustomTypes(next);
-    try { localStorage.setItem('diginanba-saved-product-types', JSON.stringify(next)); } catch { /* Keep the type available for this session if storage is blocked. */ }
-    setKind(savedName);
-    setKindQuery(savedName);
-    setCustomKind('');
-    setTypeSaveMessage('Saved “' + savedName + '” and selected it.');
-  }
   const [previewOpen, setPreviewOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -243,7 +214,7 @@ export default function ProductRequestWorkspace() {
   const [requestRef, setRequestRef] = useState('');
 
   const selectedKindLabel = kind.trim() || 'Product type not selected';
-  const exactKnownType = productKinds.some((item) => item.label.toLocaleLowerCase() === kindQuery.trim().toLocaleLowerCase()) || savedCustomTypes.some((item) => item.toLocaleLowerCase() === kindQuery.trim().toLocaleLowerCase());
+  const exactKnownType = productKinds.some((item) => item.label.toLocaleLowerCase() === kindQuery.trim().toLocaleLowerCase());
   const canPreview = idea.trim().length >= 5 && kind.trim().length >= 2;
   const description = [
     'Product/tool description supplied by the requester:',
@@ -314,12 +285,10 @@ export default function ProductRequestWorkspace() {
         <label className="dn-pw-field-full dn-pw-product-search-label">
           <span className="dn-pw-search-caption">Find a digital tool or product</span>
           <input type="search" list="dn-pw-product-search-types" value={productSearch} onChange={(event) => { setProductSearch(event.target.value); setCreateMode(false); }} placeholder="Search templates, AI tools, dashboards, planners…" autoComplete="off" />
-          <datalist id="dn-pw-product-search-types">{productKinds.map((item) => <option key={item.value} value={item.label} />)}{savedCustomTypes.map((item) => <option key={"search-" + item} value={item} />)}</datalist>
+          <datalist id="dn-pw-product-search-types">{productKinds.map((item) => <option key={item.value} value={item.label} />)}</datalist>
         </label>
         <button type="button" className="dn-pw-start dn-pw-create-cta" onClick={() => { setIdea((current) => current.trim() ? current : productSearch.trim()); setCreateMode(true); setError(''); setSuccess(''); }}>＋ Create a product</button>
       </div>
-      {productSearch.trim().length >= 2 && !productKinds.some((item) => item.label.toLocaleLowerCase() === productSearch.trim().toLocaleLowerCase()) && !savedCustomTypes.some((item) => item.toLocaleLowerCase() === productSearch.trim().toLocaleLowerCase()) && <button type="button" className="dn-pw-save-search-type" onClick={() => saveCustomType(productSearch)}>＋ Save “{productSearch.trim()}” as a product type</button>}
-      {typeSaveMessage && <p className="dn-pw-type-save-message" role="status">{typeSaveMessage}</p>}
       <div className="dn-pw-existing-results" aria-live="polite">
         {(existingProducts.length > 0 || productSearch.trim().length < 2) && <div className="dn-pw-existing-heading"><strong>{productSearch.trim().length >= 2 ? 'Matching products and tools' : 'Explore existing products'}</strong><span>{productSearch.trim().length >= 2 ? 'Relevant matches from the marketplace' : 'Start here, or type to find something specific'}</span></div>}
         {searchingProducts && <p className="dn-pw-search-status" role="status">Finding relevant products…</p>}
@@ -344,11 +313,9 @@ export default function ProductRequestWorkspace() {
             <input list="dn-pw-product-types" value={kindQuery} maxLength={120} onChange={(event) => { const value = event.target.value; setKindQuery(value); setKind(value); setTypeSaveMessage(''); }} placeholder="Start typing a product type…" autoComplete="off" required />
             <datalist id="dn-pw-product-types">
               {productKinds.map((item) => <option key={item.value} value={item.label} />)}
-              {savedCustomTypes.map((item) => <option key={'saved-' + item} value={item} />)}
             </datalist>
-            <small>Start typing—for example, “invoice”, “keyboard”, “AI”, “tracker” or “planner”—to see matching suggestions. If your type is missing, save your own below.</small>
+            <small>Start typing—for example, “invoice”, “keyboard”, “AI”, “tracker” or “planner”—to see matching suggestions. If your type is missing, enter it in your own words.</small>
           </label>
-          {!exactKnownType && kindQuery.trim().length >= 2 && <div className="dn-pw-field-full dn-pw-custom-type-field"><button type="button" className="dn-pw-back dn-pw-save-type" onClick={() => saveCustomType()}>Save “{kindQuery.trim()}” as a product type &amp; select it</button>{typeSaveMessage && <p className="dn-pw-type-save-message" role="status">{typeSaveMessage}</p>}</div>}
         </div>
         <div className="dn-pw-global-note"><span className="dn-pw-global-icon">◎</span><div><strong>Designed for global availability</strong><p>The goal is to offer finalized products worldwide, display prices in each customer's local currency, and let creators choose their own pricing currency. Actual currency conversion requires a current exchange-rate source at checkout.</p></div></div>
         <div className="dn-pw-form-footer"><p>Review your product brief in the preview before submitting it.</p><button type="submit" className="dn-pw-start" disabled={!canPreview}>Preview &amp; finalize brief →</button></div>
