@@ -285,7 +285,7 @@ export default function ProductRequestWorkspace() {
           <input type="search" list="dn-pw-product-search-types" value={productSearch} onChange={(event) => { setProductSearch(event.target.value); setCreateMode(false); }} placeholder="Search templates, AI tools, dashboards, planners…" autoComplete="off" />
           <datalist id="dn-pw-product-search-types">{productKinds.map((item) => <option key={item.value} value={item.label} />)}</datalist>
         </label>
-        <button type="button" className="dn-pw-start dn-pw-create-cta" onClick={() => { setIdea((current) => current.trim() ? current : productSearch.trim()); setCreateMode(true); setError(''); setSuccess(''); }}>＋ Create a product</button>
+        <button type="button" className="dn-pw-start dn-pw-create-cta" onClick={() => { setIdea((current) => current.trim() ? current : productSearch.trim()); setCreateMode(true); setError(''); setSuccess(''); }}>Find or Create</button>
       </div>
       <div className="dn-pw-existing-results" aria-live="polite">
         {(existingProducts.length > 0 || productSearch.trim().length < 2) && <div className="dn-pw-existing-heading"><strong>{productSearch.trim().length >= 2 ? 'Matching products and tools' : 'Explore existing products'}</strong><span>{productSearch.trim().length >= 2 ? 'Relevant matches from the marketplace' : 'Start here, or type to find something specific'}</span></div>}
