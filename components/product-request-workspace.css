@@ -38,3 +38,11 @@
 .dn-pw-existing-open{margin-top:10px;color:#5844db;font-size:12px;font-weight:800}
 .dn-pw-no-results{margin:10px 0;color:#626d83;font-size:13px;line-height:1.5}
 @media(max-width:650px){.dn-pw-existing-results{padding:12px}.dn-pw-existing-roller{grid-auto-columns:minmax(205px,78vw);gap:10px}.dn-pw-existing-card{min-height:190px}.dn-pw-existing-heading{display:block}.dn-pw-existing-heading>span{display:block;margin-top:4px}}
+
+
+/* Clear, glowing call-to-action when a searched product is missing */
+.dn-pw-no-match-card{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin:4px 0 2px;padding:18px;border:1px solid #d8d0ff;border-radius:15px;background:linear-gradient(115deg,#f4efff 0%,#fff8ed 52%,#effcff 100%);box-shadow:0 8px 24px rgba(88,68,219,.08)}
+.dn-pw-no-match-card p{margin:0;color:#343052;font-size:14px;line-height:1.4}.dn-pw-no-match-card p strong{font-size:16px;color:#3d2eae}.dn-pw-create-earn{position:relative;isolation:isolate;overflow:visible;background:linear-gradient(110deg,#5b36e8,#c026d3,#f97316);box-shadow:0 0 0 2px #fff,0 0 16px rgba(142,68,255,.55),0 0 28px rgba(249,115,22,.3);animation:dn-pw-earn-glow 1.8s ease-in-out infinite alternate}.dn-pw-create-earn:hover{filter:brightness(1.12);box-shadow:0 0 0 2px #fff,0 0 22px rgba(142,68,255,.7),0 0 38px rgba(249,115,22,.42)}
+@keyframes dn-pw-earn-glow{from{box-shadow:0 0 0 2px #fff,0 0 12px rgba(142,68,255,.42),0 0 22px rgba(249,115,22,.22)}to{box-shadow:0 0 0 2px #fff,0 0 20px rgba(142,68,255,.72),0 0 34px rgba(249,115,22,.4)}}
+@media(prefers-reduced-motion:reduce){.dn-pw-create-earn{animation:none}}
+@media(max-width:650px){.dn-pw-no-match-card{align-items:stretch;flex-direction:column}.dn-pw-no-match-card .dn-pw-create-earn{width:100%}}
