@@ -315,24 +315,19 @@ export default function ProductRequestWorkspace() {
             <small>Start typing—for example, “invoice”, “keyboard”, “AI”, “tracker” or “planner”—to see matching suggestions. If your type is missing, enter it in your own words.</small>
           </label>
         </div>
-        <div className="dn-pw-global-note"><span className="dn-pw-global-icon">◎</span><div><strong>Designed for global availability</strong><p>The goal is to offer finalized products worldwide, display prices in each customer's local currency, and let creators choose their own pricing currency. Actual currency conversion requires a current exchange-rate source at checkout.</p></div></div>
+        <div className="dn-pw-global-note"><span className="dn-pw-global-icon">◎</span><div><strong>What happens after you submit?</strong><p>DigiNanba reviews the request first. If it can be taken forward, the available format, language, price and delivery details will be shared before you commit.</p></div></div>
         <div className="dn-pw-form-footer"><p>Review your product brief in the preview before submitting it.</p><button type="submit" className="dn-pw-start" disabled={!canPreview}>Preview &amp; finalize brief →</button></div>
       </form>
     </div>}
-    {success && <div className="dn-pw-success" role="status"><strong>✓ Brief received</strong><p>{success}</p><p className="dn-pw-next-step"><strong>Next stage:</strong> product design preview → creator confirms final design → price recommendation and editable price → earnings and maintenance-cost breakdown → publication review.</p></div>}
+    {success && <div className="dn-pw-success" role="status"><strong>✓ Request received</strong><p>{success}</p><p>We will review your idea. Submitting a request does not mean a finished product is already available or guarantee publication, earnings or a delivery date.</p></div>}
     {error && <p className="dn-pw-error" role="alert">{error}</p>}
     {previewOpen && <div className="dn-pw-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) setPreviewOpen(false); }}>
       <section className="dn-pw-modal" role="dialog" aria-modal="true" aria-labelledby="dn-pw-preview-title">
         <div className="dn-pw-modal-header"><div><span className="dn-pw-kicker">BRIEF PREVIEW</span><h3 id="dn-pw-preview-title">Review your product idea</h3><p>Make sure this describes what you want before sending it to DigiNanba.</p></div><button type="button" onClick={() => setPreviewOpen(false)} disabled={busy} aria-label="Close preview">×</button></div>
-        <div className="dn-pw-preview-tags"><span>{selectedKindLabel}</span><span>Global marketplace intent</span></div>
+        <div className="dn-pw-preview-tags"><span>{selectedKindLabel}</span></div>
         <h4>{idea.trim().split(/\n/)[0].slice(0, 160) || 'Untitled product idea'}</h4>
         <div className="dn-pw-description-preview">{idea.trim()}</div>
-        <div className="dn-pw-stage-list">
-          <div><span>1</span><p><strong>Product design</strong><small>Prepare and refine the design preview.</small></p></div>
-          <div><span>2</span><p><strong>Creator finalization</strong><small>Confirm the product is ready before pricing.</small></p></div>
-          <div><span>3</span><p><strong>Pricing &amp; earnings</strong><small>Recommend a price, allow creator edits, show the 50% DigiNanba share and maintenance-cost estimate.</small></p></div>
-          <div><span>4</span><p><strong>Publication &amp; future improvements</strong><small>Review before publishing globally; allow later feature updates through a revision workflow.</small></p></div>
-        </div>
+        <div className="dn-pw-stage-list"><p>After submission, DigiNanba will review your request. If it can be taken forward, we will explain the next steps and any applicable terms before you commit.</p></div>
         <p className="dn-pw-disclaimer">This submits your product brief for review. It does not mean a finished product has already been generated, priced, published, or guaranteed to earn money.</p>
         {error && <p className="dn-pw-error" role="alert">{error}</p>}
         <form onSubmit={submitRequest} className="dn-pw-modal-actions"><button type="button" className="dn-pw-back" onClick={() => setPreviewOpen(false)} disabled={busy}>← Edit description</button><button type="submit" className="dn-pw-start" disabled={busy}>{busy ? 'Submitting…' : 'Confirm & submit brief'}</button></form>
