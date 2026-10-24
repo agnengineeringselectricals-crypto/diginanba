@@ -204,19 +204,20 @@ export default function HomePageClient({ initialProducts, initialMarket }: Props
     <header className="ref-header">
       <div className="ref-container ref-nav">
         <Link href="/" className="ref-logo" aria-label="DigiNanba home"><img src="/diginanba-logo.svg" alt="DigiNanba — Global Digital Marketplace" className="ref-logo-image" width="168" height="36" /></Link>
-        <form className="ref-searchbox ref-header-inline-search" style={{ position: 'relative' }} onSubmit={runSearch}>
-          <input value={heroQuery} onFocus={() => { if (heroQuery.trim().length >= 2) setSearchSuggestionsOpen(true); }} onChange={(event) => { setHeroQuery(event.target.value); setSearchSuggestionsOpen(true); }} placeholder="Search tools, templates, apps or workflows…" aria-label="Search digital tools and products" autoComplete="off" />
-          <button className="ref-primary" type="submit">Search</button>
-          {searchSuggestionsOpen && heroQuery.trim().length >= 2 && <div className="dn-live-search-results" role="region" aria-label="Product search suggestions" style={{ position: 'absolute', top: 'calc(100% + 8px)', left: 0, right: 0, zIndex: 1000, background: '#fff', color: '#172033', border: '1px solid #dfe3ed', borderRadius: 12, boxShadow: '0 14px 35px rgba(20,30,60,.18)', maxHeight: 420, overflowY: 'auto', padding: 8 }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 10px', fontSize: 12, color: '#667085' }}><span>Matching tools &amp; products</span><button type="button" onClick={() => setSearchSuggestionsOpen(false)} aria-label="Close suggestions" style={{ border: 0, background: 'transparent', cursor: 'pointer' }}>✕</button></div>
-            {searchLoading && <p style={{ margin: 10, fontSize: 13 }}>Finding relevant tools and products…</p>}
-            {!searchLoading && searchSuggestions.map((product) => <Link key={product.id} href={`/products/${product.slug}?market=${market}`} onClick={() => setSearchSuggestionsOpen(false)} style={{ display: 'block', padding: '10px', borderRadius: 8, textDecoration: 'none', color: 'inherit' }}>
-              <strong style={{ display: 'block', fontSize: 14 }}>{product.title}</strong><span style={{ display: 'block', color: '#667085', fontSize: 12, marginTop: 3 }}>{product.category} · {product.price}</span><span style={{ display: 'block', fontSize: 12, marginTop: 4 }}>{product.description.slice(0, 130)}</span>
-            </Link>)}
-            {!searchLoading && searchNoResults && <div style={{ padding: 12, fontSize: 13 }}><strong>No close match yet.</strong><p style={{ margin: '5px 0 9px' }}>Explore related listings or tell DigiNanba what kind of tool you need. New-tool requests are not a promise that a product is already available.</p><Link href={`/customize?q=${encodeURIComponent(heroQuery.trim())}`} onClick={() => setSearchSuggestionsOpen(false)}>Request a tailored tool →</Link></div>}
-            {!searchLoading && searchSuggestions.length > 0 && <button type="submit" style={{ width: '100%', textAlign: 'left', padding: 10, border: 0, borderTop: '1px solid #e7eaf0', background: 'transparent', cursor: 'pointer' }}>See all results for “{heroQuery.trim()}” →</button>}
-          </div>}
-        </form>
+        <div className="dn-joy-strip" aria-label="DigiNanba celebrates people of every generation and creator success">
+          <div className="dn-joy-scene dn-joy-kids">
+            <img src="https://media0.giphy.com/media/l2JJHEW1lToNnJzxe/200.gif" alt="Children dancing happily" loading="eager" />
+            <span>Big dreams start small</span>
+          </div>
+          <div className="dn-joy-scene dn-joy-elders">
+            <img src="https://media.giphy.com/media/LqlgsS3Noy4wuQ1XfU/giphy.gif" alt="Older people dancing and enjoying life" loading="eager" />
+            <span>Joy at every age</span>
+          </div>
+          <div className="dn-joy-scene dn-joy-earn">
+            <img src="https://media.giphy.com/media/3ohzdYw3qQ2zd3q8Xy/giphy.gif" alt="Celebrating earnings and financial success" loading="eager" />
+            <span>Create. Earn. Celebrate.</span>
+          </div>
+        </div>
         <div className="ref-actions">
           <div className="ref-account-wrap" style={{ position: 'relative' }}>
             <button
