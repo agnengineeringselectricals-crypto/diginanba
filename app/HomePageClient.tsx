@@ -267,37 +267,7 @@ export default function HomePageClient({ initialProducts, initialMarket }: Props
 
       <div className="ref-container"><ProductRequestWorkspace /></div>
 
-      <section className="ref-hero">
-        <div className="ref-container ref-market-grid ref-market-grid-single">
-          <div className="ref-market-left">
-            <form className="dn-goal-search dn-hero-goal-search" onSubmit={(event)=>{event.preventDefault();const input=event.currentTarget.elements.namedItem('goal') as HTMLInputElement;const value=input.value.trim();if(value){const params=new URLSearchParams({market,q:value});window.location.href='/explore?'+params.toString();}}}><input name="goal" aria-label="Describe what you want to accomplish" placeholder="What do you need? e.g. HR workflow, inventory, study planner, meal planner…" /><button className="ref-primary" type="submit">Find tools →</button></form>
-            <h1>Find the digital tools that solve your problem.</h1><p className="dn-marketplace-intro">Discover existing products first. Review the options, then choose a tool that fits your work, studies, business, home or organization.</p>
-            <div className="ref-category-panel" id="categories">
-              <div className="ref-category-scroll" aria-label="Scroll to browse all product categories"><div className="ref-categories">{categories.map(([icon, label]) => <button className="ref-category" key={label} onClick={() => chooseCategory(label)}><span className="ref-category-icon">{icon}</span><span className="ref-category-copy"><strong>{label}</strong><small>Explore products</small></span></button>)}</div></div>
-            </div>
-          </div>
-
-        </div>
-      </section>
-
-      <section className="dn-buyer-confidence" aria-labelledby="dn-buyer-confidence-title">
-        <div className="ref-container dn-buyer-confidence-inner">
-          <div className="dn-buyer-confidence-intro">
-            <span className="dn-buyer-confidence-eyebrow">BUY WITH CLARITY</span>
-            <h2 id="dn-buyer-confidence-title">Know what you’re choosing before you buy.</h2>
-            <p>Open a product page to review its details and check the guidance on intended use, license, file compatibility and access.</p>
-          </div>
-          <div className="dn-buyer-confidence-points">
-            <div><span aria-hidden="true">ⓘ</span><strong>Product details</strong><small>Understand what each resource is designed to help you do.</small></div>
-            <div><span aria-hidden="true">✓</span><strong>Before-you-buy guidance</strong><small>Review license, file compatibility and delivery notes where provided.</small></div>
-            <div><span aria-hidden="true">↗</span><strong>Compare your options</strong><small>Explore alternatives before deciding which tool fits your needs.</small></div>
-          </div>
-          <div className="dn-buyer-confidence-actions">
-            <Link href="/explore" className="ref-primary">Explore products →</Link>
-            <Link href="/compare" className="dn-buyer-compare-link">Compare products</Link>
-          </div>
-        </div>
-      </section>
+      {/* Removed the two low-value rows directly below the unified product workspace. */}
 
       <CreatorEarningsShowcase />
 
