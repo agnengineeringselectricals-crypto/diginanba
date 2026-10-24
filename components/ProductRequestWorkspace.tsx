@@ -308,7 +308,7 @@ export default function ProductRequestWorkspace() {
             <small>Only the description and product type are required. You can request new features or improvements later.</small>
           </label>
           <label className="dn-pw-field-full">What kind of product is it?
-            <input list="dn-pw-product-types" value={kindQuery} maxLength={120} onChange={(event) => { const value = event.target.value; setKindQuery(value); setKind(value); setTypeSaveMessage(''); }} placeholder="Start typing a product type…" autoComplete="off" required />
+            <input list="dn-pw-product-types" value={kindQuery} maxLength={120} onChange={(event) => { const value = event.target.value; setKindQuery(value); setKind(value); }} placeholder="Start typing a product type…" autoComplete="off" required />
             <datalist id="dn-pw-product-types">
               {productKinds.map((item) => <option key={item.value} value={item.label} />)}
             </datalist>
