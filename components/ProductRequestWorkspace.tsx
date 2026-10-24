@@ -173,7 +173,6 @@ export default function ProductRequestWorkspace() {
   const [idea, setIdea] = useState('');
   const [kind, setKind] = useState<string>('Interactive web tool or dashboard');
   const [kindQuery, setKindQuery] = useState<string>('Interactive web tool or dashboard');
-  const [customKind, setCustomKind] = useState('');
   useEffect(() => {
     if (!createMode) return;
     const timer = window.setTimeout(() => {
@@ -214,7 +213,6 @@ export default function ProductRequestWorkspace() {
   const [requestRef, setRequestRef] = useState('');
 
   const selectedKindLabel = kind.trim() || 'Product type not selected';
-  const exactKnownType = productKinds.some((item) => item.label.toLocaleLowerCase() === kindQuery.trim().toLocaleLowerCase());
   const canPreview = idea.trim().length >= 5 && kind.trim().length >= 2;
   const description = [
     'Product/tool description supplied by the requester:',
