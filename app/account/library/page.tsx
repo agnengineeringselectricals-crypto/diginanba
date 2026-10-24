@@ -13,7 +13,7 @@ export default async function Library() {
       <section className="panel dn-library-empty">
         <div className="dn-library-icon" aria-hidden="true">📚</div>
         <h2>Your library is ready for eligible downloads</h2>
-        <p className="muted">DigiNanba currently supports demo orders only. Secure payment confirmation, purchase entitlements and downloadable file delivery are not enabled yet, so this page will not show fake purchases or inactive download buttons.</p>
+        <p className="muted">Digital downloads will appear here when purchasing is available and your payment and access have been confirmed. No downloads are available in your library yet.</p>
         <div className="dn-library-actions"><Link href="/account/orders" className="btn">View orders</Link><Link href="/explore" className="btn primary">Explore products</Link></div>
       </section>
       <style>{`.dn-library-page{padding-bottom:48px}.dn-library-page .page-head{margin-top:18px}.dn-library-empty{padding:34px 24px}.dn-library-icon{font-size:34px}.dn-library-empty h2{margin:12px 0 8px}.dn-library-empty p{max-width:650px;line-height:1.7;font-size:13px}.dn-library-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:20px}@media(max-width:480px){.dn-library-empty{padding:24px 18px}.dn-library-actions{display:grid}.dn-library-actions .btn{text-align:center}}`}</style>

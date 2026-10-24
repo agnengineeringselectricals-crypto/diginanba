@@ -299,9 +299,8 @@ export default function HomePageClient({ initialProducts, initialMarket }: Props
             <Link href={`/explore?market=${market}&q=${encodeURIComponent('inventory stock billing invoices')}`} className="dn-organization-card"><span aria-hidden="true">📦</span><strong>Inventory, billing &amp; finance</strong><small>Look for stock registers, invoice templates, purchase tracking and reporting resources.</small><em>Find operations tools →</em></Link>
             <Link href={`/explore?market=${market}&q=${encodeURIComponent('project management approval workflow')}`} className="dn-organization-card"><span aria-hidden="true">🗂️</span><strong>Projects &amp; approvals</strong><small>Discover project trackers, task planning, approval flows and team operating templates.</small><em>Find workflow tools →</em></Link>
           </div>
-          <div className="dn-organization-workspace-cta"><div><strong>Need shared tools for your whole team?</strong><span>Create an organization workspace and manage recurring billing when your plan is configured.</span></div><Link className="ref-primary" href="/organizations">Set up an organization →</Link></div>
-          <p className="dn-organization-note">Monthly, six-month and annual organization billing options appear in the workspace. Recurring checkout remains disabled until the corresponding Razorpay plans are configured and verified.</p>
-        </div>
+          <div className="dn-organization-workspace-cta"><div><strong>Need shared tools for your whole team?</strong><span>Create a workspace to organize digital tools for your whole team.</span></div><Link className="ref-primary" href="/organizations">Set up an organization →</Link></div>
+            </div>
       </section>
 
       <section className="ref-section dn-feature-map"><div className="ref-container">
