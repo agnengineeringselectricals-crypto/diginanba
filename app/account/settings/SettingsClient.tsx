@@ -11,8 +11,7 @@ type Preferences = {
 };
 const defaults: Preferences = { market: 'IN', language: 'English', emailOffers: false, productUpdates: true, wishlistAlerts: true, creatorUpdates: true, personalizedDiscovery: true, saveSearchHistory: true, reducedMotion: false, compactCards: false };
 const sections = [
-  { id: 'preferences', icon: '🌐', label: 'Region & language' }, { id: 'notifications', icon: '🔔', label: 'Notifications' },
-  { id: 'discovery', icon: '✨', label: 'Discovery & privacy' }, { id: 'accessibility', icon: '♿', label: 'Display & accessibility' },
+  { id: 'preferences', icon: '🌐', label: 'Region & language' }, { id: 'accessibility', icon: '♿', label: 'Display & accessibility' },
   { id: 'account', icon: '🔐', label: 'Account & security' },
 ];
 function readPreferences(): Preferences {
@@ -47,26 +46,18 @@ export default function SettingsClient() {
           <label>Storefront region <select value={prefs.market} onChange={(e) => update('market', e.target.value as Preferences['market'])}><option value="IN">{marketLabels.IN}</option><option value="US">{marketLabels.US}</option><option value="UK">{marketLabels.UK}</option></select><small>Prices and checkout currency can depend on the selected storefront.</small></label>
           <label>Preferred language <select value={prefs.language} onChange={(e) => update('language', e.target.value)}>{['English','हिन्दी','தமிழ்','తెలుగు','বাংলা','मराठी','ગુજરાતી','ಕನ್ನಡ','മലയാളം','Español','Français','Deutsch','Português','العربية','日本語','中文'].map((language) => <option key={language}>{language}</option>)}</select><small>This preference is saved locally. Full site translation is not yet available for every language.</small></label>
         </div></section>
-        <section className="dn-settings-section" id="notifications"><div className="dn-settings-section-head"><span>🔔</span><div><h2>Notifications</h2><p>Choose the kinds of updates you would like DigiNanba to remember as your preferences.</p></div></div><div className="dn-settings-options">
-          <label className="dn-settings-toggle"><span><b>Product updates & new releases</b><small>Updates about products and improvements you may find useful.</small></span><input type="checkbox" checked={prefs.productUpdates} onChange={(e) => update('productUpdates', e.target.checked)} /></label>
-          <label className="dn-settings-toggle"><span><b>Offers and marketplace news</b><small>Promotions, curated collections and occasional announcements.</small></span><input type="checkbox" checked={prefs.emailOffers} onChange={(e) => update('emailOffers', e.target.checked)} /></label>
-          <label className="dn-settings-toggle"><span><b>Wishlist reminders</b><small>Remember that you are interested in saved products.</small></span><input type="checkbox" checked={prefs.wishlistAlerts} onChange={(e) => update('wishlistAlerts', e.target.checked)} /></label>
-          <label className="dn-settings-toggle"><span><b>Creator and earnings updates</b><small>Relevant creator studio and marketplace notices.</small></span><input type="checkbox" checked={prefs.creatorUpdates} onChange={(e) => update('creatorUpdates', e.target.checked)} /></label>
-        </div><p className="dn-settings-note">These are preference controls only; email delivery and notification services may not yet be enabled.</p></section>
-        <section className="dn-settings-section" id="discovery"><div className="dn-settings-section-head"><span>✨</span><div><h2>Discovery & privacy</h2><p>Set how DigiNanba should personalize discovery on this device.</p></div></div><div className="dn-settings-options">
-          <label className="dn-settings-toggle"><span><b>Personalized product discovery</b><small>Allow the interface to use your selected preferences to tailor discovery when supported.</small></span><input type="checkbox" checked={prefs.personalizedDiscovery} onChange={(e) => update('personalizedDiscovery', e.target.checked)} /></label>
-          <label className="dn-settings-toggle"><span><b>Remember recent searches on this device</b><small>Preference for future search-history features. Search-demand analytics currently records searches separately.</small></span><input type="checkbox" checked={prefs.saveSearchHistory} onChange={(e) => update('saveSearchHistory', e.target.checked)} /></label>
-        </div><div className="dn-settings-inline-links"><Link href="/account/wishlist">Manage wishlist →</Link><Link href="/account/orders">View purchase history →</Link></div></section>
-        <section className="dn-settings-section" id="accessibility"><div className="dn-settings-section-head"><span>♿</span><div><h2>Display & accessibility</h2><p>Choose a calmer or more compact browsing experience.</p></div></div><div className="dn-settings-options">
+
+
+        <section className="dn-settings-section" id="accessibility"><div className="dn-settings-section-head"><span>♿</span><div><h2>Display & accessibility</h2><p>Choose how the interface responds to motion.</p></div></div><div className="dn-settings-options">
           <label className="dn-settings-toggle"><span><b>Reduce motion</b><small>Prefer reduced animations where the interface supports this setting.</small></span><input type="checkbox" checked={prefs.reducedMotion} onChange={(e) => update('reducedMotion', e.target.checked)} /></label>
-          <label className="dn-settings-toggle"><span><b>Compact product cards</b><small>Save this preference for compact product layouts as they become available.</small></span><input type="checkbox" checked={prefs.compactCards} onChange={(e) => update('compactCards', e.target.checked)} /></label>
+
         </div></section>
         <section className="dn-settings-section" id="account"><div className="dn-settings-section-head"><span>🔐</span><div><h2>Account & security</h2><p>Shortcuts to your account, purchases and creator tools.</p></div></div><div className="dn-settings-account-links">
           <Link href="/account"><span>👤</span><div><b>Account overview</b><small>Open your personal dashboard</small></div><span>›</span></Link>
           <Link href="/account/library"><span>📚</span><div><b>My digital library</b><small>Find your purchased resources</small></div><span>›</span></Link>
           <Link href="/account/orders"><span>🧾</span><div><b>Orders & purchases</b><small>Review order history and status</small></div><span>›</span></Link>
           <Link href="/seller/studio"><span>🛍️</span><div><b>Creator Studio</b><small>Create and manage product drafts</small></div><span>›</span></Link>
-        </div><p className="dn-settings-note">Password changes, account deletion and security-device management are not offered here yet. No security controls are simulated.</p></section>
+        </div></section>
         <div className="dn-settings-savebar"><span role="status">{saved ? '✓ Preferences saved on this device' : ready ? 'Unsaved changes stay here until you save.' : 'Loading your preferences…'}</span><div><button type="button" className="dn-settings-reset" onClick={reset}>Reset defaults</button><button type="button" className="dn-settings-save" onClick={save} disabled={!ready}>{saved ? 'Saved ✓' : 'Save preferences'}</button></div></div>
       </div>
     </div>
