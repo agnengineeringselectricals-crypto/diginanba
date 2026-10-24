@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import './product-request-workspace.css';
 
 type ProductKind = string;
@@ -164,6 +164,7 @@ const productKinds: { value: ProductKind; label: string }[] = [
 
 export default function ProductRequestWorkspace() {
   const [expanded] = useState(true);
+  const descriptionInputRef = useRef<HTMLTextAreaElement | null>(null);
   const [productSearch, setProductSearch] = useState('');
   const [existingProducts, setExistingProducts] = useState<{id:string;slug:string;title:string;description:string;category:string;price?:string}[]>([]);
   const [searchingProducts, setSearchingProducts] = useState(false);
@@ -185,6 +186,15 @@ export default function ProductRequestWorkspace() {
       }
     } catch { /* Ignore unavailable or malformed local preferences. */ }
   }, []);
+
+  useEffect(() => {
+    if (!createMode) return;
+    const timer = window.setTimeout(() => {
+      descriptionInputRef.current?.focus();
+      descriptionInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 80);
+    return () => window.clearTimeout(timer);
+  }, [createMode]);
 
   useEffect(() => {
     const query = productSearch.trim();
@@ -306,17 +316,17 @@ export default function ProductRequestWorkspace() {
           <input type="search" list="dn-pw-product-search-types" value={productSearch} onChange={(event) => { setProductSearch(event.target.value); setCreateMode(false); }} placeholder="Search templates, AI tools, dashboards, planners…" autoComplete="off" />
           <datalist id="dn-pw-product-search-types">{productKinds.map((item) => <option key={item.value} value={item.label} />)}{savedCustomTypes.map((item) => <option key={"search-" + item} value={item} />)}</datalist>
         </label>
-        <button type="button" className="dn-pw-start dn-pw-create-cta" onClick={() => { setCreateMode(true); setError(''); setSuccess(''); }}>＋ Create a product</button>
+        <button type="button" className="dn-pw-start dn-pw-create-cta" onClick={() => { setIdea((current) => current.trim() ? current : productSearch.trim()); setCreateMode(true); setError(''); setSuccess(''); }}>＋ Create a product</button>
       </div>
       {productSearch.trim().length >= 2 && !productKinds.some((item) => item.label.toLocaleLowerCase() === productSearch.trim().toLocaleLowerCase()) && !savedCustomTypes.some((item) => item.toLocaleLowerCase() === productSearch.trim().toLocaleLowerCase()) && <button type="button" className="dn-pw-save-search-type" onClick={() => saveCustomType(productSearch)}>＋ Save “{productSearch.trim()}” as a product type</button>}
       {typeSaveMessage && <p className="dn-pw-type-save-message" role="status">{typeSaveMessage}</p>}
       <div className="dn-pw-existing-results" aria-live="polite">
-        <div className="dn-pw-existing-heading"><strong>{productSearch.trim().length >= 2 ? 'Matching products and tools' : 'Explore existing products'}</strong><span>{productSearch.trim().length >= 2 ? 'Relevant matches from the marketplace' : 'Start here, or type to find something specific'}</span></div>
+        {(existingProducts.length > 0 || productSearch.trim().length < 2) && <div className="dn-pw-existing-heading"><strong>{productSearch.trim().length >= 2 ? 'Matching products and tools' : 'Explore existing products'}</strong><span>{productSearch.trim().length >= 2 ? 'Relevant matches from the marketplace' : 'Start here, or type to find something specific'}</span></div>}
         {searchingProducts && <p className="dn-pw-search-status" role="status">Finding relevant products…</p>}
         {!searchingProducts && existingProducts.length > 0 ? <div className="dn-pw-existing-roller">{existingProducts.slice(0,12).map((product) => <Link className="dn-pw-existing-card" key={product.id} href={`/products/${product.slug}?market=IN`}>
           <span className="dn-pw-existing-card-icon" aria-hidden="true">✦</span><strong>{product.title}</strong><span className="dn-pw-existing-category">{product.category}</span><p>{product.description}</p>{product.price && <small>{product.price}</small>}<span className="dn-pw-existing-open">View product →</span>
-        </Link>)}</div> : !searchingProducts && hasSearchedProducts ? <p className="dn-pw-no-results">No matching products found yet. Try a broader search, or use <strong>Create a product</strong> to submit a new idea.</p> : null}
-        <a className="dn-pw-marketplace-link" href={productSearch.trim().length >= 2 ? `/explore?market=IN&q=${encodeURIComponent(productSearch.trim())}` : '/explore?market=IN'}>Browse all marketplace products →</a>
+        </Link>)}</div> : !searchingProducts && hasSearchedProducts ? <div className="dn-pw-no-match-card"><p><strong>Wow! “{productSearch.trim()}” isn’t here yet.</strong></p><p>Create it and earn with DigiNanba.</p><button type="button" className="dn-pw-start dn-pw-create-earn" onClick={() => { setIdea((current) => current.trim() ? current : productSearch.trim()); setCreateMode(true); setError(''); setSuccess(''); }}>✨ Create it &amp; earn</button></div> : null}
+        {(!hasSearchedProducts || existingProducts.length > 0) && <a className="dn-pw-marketplace-link" href={productSearch.trim().length >= 2 ? `/explore?market=IN&q=${encodeURIComponent(productSearch.trim())}` : '/explore?market=IN'}>Browse all marketplace products →</a>}
       </div>
     </div>
     {expanded && createMode && <div className="dn-pw-builder">
@@ -327,7 +337,7 @@ export default function ProductRequestWorkspace() {
       <form onSubmit={(event) => { event.preventDefault(); if (canPreview) setPreviewOpen(true); }}>
         <div className="dn-pw-fields">
           <label className="dn-pw-field-full">Describe the product or tool you want
-            <textarea required minLength={5} maxLength={4500} rows={6} value={idea} onChange={(event) => setIdea(event.target.value)} placeholder="Describe the product or tool, how you imagine it working, the design you prefer, and anything important. You can write naturally—DigiNanba can help refine the brief." />
+            <textarea ref={descriptionInputRef} required minLength={5} maxLength={4500} rows={6} value={idea} onChange={(event) => setIdea(event.target.value)} placeholder="Describe the product or tool, how you imagine it working, the design you prefer, and anything important. You can write naturally—DigiNanba can help refine the brief." />
             <small>Only the description and product type are required. You can request new features or improvements later.</small>
           </label>
           <label className="dn-pw-field-full">What kind of product is it?
