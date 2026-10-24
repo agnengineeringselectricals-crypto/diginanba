@@ -12,7 +12,7 @@ type Preferences = {
 const defaults: Preferences = { market: 'IN', language: 'English', emailOffers: false, productUpdates: true, wishlistAlerts: true, creatorUpdates: true, personalizedDiscovery: true, saveSearchHistory: true, reducedMotion: false, compactCards: false };
 const sections = [
   { id: 'preferences', icon: '🌐', label: 'Region & language' }, { id: 'accessibility', icon: '♿', label: 'Display & accessibility' },
-  { id: 'account', icon: '🔐', label: 'Account & security' },
+  { id: 'account', icon: '👤', label: 'Account links' },
 ];
 function readPreferences(): Preferences {
   try {
