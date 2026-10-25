@@ -16,7 +16,12 @@ export async function POST(request: Request) {
     const existing = await db.query('SELECT id FROM users WHERE email = $1 LIMIT 1', [email]);
     if (existing.rowCount) return NextResponse.json({ error: 'An account with this email already exists.' }, { status: 409 });
     const passwordHash = await hash(body.password, 12);
-    const created = await db.query('INSERT INTO users(email, password_hash, display_name) VALUES($1,$2,$3) RETURNING id,public_id,country_code,email,display_name', [email, passwordHash, body.name]);
+    const detectedCountry = request.headers.get('x-vercel-ip-country')?.toUpperCase() || 'IN';
+    const countryCode = /^[A-Z]{2}$/.test(detectedCountry) ? detectedCountry : 'IN';
+    const created = await db.query(
+      'INSERT INTO users(email, password_hash, display_name, country_code) VALUES($1,$2,$3,$4) RETURNING id,public_id,country_code,email,display_name',
+      [email, passwordHash, body.name, countryCode],
+    );
     return NextResponse.json({ user: created.rows[0] }, { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) return NextResponse.json({ error: 'Please enter a valid name, email and password of at least 8 characters.' }, { status: 400 });
