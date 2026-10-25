@@ -109,7 +109,7 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
           <div className="preview-icon" aria-hidden="true">✦</div>
           <h2>Product details</h2>
           <p><strong>Format</strong><br /><span className="muted">Check the listing description for included file types.</span></p>
-          <p><strong>Category</strong><br /><span className="muted">{product.category}</span></p>
+          <p><strong>Product ID</strong><br /><span className="muted">{product.publicId}</span></p><p><strong>Creator</strong><br /><span className="muted">{product.creatorName} · {product.creatorId}</span></p><p><strong>Category</strong><br /><span className="muted">{product.category}</span></p>
           <p><strong>Price</strong><br /><span className="muted">{product.price} for the selected market.</span></p>
           <p className="muted">Digital access is available only after a successful, confirmed checkout and when fulfillment is enabled for the item.</p>
         </aside>
