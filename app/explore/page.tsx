@@ -81,7 +81,7 @@ export default async function Explore({
       <div className="catalog-result-summary"><p className="muted" aria-live="polite"><strong>{products.length}</strong> {products.length === 1 ? 'product' : 'products'} found{p.q ? ` for “${p.q}”` : ''}{category !== 'All categories' ? ` in ${category}` : ''}.</p>{p.q ? <Link className="btn" href={'/explore?market=' + market}>Clear search</Link> : null}</div>
 
       <div className="catalog-grid">
-        {products.map((x) => <Link href={'/products/' + x.slug + '?market=' + market} className="product-card" key={x.id}><span className="category">{x.category}</span><h2>{x.title}</h2><p className="muted">{x.description}</p><div className="product-foot"><b>{x.price}</b><span>View product →</span></div></Link>)}
+        {products.map((x) => <Link href={'/products/' + x.slug + '?market=' + market} className="product-card" key={x.id}><span className="category">{x.category}</span><h2>{x.title}</h2><p className="muted">{x.description}</p><small className="muted">ID: {x.publicId} · Creator: {x.creatorName} ({x.creatorId})</small><div className="product-foot"><b>{x.price}</b><span>View product →</span></div></Link>)}
       </div>
 
       {!products.length && <div className="panel dn-empty-state"><div aria-hidden="true">🔎</div><h2>No exact matches yet</h2><p className="muted">Try a broader search, increase your budget, or choose another category. Your searches help DigiNanba understand what products people need.</p><div className="button-row"><Link href={'/explore?market=' + market} className="btn">Clear filters</Link><Link href="/solutions" className="btn primary">Find a solution</Link></div></div>}
