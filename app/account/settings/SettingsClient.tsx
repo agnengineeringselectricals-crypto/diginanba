@@ -54,6 +54,7 @@ export default function SettingsClient() {
         </div></section>
         <section className="dn-settings-section" id="account"><div className="dn-settings-section-head"><span>🔐</span><div><h2>Account & security</h2><p>Shortcuts to your account, purchases and creator tools.</p></div></div><div className="dn-settings-account-links">
           <Link href="/account"><span>👤</span><div><b>Account overview</b><small>Open your personal dashboard</small></div><span>›</span></Link>
+          <Link href="/account/security"><span>🔐</span><div><b>Security & sign-in activity</b><small>View your permanent account ID and recent sign-ins</small></div><span>›</span></Link>
           <Link href="/account/library"><span>📚</span><div><b>My digital library</b><small>Find your purchased resources</small></div><span>›</span></Link>
           <Link href="/account/orders"><span>🧾</span><div><b>Orders & purchases</b><small>Review order history and status</small></div><span>›</span></Link>
           <Link href="/seller/studio"><span>🛍️</span><div><b>Creator Studio</b><small>Create and manage product drafts</small></div><span>›</span></Link>
