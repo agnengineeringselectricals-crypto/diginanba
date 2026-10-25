@@ -78,7 +78,7 @@ export default function ResetPasswordClient({ token = '' }: { token?: string }) 
           <div className="auth-foot">
             <a href="/signup">Create a new account</a>
             <span> · </span>
-            <button type="button" className="link-button" onClick={() => { setEmail(''); setError(''); setUnregisteredEmail(false); }}>Enter a different email</button>
+            <a href="/reset-password">Enter a different email</a>
           </div>
         )}
         {!unregisteredEmail && <div className="auth-foot"><a href="/login">Back to sign in</a></div>}
