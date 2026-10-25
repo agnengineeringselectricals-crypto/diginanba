@@ -67,17 +67,29 @@ export async function POST(request: Request) {
 
   if (!allowed) return NextResponse.json({ message: genericMessage });
 
+  let userResult;
+  try {
+    userResult = await db.query('SELECT id FROM users WHERE lower(email) = $1 LIMIT 1', [email]);
+  } catch (error) {
+    console.error('Password recovery account lookup failed:', error instanceof Error ? error.name : 'unknown error');
+    return NextResponse.json({ error: 'We could not check this email right now. Please try again shortly.' }, { status: 503 });
+  }
+
+  if (!userResult.rowCount) {
+    return NextResponse.json(
+      { error: 'No DigiNanba account was found for this email. Enter the correct email or create a new account.' },
+      { status: 404 },
+    );
+  }
+
   const from = process.env.PASSWORD_RESET_FROM_EMAIL || process.env.EMAIL_FROM;
   const resendKey = process.env.RESEND_API_KEY;
   if (!from || !resendKey) {
     console.error('Password recovery email is not configured.');
-    return NextResponse.json({ message: genericMessage });
+    return NextResponse.json({ error: 'Password reset email is temporarily unavailable. Please try again later.' }, { status: 503 });
   }
 
   try {
-    const userResult = await db.query('SELECT id FROM users WHERE lower(email) = $1 LIMIT 1', [email]);
-    if (!userResult.rowCount) return NextResponse.json({ message: genericMessage });
-
     const token = randomBytes(32).toString('base64url');
     const tokenHash = sha256(token);
     const inserted = await db.query(
