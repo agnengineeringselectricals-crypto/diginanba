@@ -6,12 +6,12 @@ import './settings.css';
 
 type Preferences = {
   market: 'US' | 'UK' | 'IN'; language: string; emailOffers: boolean; productUpdates: boolean;
-  wishlistAlerts: boolean; creatorUpdates: boolean; personalizedDiscovery: boolean;
+  wishlistAlerts: boolean; creatorUpdates: boolean; personalizedDiscovery: boolean;\n  promotionEmails: boolean; rewardAlerts: boolean; referralUpdates: boolean; creatorNewsletter: boolean;
   saveSearchHistory: boolean; reducedMotion: boolean; compactCards: boolean;
 };
-const defaults: Preferences = { market: 'IN', language: 'English', emailOffers: false, productUpdates: true, wishlistAlerts: true, creatorUpdates: true, personalizedDiscovery: true, saveSearchHistory: true, reducedMotion: false, compactCards: false };
+const defaults: Preferences = { market: 'IN', language: 'English', emailOffers: false, productUpdates: true, wishlistAlerts: true, creatorUpdates: true, personalizedDiscovery: true, promotionEmails: false, rewardAlerts: true, referralUpdates: true, creatorNewsletter: false, saveSearchHistory: true, reducedMotion: false, compactCards: false };
 const sections = [
-  { id: 'preferences', icon: '🌐', label: 'Region & language' }, { id: 'accessibility', icon: '♿', label: 'Display & accessibility' },
+  { id: 'preferences', icon: '🌐', label: 'Region & language' }, { id: 'promotions', icon: '🎁', label: 'Promotions & rewards' }, { id: 'accessibility', icon: '♿', label: 'Display & accessibility' },
   { id: 'account', icon: '👤', label: 'Account links' },
 ];
 function readPreferences(): Preferences {
@@ -48,6 +48,13 @@ export default function SettingsClient() {
         </div></section>
 
 
+        <section className="dn-settings-section" id="promotions"><div className="dn-settings-section-head"><span>🎁</span><div><h2>Promotions & rewards</h2><p>Choose optional offers and reward updates. Important account, security, order and payment messages remain separate from marketing preferences.</p></div></div><div className="dn-settings-options">
+          <label className="dn-settings-toggle"><span><b>Promotional emails</b><small>Optional campaigns, discounts and curated product offers.</small></span><input type="checkbox" checked={prefs.promotionEmails} onChange={(e) => update('promotionEmails', e.target.checked)} /></label>
+          <label className="dn-settings-toggle"><span><b>Rewards activity alerts</b><small>Updates about eligible points, pending rewards, expiry and reversals when the rewards programme is available.</small></span><input type="checkbox" checked={prefs.rewardAlerts} onChange={(e) => update('rewardAlerts', e.target.checked)} /></label>
+          <label className="dn-settings-toggle"><span><b>Referral programme updates</b><small>Information about referral eligibility and attributed activity, subject to published programme terms.</small></span><input type="checkbox" checked={prefs.referralUpdates} onChange={(e) => update('referralUpdates', e.target.checked)} /></label>
+          <label className="dn-settings-toggle"><span><b>Creator newsletter</b><small>Optional tips and announcements for people interested in publishing digital products.</small></span><input type="checkbox" checked={prefs.creatorNewsletter} onChange={(e) => update('creatorNewsletter', e.target.checked)} /></label>
+          <p style={{fontSize:13,color:'var(--muted, #64748b)'}}>These choices currently save on this device only. They do not enrol you in a rewards programme or activate email campaigns; database-backed consent and delivery will be completed before launch.</p>
+        </div></section>
         <section className="dn-settings-section" id="accessibility"><div className="dn-settings-section-head"><span>♿</span><div><h2>Display & accessibility</h2><p>Choose how the interface responds to motion.</p></div></div><div className="dn-settings-options">
           <label className="dn-settings-toggle"><span><b>Reduce motion</b><small>Prefer reduced animations where the interface supports this setting.</small></span><input type="checkbox" checked={prefs.reducedMotion} onChange={(e) => update('reducedMotion', e.target.checked)} /></label>
 
