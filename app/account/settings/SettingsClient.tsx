@@ -6,7 +6,8 @@ import './settings.css';
 
 type Preferences = {
   market: 'US' | 'UK' | 'IN'; language: string; emailOffers: boolean; productUpdates: boolean;
-  wishlistAlerts: boolean; creatorUpdates: boolean; personalizedDiscovery: boolean;\n  promotionEmails: boolean; rewardAlerts: boolean; referralUpdates: boolean; creatorNewsletter: boolean;
+  wishlistAlerts: boolean; creatorUpdates: boolean; personalizedDiscovery: boolean;
+  promotionEmails: boolean; rewardAlerts: boolean; referralUpdates: boolean; creatorNewsletter: boolean;
   saveSearchHistory: boolean; reducedMotion: boolean; compactCards: boolean;
 };
 const defaults: Preferences = { market: 'IN', language: 'English', emailOffers: false, productUpdates: true, wishlistAlerts: true, creatorUpdates: true, personalizedDiscovery: true, promotionEmails: false, rewardAlerts: true, referralUpdates: true, creatorNewsletter: false, saveSearchHistory: true, reducedMotion: false, compactCards: false };
