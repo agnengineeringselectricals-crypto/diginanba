@@ -19,7 +19,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
     Credentials({
       credentials: { email: {}, password: {} },
-      async authorize(credentials) {
+      async authorize(credentials, request) {
         const email = String(credentials?.email ?? '').trim().toLowerCase();
         const password = String(credentials?.password ?? '');
         if (!email || !password) return null;
@@ -31,6 +31,28 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (!user || user.status !== 'active' || !user.password_hash) return null;
         const ok = await compare(password, user.password_hash);
         if (!ok) return null;
+
+        // Record successful sign-ins from each device/network. Edge headers provide best-effort IP geolocation.
+        try {
+          const headers = request.headers;
+          const forwarded = headers.get('x-forwarded-for');
+          const ip = headers.get('x-real-ip') || (forwarded ? forwarded.split(',').at(-1)?.trim() : null);
+          const country = headers.get('x-vercel-ip-country')?.toUpperCase().slice(0, 2) || null;
+          const region = headers.get('x-vercel-ip-country-region') || null;
+          const cityHeader = headers.get('x-vercel-ip-city');
+          let city: string | null = null;
+          if (cityHeader) {
+            try { city = decodeURIComponent(cityHeader).slice(0, 200); } catch { city = cityHeader.slice(0, 200); }
+          }
+          const userAgent = headers.get('user-agent')?.slice(0, 1000) || null;
+          await db.query(
+            "INSERT INTO user_login_events (user_id, ip_address, country_code, region, city, user_agent, login_method) VALUES ($1, NULLIF($2, '')::inet, $3, $4, $5, $6, 'credentials')",
+            [user.id, ip || '', country, region, city, userAgent],
+          );
+        } catch (error) {
+          // Don't block valid logins while the audit schema is being rolled out to previews.
+          console.error('Unable to record successful sign-in audit event', error);
+        }
         return { id: String(user.id), email: user.email, name: user.display_name ?? user.email };
       },
     }),
