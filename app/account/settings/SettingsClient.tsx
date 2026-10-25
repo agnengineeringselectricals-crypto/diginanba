@@ -27,18 +27,60 @@ export default function SettingsClient() {
   const [active, setActive] = useState('preferences');
   const [saved, setSaved] = useState(false);
   const [ready, setReady] = useState(false);
-  useEffect(() => { setPrefs(readPreferences()); setReady(true); }, []);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      const local = readPreferences();
+      try {
+        const response = await fetch('/api/account/preferences', { cache: 'no-store' });
+        if (response.ok) {
+          const data = await response.json();
+          if (!cancelled && data.preferences) {
+            const merged = { ...local, ...data.preferences } as Preferences;
+            setPrefs(merged);
+            localStorage.setItem('diginanba-user-preferences', JSON.stringify(merged));
+            setReady(true);
+            return;
+          }
+        }
+      } catch { /* Keep the local copy available if the API is temporarily unavailable. */ }
+      if (!cancelled) { setPrefs(local); setReady(true); }
+    }
+    void load();
+    return () => { cancelled = true; };
+  }, []);
   function update<K extends keyof Preferences>(key: K, value: Preferences[K]) { setPrefs((current) => ({ ...current, [key]: value })); setSaved(false); }
-  function save() {
-    localStorage.setItem('diginanba-user-preferences', JSON.stringify(prefs));
-    localStorage.setItem('diginanba-market', prefs.market); localStorage.setItem('diginanba-language', prefs.language);
-    localStorage.setItem('diginanba-email-updates', String(prefs.productUpdates || prefs.emailOffers));
-    window.dispatchEvent(new CustomEvent('diginanba:preferences-updated', { detail: prefs })); setSaved(true);
+  async function save() {
+    setSaving(true); setSaveError('');
+    try {
+      const response = await fetch('/api/account/preferences', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(prefs),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setSaveError(data.error || 'Unable to save preferences. Please sign in again and retry.');
+        setSaved(false);
+        return;
+      }
+      localStorage.setItem('diginanba-user-preferences', JSON.stringify(prefs));
+      localStorage.setItem('diginanba-market', prefs.market);
+      localStorage.setItem('diginanba-language', prefs.language);
+      localStorage.setItem('diginanba-email-updates', String(prefs.productUpdates || prefs.emailOffers));
+      window.dispatchEvent(new CustomEvent('diginanba:preferences-updated', { detail: prefs }));
+      setSaved(true);
+    } catch {
+      setSaveError('Could not reach the server. Your changes have not been saved to your account.');
+      setSaved(false);
+    } finally { setSaving(false); }
   }
-  function reset() { setPrefs(defaults); localStorage.setItem('diginanba-user-preferences', JSON.stringify(defaults)); localStorage.setItem('diginanba-market', defaults.market); localStorage.setItem('diginanba-language', defaults.language); setSaved(true); }
+  function reset() { setPrefs(defaults); setSaved(false); setSaveError(''); }
   const marketLabels = { US: 'United States · USD ($)', UK: 'United Kingdom · GBP (£)', IN: 'India · INR (₹)' };
   return <main className="dn-settings-page">
-    <div className="dn-settings-topline"><Link href="/account">← My account</Link><span>Preferences are saved on this device</span></div>
+    <div className="dn-settings-topline"><Link href="/account">← My account</Link><span>Account preferences sync when saved</span></div>
     <header className="dn-settings-hero"><div><span className="dn-settings-eyebrow">YOUR DIGINANBA</span><h1>Settings</h1><p>Make your marketplace feel right for you. Manage your region, updates, privacy and how products are displayed.</p></div><div className="dn-settings-hero-mark" aria-hidden="true">⚙️</div></header>
     <div className="dn-settings-layout">
       <aside className="dn-settings-sidebar" aria-label="Settings sections"><p>SETTINGS MENU</p>{sections.map((section) => <button key={section.id} type="button" className={active === section.id ? 'active' : ''} onClick={() => { setActive(section.id); document.getElementById(section.id)?.scrollIntoView({ behavior: prefs.reducedMotion ? 'auto' : 'smooth', block: 'start' }); }}><span>{section.icon}</span>{section.label}<span className="dn-settings-chevron">›</span></button>)}<div className="dn-settings-help"><b>Need a hand?</b><p>Visit the marketplace to discover tools or return to your account overview.</p><Link href="/explore">Explore products →</Link></div></aside>
@@ -54,7 +96,7 @@ export default function SettingsClient() {
           <label className="dn-settings-toggle"><span><b>Rewards activity alerts</b><small>Updates about eligible points, pending rewards, expiry and reversals when the rewards programme is available.</small></span><input type="checkbox" checked={prefs.rewardAlerts} onChange={(e) => update('rewardAlerts', e.target.checked)} /></label>
           <label className="dn-settings-toggle"><span><b>Referral programme updates</b><small>Information about referral eligibility and attributed activity, subject to published programme terms.</small></span><input type="checkbox" checked={prefs.referralUpdates} onChange={(e) => update('referralUpdates', e.target.checked)} /></label>
           <label className="dn-settings-toggle"><span><b>Creator newsletter</b><small>Optional tips and announcements for people interested in publishing digital products.</small></span><input type="checkbox" checked={prefs.creatorNewsletter} onChange={(e) => update('creatorNewsletter', e.target.checked)} /></label>
-          <p style={{fontSize:13,color:'var(--muted, #64748b)'}}>These choices currently save on this device only. They do not enrol you in a rewards programme or activate email campaigns; database-backed consent and delivery will be completed before launch.</p>
+          <p style={{fontSize:13,color:'var(--muted, #64748b)'}}>Your optional marketing choices are recorded with a consent-change history. Saving preferences does not enrol you in a rewards programme or activate campaigns. Reward and referral benefits remain subject to published programme terms.</p>
         </div></section>
         <section className="dn-settings-section" id="accessibility"><div className="dn-settings-section-head"><span>♿</span><div><h2>Display & accessibility</h2><p>Choose how the interface responds to motion.</p></div></div><div className="dn-settings-options">
           <label className="dn-settings-toggle"><span><b>Reduce motion</b><small>Prefer reduced animations where the interface supports this setting.</small></span><input type="checkbox" checked={prefs.reducedMotion} onChange={(e) => update('reducedMotion', e.target.checked)} /></label>
@@ -67,7 +109,7 @@ export default function SettingsClient() {
           <Link href="/account/orders"><span>🧾</span><div><b>Orders & purchases</b><small>Review order history and status</small></div><span>›</span></Link>
           <Link href="/seller/studio"><span>🛍️</span><div><b>Creator Studio</b><small>Create and manage product drafts</small></div><span>›</span></Link>
         </div></section>
-        <div className="dn-settings-savebar"><span role="status">{saved ? '✓ Preferences saved on this device' : ready ? 'Unsaved changes stay here until you save.' : 'Loading your preferences…'}</span><div><button type="button" className="dn-settings-reset" onClick={reset}>Reset defaults</button><button type="button" className="dn-settings-save" onClick={save} disabled={!ready}>{saved ? 'Saved ✓' : 'Save preferences'}</button></div></div>
+        <div className="dn-settings-savebar"><span role="status">{saveError || (saved ? '✓ Preferences saved to your account' : ready ? 'Unsaved changes — save to sync across devices.' : 'Loading your preferences…')}</span><div><button type="button" className="dn-settings-reset" onClick={reset} disabled={!ready || saving}>Reset defaults</button><button type="button" className="dn-settings-save" onClick={save} disabled={!ready || saving}>{saving ? 'Saving…' : saved ? 'Saved ✓' : 'Save preferences'}</button></div></div>
       </div>
     </div>
   </main>;
