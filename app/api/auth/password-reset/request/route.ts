@@ -87,7 +87,9 @@ export async function POST(request: Request) {
       [userResult.rows[0].id, tokenHash],
     );
 
-    const baseUrl = (process.env.AUTH_URL || process.env.NEXTAUTH_URL || 'https://www.diginanba.com').replace(/\/$/, '');
+    const deploymentHost = process.env.VERCEL_URL ? 'https://' + process.env.VERCEL_URL : undefined;
+    const configuredBaseUrl = process.env.AUTH_URL || process.env.NEXTAUTH_URL;
+    const baseUrl = (configuredBaseUrl || (process.env.VERCEL_ENV === 'production' ? 'https://www.diginanba.com' : deploymentHost || 'https://www.diginanba.com')).replace(/\/$/, '');
     const resetUrl = baseUrl + '/reset-password?token=' + encodeURIComponent(token);
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
