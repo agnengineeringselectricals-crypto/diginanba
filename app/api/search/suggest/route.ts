@@ -89,16 +89,24 @@ export async function POST(req: Request) {
 
   try {
     const result = await db.query(
-      `SELECT p.id,p.slug,p.title,p.description,COALESCE(c.name,'Digital Products') AS category,
-              pe.market_code,pr.currency_code,pr.amount_minor
+      `SELECT p.id,p.public_id,p.slug,p.title,COALESCE(NULLIF(p.short_description,''),p.description,'') AS description,
+              COALESCE(c.name,'Digital Products') AS category,pe.market_code,pr.currency_code,pr.amount_minor,
+              COALESCE(cp.display_name,u.display_name,'DigiNanba') AS creator_name,
+              COALESCE(u.public_id,'DN-C-000001') AS creator_id
        FROM products p
        JOIN product_editions pe ON pe.product_id=p.id AND pe.market_code=$1 AND pe.status='published'
        JOIN prices pr ON pr.product_edition_id=pe.id AND pr.valid_to IS NULL
        LEFT JOIN categories c ON c.id=p.category_id
+       LEFT JOIN users u ON u.id=p.creator_user_id
+       LEFT JOIN creator_profiles cp ON cp.user_id=u.id
        WHERE p.status='published'
-         AND (p.title ILIKE '%'||$2||'%' OR p.description ILIKE '%'||$2||'%' OR COALESCE(c.name,'') ILIKE '%'||$2||'%')
-       ORDER BY CASE WHEN lower(p.title)=lower($2) THEN 0 WHEN p.title ILIKE $2||'%' THEN 1 ELSE 2 END, p.created_at DESC
-       LIMIT 6`,
+         AND (p.public_id ILIKE '%'||$2||'%' OR p.id::text ILIKE '%'||$2||'%' OR
+              p.title ILIKE '%'||$2||'%' OR p.short_description ILIKE '%'||$2||'%' OR p.description ILIKE '%'||$2||'%' OR
+              COALESCE(c.name,'') ILIKE '%'||$2||'%' OR COALESCE(cp.display_name,u.display_name,'DigiNanba') ILIKE '%'||$2||'%' OR
+              COALESCE(u.public_id,'DN-C-000001') ILIKE '%'||$2||'%')
+       ORDER BY CASE WHEN lower(p.public_id)=lower($2) OR lower(p.id::text)=lower($2) THEN 0
+                     WHEN lower(p.title)=lower($2) THEN 1 WHEN p.title ILIKE $2||'%' THEN 2 ELSE 3 END, p.created_at DESC
+       LIMIT 12`,
       [market, queryText]
     );
     const { rows } = result;
@@ -121,8 +129,8 @@ export async function POST(req: Request) {
       const amountMinor = Number(row.amount_minor);
       const currency = row.currency_code;
       const localeForCurrency = currency === 'INR' ? 'en-IN' : currency === 'GBP' ? 'en-GB' : 'en-US';
-      return { id: row.id, slug: row.slug, title: row.title, description: row.description ?? '', category: row.category,
-        market: row.market_code, currency, amountMinor,
+      return { id: row.id, publicId: row.public_id ?? row.id, slug: row.slug, title: row.title, description: row.description ?? '', category: row.category,
+        creatorName: row.creator_name ?? 'DigiNanba', creatorId: row.creator_id ?? 'DN-C-000001', market: row.market_code, currency, amountMinor,
         price: new Intl.NumberFormat(localeForCurrency, { style: 'currency', currency }).format(amountMinor / 100) };
     });
     return NextResponse.json({ products, logged: true, eventId: event.rows[0]?.id, noResults: products.length === 0 });
