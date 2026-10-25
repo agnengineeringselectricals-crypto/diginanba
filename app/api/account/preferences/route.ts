@@ -45,11 +45,13 @@ export async function PUT(request: Request) {
   const parsed = preferencesSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: 'Invalid preferences. Review the fields and try again.' }, { status: 400 });
   const preferences = parsed.data;
+  let client;
   try {
-    await db.query('BEGIN');
-    const previousResult = await db.query('SELECT preferences FROM user_preferences WHERE user_id = $1 FOR UPDATE', [session.user.id]);
+    client = await db.connect();
+    await client.query('BEGIN');
+    const previousResult = await client.query('SELECT preferences FROM user_preferences WHERE user_id = $1 FOR UPDATE', [session.user.id]);
     const previous = previousResult.rows[0]?.preferences ?? {};
-    await db.query(
+    await client.query(
       `INSERT INTO user_preferences(user_id, preferences, updated_at)
        VALUES($1, $2::jsonb, now())
        ON CONFLICT(user_id) DO UPDATE SET preferences = EXCLUDED.preferences, updated_at = now()`,
@@ -57,17 +59,19 @@ export async function PUT(request: Request) {
     );
     for (const key of consentKeys) {
       if (previous[key] !== preferences[key]) {
-        await db.query(
+        await client.query(
           'INSERT INTO user_marketing_consent_events(user_id, consent_type, enabled) VALUES($1, $2, $3)',
           [session.user.id, consentTypes[key], preferences[key]],
         );
       }
     }
-    await db.query('COMMIT');
+    await client.query('COMMIT');
     return NextResponse.json({ saved: true, preferences, updatedAt: new Date().toISOString() });
   } catch (error) {
-    await db.query('ROLLBACK').catch(() => undefined);
+    if (client) await client.query('ROLLBACK').catch(() => undefined);
     console.error('Unable to save account preferences', error);
     return NextResponse.json({ error: 'Preferences could not be saved. Please try again.' }, { status: 503 });
+  } finally {
+    client?.release();
   }
 }
