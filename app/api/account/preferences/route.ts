@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
+import type { PoolClient } from 'pg';
 
 const preferencesSchema = z.object({
   market: z.enum(['US', 'UK', 'IN']).default('IN'),
@@ -13,7 +14,7 @@ const preferencesSchema = z.object({
   personalizedDiscovery: z.boolean().default(true),
   promotionEmails: z.boolean().default(false),
   rewardAlerts: z.boolean().default(true),
-  referralUpdates: z.boolean().default(true),
+  referralUpdates: z.boolean().default(false),
   creatorNewsletter: z.boolean().default(false),
   saveSearchHistory: z.boolean().default(true),
   reducedMotion: z.boolean().default(false),
@@ -45,7 +46,7 @@ export async function PUT(request: Request) {
   const parsed = preferencesSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: 'Invalid preferences. Review the fields and try again.' }, { status: 400 });
   const preferences = parsed.data;
-  let client;
+  let client: PoolClient | undefined;
   try {
     client = await db.connect();
     await client.query('BEGIN');
