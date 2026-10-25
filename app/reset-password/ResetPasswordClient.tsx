@@ -9,12 +9,14 @@ export default function ResetPasswordClient({ token = '' }: { token?: string }) 
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [unregisteredEmail, setUnregisteredEmail] = useState(false);
   const hasToken = Boolean(token);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setMessage('');
     setError('');
+    setUnregisteredEmail(false);
 
     if (hasToken && password !== confirmPassword) {
       setError('The passwords do not match.');
@@ -34,6 +36,7 @@ export default function ResetPasswordClient({ token = '' }: { token?: string }) 
       const result = await response.json();
       if (!response.ok) {
         setError(result.error || 'Unable to complete the request. Please try again.');
+        setUnregisteredEmail(!hasToken && response.status === 404);
       } else {
         setMessage(result.message || 'Request completed.');
         if (hasToken) {
@@ -71,7 +74,14 @@ export default function ResetPasswordClient({ token = '' }: { token?: string }) 
           </label>
         )}
         <button className="primary" disabled={loading}>{loading ? 'Please wait…' : hasToken ? 'Update password' : 'Send reset link'}</button>
-        <div className="auth-foot"><a href="/login">Back to sign in</a></div>
+        {unregisteredEmail && (
+          <div className="auth-foot">
+            <a href="/signup">Create a new account</a>
+            <span> · </span>
+            <button type="button" className="link-button" onClick={() => { setEmail(''); setError(''); setUnregisteredEmail(false); }}>Enter a different email</button>
+          </div>
+        )}
+        {!unregisteredEmail && <div className="auth-foot"><a href="/login">Back to sign in</a></div>}
       </form>
     </main>
   );
