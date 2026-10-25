@@ -10,7 +10,7 @@ type Preferences = {
   promotionEmails: boolean; rewardAlerts: boolean; referralUpdates: boolean; creatorNewsletter: boolean;
   saveSearchHistory: boolean; reducedMotion: boolean; compactCards: boolean;
 };
-const defaults: Preferences = { market: 'IN', language: 'English', emailOffers: false, productUpdates: true, wishlistAlerts: true, creatorUpdates: true, personalizedDiscovery: true, promotionEmails: false, rewardAlerts: true, referralUpdates: true, creatorNewsletter: false, saveSearchHistory: true, reducedMotion: false, compactCards: false };
+const defaults: Preferences = { market: 'IN', language: 'English', emailOffers: false, productUpdates: true, wishlistAlerts: true, creatorUpdates: true, personalizedDiscovery: true, promotionEmails: false, rewardAlerts: true, referralUpdates: false, creatorNewsletter: false, saveSearchHistory: true, reducedMotion: false, compactCards: false };
 const sections = [
   { id: 'preferences', icon: '🌐', label: 'Region & language' }, { id: 'promotions', icon: '🎁', label: 'Promotions & rewards' }, { id: 'accessibility', icon: '♿', label: 'Display & accessibility' },
   { id: 'account', icon: '👤', label: 'Account links' },
