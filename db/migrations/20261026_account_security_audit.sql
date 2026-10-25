@@ -53,14 +53,14 @@ ALTER TABLE users ALTER COLUMN public_id SET NOT NULL;
 CREATE OR REPLACE FUNCTION diginanba_prevent_public_id_change()
 RETURNS TRIGGER
 LANGUAGE plpgsql
-AS $
+AS $fn$
 BEGIN
   IF NEW.public_id IS DISTINCT FROM OLD.public_id THEN
     RAISE EXCEPTION 'DigiNanba public IDs are permanent and cannot be changed';
   END IF;
   RETURN NEW;
 END;
-$;
+$fn$;
 
 DROP TRIGGER IF EXISTS users_public_id_immutable_trigger ON users;
 CREATE TRIGGER users_public_id_immutable_trigger
