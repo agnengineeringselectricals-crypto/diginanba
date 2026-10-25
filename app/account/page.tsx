@@ -1,6 +1,7 @@
 import { auth } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
+import { db } from '@/lib/db';
 import './account.css';
 
 const destinations = [
@@ -13,11 +14,13 @@ const destinations = [
 export default async function AccountPage() {
   const session = await auth();
   if (!session?.user) redirect('/login');
+  let publicId = '';
+  try { const result = await db.query('SELECT public_id FROM users WHERE id = $1 LIMIT 1', [session.user.id]); publicId = result.rows[0]?.public_id ?? ''; } catch (error) { console.error('Unable to load account public ID', error); }
   const firstName = (session.user.name || session.user.email || 'Customer').split(' ')[0];
   const initial = (session.user.name || session.user.email || 'D').slice(0,1).toUpperCase();
   return <main className="dn-account-page">
     <div className="dn-account-breadcrumb"><Link href="/">Home</Link><span>›</span><span>My account</span></div>
-    <section className="dn-account-welcome"><div><span className="dn-account-eyebrow">YOUR DIGINANBA</span><h1>Welcome back, {firstName}.</h1><p>Your digital products, purchases and preferences—together in one place.</p><span className="dn-account-email">{session.user.email}</span></div><div className="dn-account-avatar" aria-hidden="true">{initial}</div></section>
+    <section className="dn-account-welcome"><div><span className="dn-account-eyebrow">YOUR DIGINANBA</span><h1>Welcome back, {firstName}.</h1><p>Your digital products, purchases and preferences—together in one place.</p><span className="dn-account-email">{session.user.email}</span>{publicId && <p style={{marginTop:10,fontWeight:700}}>DigiNanba ID: {publicId}</p>}</div><div className="dn-account-avatar" aria-hidden="true">{initial}</div></section>
     <div className="dn-account-shortcuts"><Link href="/explore"><span>🔎</span><b>Discover products</b><span>→</span></Link><Link href="/account/library"><span>📚</span><b>My library</b><span>→</span></Link><Link href="/account/settings"><span>⚙️</span><b>Preferences</b><span>→</span></Link></div>
     <div className="dn-account-section-title"><div><h2>Your account</h2><p>Choose what you would like to do next.</p></div></div>
     <div className="dn-account-grid">{destinations.map((item) => <Link className="dn-account-card" href={item.href} key={item.href}><span className="dn-account-card-icon">{item.icon}</span><h3>{item.title}</h3><p>{item.description}</p><span className="dn-account-card-action">{item.action} <span>→</span></span></Link>)}</div>
