@@ -94,7 +94,7 @@ export async function POST(request: Request) {
     const tokenHash = sha256(token);
     const inserted = await db.query(
       `INSERT INTO password_reset_tokens(user_id, token_hash, channel, expires_at)
-       VALUES ($1, $2, 'email', now() + interval '30 minutes')
+       VALUES ($1, $2, 'email', now() + interval '10 minutes')
        RETURNING id`,
       [userResult.rows[0].id, tokenHash],
     );
@@ -110,7 +110,7 @@ export async function POST(request: Request) {
         from,
         to: [email],
         subject: 'Reset your DigiNanba password',
-        text: 'We received a request to reset your DigiNanba password. This link expires in 30 minutes and can be used once:\n\n' + resetUrl + '\n\nIf you did not request this, you can ignore this email.',
+        text: 'We received a request to reset your DigiNanba password. This link expires in 10 minutes and can be used once:\n\n' + resetUrl + '\n\nIf you did not request this, you can ignore this email.',
       }),
       signal: AbortSignal.timeout(10000),
     });
