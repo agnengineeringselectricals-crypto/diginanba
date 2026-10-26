@@ -40,9 +40,10 @@ export async function POST(request: Request) {
   // This reveals account existence by design.
   if (!userResult.rowCount) {
     return NextResponse.json({
+      unregistered: true,
       error: 'This email address is not registered with DigiNanba.',
       createAccountUrl: '/signup',
-    }, { status: 404 });
+    });
   }
 
   const emailKey = sha256(email);
