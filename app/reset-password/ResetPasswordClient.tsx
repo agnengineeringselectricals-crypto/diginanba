@@ -34,9 +34,11 @@ export default function ResetPasswordClient({ token = '' }: { token?: string }) 
         },
       );
       const result = await response.json();
-      if (!response.ok) {
+      if (!hasToken && result.unregistered === true) {
+        setError(result.error || 'This email address is not registered with DigiNanba.');
+        setUnregisteredEmail(true);
+      } else if (!response.ok) {
         setError(result.error || 'Unable to complete the request. Please try again.');
-        setUnregisteredEmail(!hasToken && response.status === 404);
       } else {
         setMessage(result.message || 'Request completed.');
         if (hasToken) {
