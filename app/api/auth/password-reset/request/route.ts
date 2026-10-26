@@ -39,10 +39,8 @@ export async function POST(request: Request) {
   }
 
   if (!userResult.rowCount) {
-    return NextResponse.json(
-      { error: 'No DigiNanba account was found for this email. Enter the correct email or create a new account.' },
-      { status: 404 },
-    );
+    // Do not reveal whether an email address has an account.
+    return NextResponse.json({ message: genericMessage });
   }
 
   const emailKey = sha256(email);
@@ -89,15 +87,22 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Password reset email is temporarily unavailable. Please try again later.' }, { status: 503 });
   }
 
+  let tokenRowId: string | number | undefined;
   try {
     const token = randomBytes(32).toString('base64url');
     const tokenHash = sha256(token);
+    // A new request invalidates any previously issued reset links for this account.
+    await db.query(
+      'UPDATE password_reset_tokens SET consumed_at = now() WHERE user_id = $1 AND consumed_at IS NULL',
+      [userResult.rows[0].id],
+    );
     const inserted = await db.query(
       `INSERT INTO password_reset_tokens(user_id, token_hash, channel, expires_at)
        VALUES ($1, $2, 'email', now() + interval '10 minutes')
        RETURNING id`,
       [userResult.rows[0].id, tokenHash],
     );
+    tokenRowId = inserted.rows[0].id;
 
     const deploymentHost = process.env.VERCEL_URL ? 'https://' + process.env.VERCEL_URL : undefined;
     const configuredBaseUrl = process.env.AUTH_URL || process.env.NEXTAUTH_URL;
@@ -116,10 +121,13 @@ export async function POST(request: Request) {
     });
 
     if (!response.ok) {
-      await db.query('DELETE FROM password_reset_tokens WHERE id = $1 AND consumed_at IS NULL', [inserted.rows[0].id]);
+      await db.query('UPDATE password_reset_tokens SET consumed_at = now() WHERE id = $1 AND consumed_at IS NULL', [tokenRowId]);
       console.error('Password recovery email provider returned status:', response.status);
     }
   } catch (error) {
+    if (tokenRowId !== undefined) {
+      await db.query('UPDATE password_reset_tokens SET consumed_at = now() WHERE id = $1 AND consumed_at IS NULL', [tokenRowId]).catch(() => undefined);
+    }
     console.error('Password recovery delivery failed:', error instanceof Error ? error.name : 'unknown error');
   }
 
