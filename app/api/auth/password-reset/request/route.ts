@@ -6,7 +6,8 @@ import { db } from '@/lib/db';
 export const runtime = 'nodejs';
 
 const schema = z.object({ email: z.string().trim().email().max(254) });
-const genericMessage = 'If an account exists for that email, password-reset instructions will be sent shortly.';
+const genericMessage = 'A reset request was recently received. If you are eligible for another email, please check your inbox shortly.';
+const successMessage = 'Password reset request sent successfully. Please check your email for the reset link.';
 
 function sha256(value: string) {
   return createHash('sha256').update(value).digest('hex');
@@ -75,8 +76,8 @@ export async function POST(request: Request) {
     await client.query('COMMIT');
   } catch (error) {
     await client.query('ROLLBACK').catch(() => undefined);
-    console.error('Password recovery request could not be rate-limited safely.');
-    return NextResponse.json({ message: genericMessage });
+    console.error('Password recovery request could not be rate-limited safely:', error instanceof Error ? error.name : 'unknown error');
+    return NextResponse.json({ error: 'Password reset is temporarily unavailable. Please try again shortly.' }, { status: 503 });
   } finally {
     client.release();
   }
@@ -126,13 +127,15 @@ export async function POST(request: Request) {
     if (!response.ok) {
       await db.query('UPDATE password_reset_tokens SET consumed_at = now() WHERE id = $1 AND consumed_at IS NULL', [tokenRowId]);
       console.error('Password recovery email provider returned status:', response.status);
+      return NextResponse.json({ error: 'We could not send the reset email right now. Please try again shortly.' }, { status: 503 });
     }
   } catch (error) {
     if (tokenRowId !== undefined) {
       await db.query('UPDATE password_reset_tokens SET consumed_at = now() WHERE id = $1 AND consumed_at IS NULL', [tokenRowId]).catch(() => undefined);
     }
     console.error('Password recovery delivery failed:', error instanceof Error ? error.name : 'unknown error');
+    return NextResponse.json({ error: 'We could not send the reset email right now. Please try again shortly.' }, { status: 503 });
   }
 
-  return NextResponse.json({ message: genericMessage });
+  return NextResponse.json({ message: successMessage });
 }
