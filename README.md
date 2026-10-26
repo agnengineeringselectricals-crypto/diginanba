@@ -33,7 +33,6 @@ Credentials authentication uses JWT sessions. Passwords are hashed with bcryptjs
 
 Never commit `.env.local` or production secrets. Store production secrets in Vercel environment variables.
 
-
 ## v0.4 Catalog + Order Foundation
 - Public marketplace exploration and product detail routes.
 - US/UK market-aware pricing.
@@ -43,7 +42,6 @@ Never commit `.env.local` or production secrets. Store production secrets in Ver
 - Real payment processing is intentionally not enabled yet.
 
 Vercel can connect this Next.js project to GitHub so pushes can generate preview/production deployments.
-
 
 ## v0.5 — Checkout + Payment Foundation
 - authenticated checkout route
@@ -57,7 +55,6 @@ Vercel can connect this Next.js project to GitHub so pushes can generate preview
 
 Before production payments, configure a payment provider, merchant/KYC settings, tax rules, webhook signing, and Vercel environment variables. Vercel recommends keeping secrets server-side and scoping environment variables by Production/Preview/Development; changes to environment variables require a redeploy.
 
-
 ## AI factory usage and cost controls
 
 - Apply `db/migrations/009_factory_ai_usage_ledger.sql` in the production Neon database before enabling AI factory processing on this version.
@@ -69,7 +66,6 @@ Before production payments, configure a payment provider, merchant/KYC settings,
 - Customer/creator cost recovery is **not live yet**: checkout remains in demo-payment mode. Before charging, implement and test payment-provider checkout, price disclosure, account/job/order attribution, refunds, and settlement rules. Any recovered cost should be included in the agreed product/creation price or clearly disclosed as a creation service charge—not represented as tokens consumed.
 - OpenAI usage dashboard: https://platform.openai.com/usage
 
-
 ## Shared platform operating-cost recovery
 
 - Migration `db/migrations/010_platform_cost_allocation.sql` adds an internal ledger for actual provider operating expenses and product/creator/order-level allocations. Categories include AI API, database, hosting/compute, storage/bandwidth, monitoring/security, and other attributable platform costs.
@@ -77,3 +73,12 @@ Before production payments, configure a payment provider, merchant/KYC settings,
 - When enabled through a reviewed pricing implementation, eligible costs should be incorporated into the total product price or a plainly described general service/creation price. Do not display provider-specific cost lines such as "OpenAI tokens", "database", "Vercel hosting", or "ChatGPT subscription" on the customer bill. The final total and any general service/creation charge must still be disclosed before purchase; no hidden or surprise fees.
 - Allocate only real, documented, business-related costs attributable to DigiNanba. A personal ChatGPT subscription is not the same as API usage and must not be automatically treated as a per-product API charge. Include a shared software subscription in platform overhead only if it is legitimately used for the business and allocation is reasonable, documented, and legally permitted.
 - This migration records costs and allocations only; it does not by itself change storefront prices, charge a creator, collect payment, or enable any billing policy. Real payment-provider integration, admin controls, price previews, creator agreements, local tax/consumer-law review, settlement and refund handling are still required before live recovery.
+
+## Launch checklist — Promote & Earn
+
+- Required policy: [DigiNanba Promote & Earn Policy](docs/launch/PROMOTE-AND-EARN-POLICY.md).
+- Promotion must be platform-neutral and open to any lawful social platform, messaging service, website, newsletter, podcast, forum, community, offline event, or future channel; examples in the policy are illustrative, not exhaustive.
+- Commission rates and milestone rewards are proposals only. Do not advertise or activate paid promotion offers until final rates, eligible net revenue definitions, attribution, refunds/reversals, payout minimums, tax handling, and terms have been reviewed and approved.
+- Before launch, implement and verify referral links/codes, attribution, a tamper-resistant commission ledger, promoter dashboard, refund/chargeback reversals, admin controls, payout reconciliation, audit trails, and a dispute/appeal workflow.
+- Test valid sales, duplicate events, self-referrals, fraud scenarios, refunds, currency handling, and payout failures end to end.
+- This policy documentation does not mean the promoter program is already implemented or active. Do not accrue or pay commissions until implementation, testing, legal/tax review, and explicit business approval are complete.
