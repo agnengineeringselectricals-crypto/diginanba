@@ -25,9 +25,7 @@ export async function POST(request: Request) {
     const body = schema.parse(await request.json());
     email = body.email.toLowerCase();
   } catch {
-    // Keep the response generic so account-recovery requests do not reveal
-    // whether a particular address is registered.
-    return NextResponse.json({ message: genericMessage });
+    return NextResponse.json({ error: 'Enter a valid email address.' }, { status: 400 });
   }
 
   let userResult;
@@ -38,9 +36,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'We could not check this email right now. Please try again shortly.' }, { status: 503 });
   }
 
+  // Product requirement: explicitly guide unregistered visitors to sign up.
+  // Note: this reveals whether an email is registered, which is a privacy trade-off.
   if (!userResult.rowCount) {
-    // Do not reveal whether an email address has an account.
-    return NextResponse.json({ message: genericMessage });
+    return NextResponse.json({
+      error: 'This email address is not registered with DigiNanba.',
+      createAccountUrl: '/signup',
+    }, { status: 404 });
   }
 
   const emailKey = sha256(email);
