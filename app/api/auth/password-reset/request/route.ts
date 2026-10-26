@@ -37,7 +37,7 @@ export async function POST(request: Request) {
   }
 
   // Product requirement: explicitly guide unregistered visitors to sign up.
-  // Note: this reveals whether an email is registered, which is a privacy trade-off.
+  // This reveals account existence by design.
   if (!userResult.rowCount) {
     return NextResponse.json({
       error: 'This email address is not registered with DigiNanba.',
