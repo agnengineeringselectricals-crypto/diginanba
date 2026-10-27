@@ -166,6 +166,10 @@ export default function ProductRequestWorkspace() {
   const [expanded] = useState(true);
   const descriptionInputRef = useRef<HTMLTextAreaElement | null>(null);
   const [productSearch, setProductSearch] = useState('');
+  const [professionalCategory, setProfessionalCategory] = useState('');
+  const [categoryPrompt, setCategoryPrompt] = useState(false);
+  const [categoryChoice, setCategoryChoice] = useState('');
+  const professionalOptions = ['Freelancer / Independent professional','School student','College / University student','Teacher / Educator','Small business owner / Entrepreneur','Homemaker','Employee / Corporate professional','Developer / IT professional','Designer / Creative professional','Marketing / Sales professional','Finance / Accounting professional','Engineer / Technical professional','Healthcare professional','Organization / Institution','Job seeker','Researcher','Other'];
   const [existingProducts, setExistingProducts] = useState<{id:string;publicId?:string;slug:string;title:string;description:string;category:string;creatorName?:string;creatorId?:string;price?:string}[]>([]);
   const [searchingProducts, setSearchingProducts] = useState(false);
   const [hasSearchedProducts, setHasSearchedProducts] = useState(false);
@@ -279,6 +283,18 @@ export default function ProductRequestWorkspace() {
       <div className="dn-pw-orbit" aria-hidden="true"><span>✦</span><i>✧</i><b>↗</b></div>
     </div>
     <div className="dn-pw-builder dn-pw-search-first">
+      {categoryPrompt && <div className="dn-pw-category-prompt" role="dialog" aria-labelledby="dn-pw-category-title">
+        <strong id="dn-pw-category-title">Personalise your DigiNanba homepage</strong>
+        <p>Choose your main profession or situation to see more relevant products.</p>
+        <label>Professional category
+          <select value={categoryChoice} onChange={(event) => setCategoryChoice(event.target.value)}>
+            <option value="">Select your category</option>
+            {professionalOptions.map((option) => <option key={option} value={option}>{option}</option>)}
+          </select>
+        </label>
+        <div className="dn-pw-category-actions"><button type="button" className="dn-pw-start" disabled={!categoryChoice} onClick={() => saveProfessionalCategory(categoryChoice)}>Save and personalise</button><button type="button" className="dn-pw-category-skip" onClick={() => { try { sessionStorage.setItem('diginanba-category-skipped','1'); } catch {} setCategoryPrompt(false); }}>Skip for now</button></div>
+      </div>}
+      {professionalCategory && <div className="dn-pw-category-current">Recommendations for <strong>{professionalCategory}</strong> <button type="button" onClick={() => setCategoryPrompt(true)}>Change</button></div>}
       <div className="dn-pw-search-toolbar">
         <label className="dn-pw-field-full dn-pw-product-search-label">
           <span className="dn-pw-search-caption">Find a digital tool or product</span>
@@ -290,7 +306,7 @@ export default function ProductRequestWorkspace() {
       <div className="dn-pw-existing-results" aria-live="polite">
         {(existingProducts.length > 0 || productSearch.trim().length < 2) && <div className="dn-pw-existing-heading"><strong>{productSearch.trim().length >= 2 ? 'Matching products and tools' : 'Explore existing products'}</strong><span>{productSearch.trim().length >= 2 ? 'Relevant matches from the marketplace' : 'Start here, or type to find something specific'}</span></div>}
         {searchingProducts && <p className="dn-pw-search-status" role="status">Finding relevant products…</p>}
-        {!searchingProducts && existingProducts.length > 0 ? <div className="dn-pw-existing-roller">{existingProducts.slice(0,12).map((product) => <Link className="dn-pw-existing-card" key={product.id} href={`/products/${product.slug}?market=IN`}>
+        {!searchingProducts && recommendedProducts.length > 0 ? <div className="dn-pw-existing-roller">{recommendedProducts.slice(0,12).map((product) => <Link className="dn-pw-existing-card" key={product.id} href={`/products/${product.slug}?market=IN`}>
           <strong>{product.title}</strong>{product.creatorName && product.creatorName.trim().toLowerCase() !== "diginanba" && <small className="dn-pw-result-creator">by {product.creatorName.trim().split(/\s+/).slice(0,2).join(" ")}</small>}{product.price && <small className="dn-pw-result-price">{product.price}</small>}<span className="dn-pw-existing-open">View product →</span>
         </Link>)}</div> : !searchingProducts && hasSearchedProducts ? <div className="dn-pw-no-match-card"><p><strong>Wow! “{productSearch.trim()}” isn’t here yet.</strong></p><p>Create it and earn with DigiNanba.</p><button type="button" className="dn-pw-start dn-pw-create-earn" onClick={() => { setIdea((current) => current.trim() ? current : productSearch.trim()); setCreateMode(true); setError(''); setSuccess(''); }}>✨ Create it &amp; earn</button></div> : null}
         {(!hasSearchedProducts || existingProducts.length > 0) && <a className="dn-pw-marketplace-link" href={productSearch.trim().length >= 2 ? `/explore?market=IN&q=${encodeURIComponent(productSearch.trim())}` : '/explore?market=IN'}>Browse all marketplace products →</a>}
