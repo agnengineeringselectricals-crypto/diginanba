@@ -68,6 +68,17 @@ export async function POST(request:Request,{params}:Context){
   const row=result.rows[0];
   if(!row){await client.query('ROLLBACK');return NextResponse.json({error:'Draft not found or you do not have access.'},{status:404})}
   if(row.status!=='draft'){await client.query('ROLLBACK');return NextResponse.json({error:'Only unpublished drafts can be submitted for review.'},{status:409})}
+  const confirmation=await client.query(
+   `SELECT confirmation_kind FROM product_build_confirmations
+    WHERE product_id=$1 AND product_build_id=$2 AND creator_user_id=$3
+      AND confirmation_kind IN ('content_reviewed','rights_confirmed')
+    GROUP BY confirmation_kind`,
+   [productId,row.build_id,session.user.id]);
+  const confirmedKinds=new Set(confirmation.rows.map(item=>item.confirmation_kind));
+  if(!confirmedKinds.has('content_reviewed')||!confirmedKinds.has('rights_confirmed')){
+   await client.query('ROLLBACK');
+   return NextResponse.json({error:'Confirm that you reviewed this exact saved version and have the required distribution rights before submitting it.'},{status:409});
+  }
   const check=validateDefinition(row.definition_json,row.title,row.description??'');
   await client.query('UPDATE product_builds SET validation_json=$2::jsonb,status=$3,updated_at=now() WHERE id=$1',[row.build_id,JSON.stringify(check),check.valid?'ready':'draft']);
   if(!check.valid){await client.query('COMMIT');return NextResponse.json({error:'The draft needs changes before review.',validation:check},{status:422})}
