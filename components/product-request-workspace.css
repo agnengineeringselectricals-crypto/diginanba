@@ -28,16 +28,16 @@
 .dn-pw-existing-heading>strong{font-size:15px;color:#202843}
 .dn-pw-existing-heading>span{font-size:12px;color:#68738a}
 .dn-pw-existing-roller{display:grid;grid-auto-columns:minmax(180px,220px);grid-auto-flow:column;gap:12px;overflow-x:auto;overflow-y:hidden;padding:2px 2px 12px;scroll-snap-type:x mandatory;overscroll-behavior-inline:contain;scrollbar-width:thin;scrollbar-color:#b7b4f4 #eceef8}
-.dn-pw-existing-card{display:flex;flex-direction:column;align-items:flex-start;min-width:0;min-height:145px;padding:11px;border:1px solid #e2e6f1;border-radius:14px;background:#fff;color:#172033;text-decoration:none;box-shadow:0 5px 15px rgba(28,39,75,.045);scroll-snap-align:start;transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease}
+.dn-pw-existing-card{display:flex;flex-direction:column;align-items:flex-start;min-width:0;min-height:112px;padding:10px;border:1px solid #e2e6f1;border-radius:14px;background:#fff;color:#172033;text-decoration:none;box-shadow:0 5px 15px rgba(28,39,75,.045);scroll-snap-align:start;transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease}
 .dn-pw-existing-card:hover{transform:translateY(-2px);border-color:#b8b0ff;box-shadow:0 10px 22px rgba(46,47,110,.1)}
 .dn-pw-existing-card-icon{display:grid;place-items:center;width:25px;height:25px;margin-bottom:6px;border-radius:8px;background:linear-gradient(135deg,#eeeaff,#e2f7f3);color:#5441d4;font-size:18px}
-.dn-pw-existing-card>strong{font-size:14px;line-height:1.4;color:#202843}
+.dn-pw-existing-card>strong{font-size:13px;line-height:1.35;color:#202843}
 .dn-pw-existing-category{display:inline-block;margin-top:7px;border-radius:99px;background:#f0edff;color:#5140c8;padding:4px 8px;font-size:10px;font-weight:800}
 .dn-pw-existing-card p{display:none}.dn-pw-result-creator{margin-top:5px;color:#626d83;font-size:11px;font-weight:600}.dn-pw-result-price{margin-top:6px;color:#176747;font-size:12px;font-weight:850}
 .dn-pw-existing-card small{margin-top:auto;padding-top:5px;font-size:12px;font-weight:850;color:#176747}
 .dn-pw-existing-open{margin-top:8px;color:#5844db;font-size:11px;font-weight:800}
 .dn-pw-no-results{margin:10px 0;color:#626d83;font-size:13px;line-height:1.5}
-@media(max-width:650px){.dn-pw-existing-results{padding:12px}.dn-pw-existing-roller{grid-auto-columns:minmax(205px,78vw);gap:10px}.dn-pw-existing-card{min-height:190px}.dn-pw-existing-heading{display:block}.dn-pw-existing-heading>span{display:block;margin-top:4px}}
+@media(max-width:650px){.dn-pw-existing-results{padding:12px}.dn-pw-existing-roller{grid-auto-columns:minmax(180px,72vw);gap:10px}.dn-pw-existing-card{min-height:112px}.dn-pw-existing-heading{display:block}.dn-pw-existing-heading>span{display:block;margin-top:4px}}
 
 
 /* Clear, glowing call-to-action when a searched product is missing */
