@@ -169,3 +169,56 @@ INSERT INTO role_permissions(role_id, permission_id)
 SELECT r.id, p.id FROM roles r CROSS JOIN permissions p
 WHERE r.name IN ('Super Admin','AI Factory Manager') AND p.key='product_factory.manage'
 ON CONFLICT DO NOTHING;
+
+-- DigiNanba public IDs and signup country metadata (migration 014).
+ALTER TABLE users ADD COLUMN IF NOT EXISTS country_code CHAR(2) NOT NULL DEFAULT 'IN';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS public_id VARCHAR(8);
+
+CREATE OR REPLACE FUNCTION diginanba_generate_public_id(p_country_code TEXT)
+RETURNS VARCHAR(8)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  prefix TEXT := upper(left(trim(coalesce(p_country_code, 'IN')), 2));
+  alphabet CONSTANT TEXT := '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  candidate VARCHAR(8);
+  suffix TEXT;
+  i INTEGER;
+  attempts INTEGER := 0;
+BEGIN
+  IF prefix !~ '^[A-Z]{2}$' THEN prefix := 'IN'; END IF;
+  LOOP
+    suffix := '';
+    FOR i IN 1..6 LOOP
+      suffix := suffix || substr(alphabet, floor(random() * length(alphabet))::integer + 1, 1);
+    END LOOP;
+    candidate := prefix || suffix;
+    EXIT WHEN NOT EXISTS (SELECT 1 FROM users u WHERE u.public_id = candidate);
+    attempts := attempts + 1;
+    IF attempts >= 100 THEN RAISE EXCEPTION 'Unable to allocate unique DigiNanba public ID'; END IF;
+  END LOOP;
+  RETURN candidate;
+END;
+$$;
+
+UPDATE users SET country_code = upper(left(trim(coalesce(country_code, 'IN')), 2))
+WHERE country_code IS NULL OR country_code !~ '^[A-Z]{2}$';
+UPDATE users u SET public_id = diginanba_generate_public_id(u.country_code)
+WHERE u.public_id IS NULL OR btrim(u.public_id) = '';
+CREATE UNIQUE INDEX IF NOT EXISTS users_public_id_key ON users(public_id);
+
+CREATE OR REPLACE FUNCTION diginanba_assign_public_id()
+RETURNS TRIGGER LANGUAGE plpgsql AS $$
+BEGIN
+  NEW.country_code := upper(left(trim(coalesce(NEW.country_code, 'IN')), 2));
+  IF NEW.country_code !~ '^[A-Z]{2}$' THEN NEW.country_code := 'IN'; END IF;
+  IF NEW.public_id IS NULL OR btrim(NEW.public_id) = '' THEN
+    NEW.public_id := diginanba_generate_public_id(NEW.country_code);
+  END IF;
+  RETURN NEW;
+END;
+$$;
+DROP TRIGGER IF EXISTS users_assign_public_id ON users;
+CREATE TRIGGER users_assign_public_id BEFORE INSERT ON users
+FOR EACH ROW EXECUTE FUNCTION diginanba_assign_public_id();
+ALTER TABLE users ALTER COLUMN public_id SET NOT NULL;
