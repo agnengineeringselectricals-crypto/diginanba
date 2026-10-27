@@ -16,6 +16,7 @@ const fieldSchema = z.object({
   formula: z.string().max(500).optional()
 });
 const definitionSchema = z.object({
+  editorProfile: z.enum(['student', 'freelancer', 'homemaker', 'educator', 'designer', 'developer', 'other']).default('other'),
   schemaVersion: z.literal(1).default(1),
   description: z.string().max(4000).default(''),
   fields: z.array(fieldSchema).max(100).default([])
