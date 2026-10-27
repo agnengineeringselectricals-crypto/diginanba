@@ -178,6 +178,52 @@ export default function ProductRequestWorkspace() {
   const [kind, setKind] = useState<string>('Interactive web tool or dashboard');
   const [kindQuery, setKindQuery] = useState<string>('Interactive web tool or dashboard');
   useEffect(() => {
+    try {
+      const saved = localStorage.getItem('diginanba-professional-category') || '';
+      setProfessionalCategory(saved);
+      setCategoryChoice(saved);
+      if (!saved && !sessionStorage.getItem('diginanba-category-skipped')) setCategoryPrompt(true);
+    } catch {}
+  }, []);
+
+  function saveProfessionalCategory(value: string) {
+    if (!value) return;
+    try {
+      localStorage.setItem('diginanba-professional-category', value);
+      sessionStorage.removeItem('diginanba-category-skipped');
+    } catch {}
+    setProfessionalCategory(value);
+    setCategoryChoice(value);
+    setCategoryPrompt(false);
+  }
+
+  const categoryTerms: Record<string, string[]> = {
+    'Freelancer / Independent professional': ['freelance','invoice','proposal','portfolio','project','marketing','design','time'],
+    'School student': ['student','study','school','quiz','flashcard','lesson','learning','education','homework'],
+    'College / University student': ['student','study','research','resume','learning','education','presentation','career'],
+    'Teacher / Educator': ['teacher','lesson','student','school','quiz','assessment','education','course'],
+    'Small business owner / Entrepreneur': ['business','sales','invoice','finance','inventory','customer','marketing','budget'],
+    'Homemaker': ['budget','meal','planner','home','family','expense','habit','printable'],
+    'Employee / Corporate professional': ['project','task','meeting','presentation','report','team','productivity','career'],
+    'Developer / IT professional': ['developer','code','api','software','web','app','automation','database'],
+    'Designer / Creative professional': ['design','creative','template','graphics','photo','video','audio','portfolio'],
+    'Marketing / Sales professional': ['marketing','sales','seo','social','campaign','lead','customer','content'],
+    'Finance / Accounting professional': ['finance','accounting','invoice','tax','gst','budget','expense','payroll'],
+    'Engineer / Technical professional': ['engineering','cad','technical','calculator','project','simulation','automation'],
+    'Healthcare professional': ['health','medical','clinic','patient','appointment','schedule','wellness'],
+    'Organization / Institution': ['team','organization','school','management','project','staff','workflow','attendance'],
+    'Job seeker': ['resume','cv','career','cover letter','interview','job','portfolio','skill'],
+    'Researcher': ['research','data','analysis','report','survey','spreadsheet','presentation']
+  };
+  const recommendedProducts = professionalCategory && productSearch.trim().length < 2
+    ? [...existingProducts].sort((a, b) => {
+        const terms = categoryTerms[professionalCategory] || [];
+        const score = (p: typeof existingProducts[number]) => terms.reduce((n, term) => n + ((p.title + ' ' + p.description + ' ' + p.category).toLowerCase().includes(term) ? 1 : 0), 0);
+        return score(b) - score(a);
+      })
+    : existingProducts;
+
+  useEffect(() => {
     if (!createMode) return;
     const timer = window.setTimeout(() => {
       descriptionInputRef.current?.focus();
