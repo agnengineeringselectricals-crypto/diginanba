@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { getProducts } from '@/lib/catalog';
 import type { Market } from '@/lib/market';
+import AddToCartButton from '@/app/products/[slug]/AddToCartButton';
 
 const categories = [
   'All categories', 'Ebooks & Guides', 'Excel & Sheets', 'Templates & Documents',
@@ -81,11 +82,18 @@ export default async function Explore({
       <div className="catalog-result-summary"><p className="muted" aria-live="polite"><strong>{products.length}</strong> {products.length === 1 ? 'product' : 'products'} found{p.q ? ` for “${p.q}”` : ''}{category !== 'All categories' ? ` in ${category}` : ''}.</p>{p.q ? <Link className="btn" href={'/explore?market=' + market}>Clear search</Link> : null}</div>
 
       <div className="catalog-grid">
-        {products.map((x) => <Link href={'/products/' + x.slug + '?market=' + market} className="product-card" key={x.id}><span className="category">{x.category}</span><h2>{x.title}</h2><p className="muted">{x.description}</p><small className="muted">ID: {x.publicId} · Creator: {x.creatorName} ({x.creatorId})</small><div className="product-foot"><b>{x.price}</b><span>View product →</span></div></Link>)}
+        {products.map((x) => <article className="product-card dn-compact-product-card" key={x.id}><Link href={'/products/' + x.slug + '?market=' + market} className="dn-compact-product-title"><h2>{x.title}</h2></Link>{x.creatorName && x.creatorName.trim().toLowerCase() !== 'diginanba' && <small className="dn-compact-creator" title={x.creatorName}>by {x.creatorName.trim().split(/\s+/).slice(0, 2).join(' ')}</small>}<div className="product-foot"><b>{x.price}</b><AddToCartButton product={{slug:x.slug,title:x.title,price:x.price,amountMinor:x.amountMinor,market}} /></div></article>)}
       </div>
 
       {!products.length && <div className="panel dn-empty-state"><div aria-hidden="true">🔎</div><h2>No exact matches yet</h2><p className="muted">Try a broader search, increase your budget, or choose another category. Your searches help DigiNanba understand what products people need.</p><div className="button-row"><Link href={'/explore?market=' + market} className="btn">Clear filters</Link><Link href="/solutions" className="btn primary">Find a solution</Link></div></div>}
       <style>{`
+        .dn-compact-product-card{min-height:0;padding:13px 14px;border-radius:12px;gap:6px;justify-content:space-between}
+        .dn-compact-product-title{display:block;min-width:0}
+        .dn-compact-product-title h2{font-size:14px;line-height:1.3;margin:0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+        .dn-compact-creator{font-size:11px;color:#687080;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .dn-compact-product-card .product-foot{padding-top:8px;gap:8px}
+        .dn-compact-product-card .product-foot b{font-size:16px}
+        .dn-compact-product-card .product-foot .btn{padding:7px 9px;font-size:11px;white-space:nowrap}
         .dn-filter-panel{margin:18px 0;padding:20px}
         .dn-filter-heading{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:16px}
         .dn-filter-heading h2{font-size:18px;margin:0 0 5px}
