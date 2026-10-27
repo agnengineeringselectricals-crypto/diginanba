@@ -87,7 +87,7 @@ export async function POST(request: Request, { params }: Context) {
         [productId, input.title, input.description, session.user.id]
       );
       await client.query(
-        `UPDATE product_editions SET title=$2, description=$3, status='draft', version=version+1, updated_at=now()
+        `UPDATE product_editions SET title=$2, description=$3, status='draft'
          WHERE id=(SELECT id FROM product_editions WHERE product_id=$1 ORDER BY version DESC LIMIT 1)`,
         [productId, input.title, input.description]
       );
