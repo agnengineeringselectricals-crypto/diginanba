@@ -774,3 +774,23 @@ a.ref-need:hover .ref-solution-link{text-decoration:underline}
 /* Homepage hero without the featured-products side column */
 .ref-market-grid-single{grid-template-columns:minmax(0,1fr)}
 .ref-market-grid-single .ref-market-left{width:100%}
+
+/* Clear, always-visible route back to the DigiNanba homepage on authentication screens. */
+.auth-shell{position:relative;min-height:100vh;display:grid;place-items:center;padding:76px 20px 32px;background:linear-gradient(135deg,#f0edff,#f7f8fb)}
+.auth-home-link{position:absolute;top:22px;left:clamp(16px,4vw,44px);display:inline-flex;align-items:center;gap:8px;padding:10px 15px;border:1px solid #dfe3ef;border-radius:999px;background:#fff;color:#29334a;text-decoration:none;font-size:14px;font-weight:750;box-shadow:0 4px 14px rgba(24,32,51,.06);transition:background .15s,border-color .15s,transform .15s}
+.auth-home-link span{font-size:20px;line-height:1;color:#5144d5}
+.auth-home-link:hover{background:#f7f5ff;border-color:#bdb5ff;transform:translateY(-1px)}
+.auth-home-link:focus-visible{outline:3px solid #6757f5;outline-offset:3px}
+.auth-card{width:min(440px,100%);display:grid;gap:14px;background:#fff;border:1px solid #e7e8ee;border-radius:20px;padding:clamp(24px,5vw,34px);box-shadow:0 20px 60px #11182712}
+.auth-card .brand{display:inline-block;width:max-content;margin:0 0 8px;color:#202536;text-decoration:none;font-size:25px;font-weight:850}
+.auth-card h1{margin:0;font-size:clamp(27px,5vw,32px);line-height:1.15}
+.auth-card>p{margin:0;color:#68738a;line-height:1.55}
+.auth-card label{display:grid;gap:7px;font-size:13px;font-weight:700;color:#354156}
+.auth-card input{width:100%;box-sizing:border-box;border:1px solid #dfe2ea;border-radius:10px;padding:12px 13px;font:inherit;font-size:15px}
+.auth-card input:focus{outline:0;border-color:#5b46f6;box-shadow:0 0 0 3px #5b46f61a}
+.auth-card .primary{width:100%;border:0;border-radius:11px;padding:13px 16px;background:#5144d5;color:#fff;font:inherit;font-weight:800;cursor:pointer}
+.auth-card .primary:disabled{opacity:.65;cursor:wait}
+.auth-card .auth-recovery{text-align:right;font-size:13px}
+.auth-card .auth-foot{text-align:center;font-size:13px;color:#68738a;margin-top:4px}
+.auth-card a{color:#5144d5}
+@media(max-width:480px){.auth-shell{padding:76px 14px 24px}.auth-home-link{top:14px;left:14px}.auth-card{border-radius:16px}}
