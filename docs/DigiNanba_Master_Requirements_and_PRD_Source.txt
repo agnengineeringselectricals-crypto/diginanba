@@ -195,3 +195,7 @@ Completeness note: this initial register is reconstructed from available project
 
 FINAL PRD GENERATION
 At project completion, combine this register with Standard Instructions, Knowledge & Learning Notes, approved product decisions, verified implementation/architecture/schema, test evidence and open issues. Produce a polished PRD with executive summary, vision/goals, personas, scope/non-goals, user journeys, functional and non-functional requirements, localization/market model, AI governance, buyer/creator/admin workflows, data model, integrations, security/privacy/compliance, analytics, acceptance criteria, release plan, risks/dependencies and appendices. Label approved requirements, assumptions, recommendations and unresolved decisions. Never fabricate market data or implementation status.
+
+
+## 2026-10-30 — Account settings UI refinement
+- Remove the redundant “Need a hand?” help card from the Account Settings sidebar, including its marketplace-discovery description and “Explore products” link. Keep the settings page focused on preference and account controls; existing primary navigation and account shortcuts already provide marketplace access.
