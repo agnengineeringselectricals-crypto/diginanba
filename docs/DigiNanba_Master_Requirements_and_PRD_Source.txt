@@ -199,3 +199,10 @@ At project completion, combine this register with Standard Instructions, Knowled
 
 ## 2026-10-30 — Account settings UI refinement
 - Remove the redundant “Need a hand?” help card from the Account Settings sidebar, including its marketplace-discovery description and “Explore products” link. Keep the settings page focused on preference and account controls; existing primary navigation and account shortcuts already provide marketplace access.
+
+
+## 2026-10-30 — Signed-in navigation and session behavior
+- After successful login or signup, route the user to the DigiNanba homepage rather than opening the My Account dashboard automatically.
+- When an already-authenticated user navigates back to the login or signup page, replace that page with the homepage; do not show a redundant sign-in/create-account screen while a valid session exists.
+- Provide a clear, explicit Sign out action in the homepage My Account menu and on the My Account overview. Signing out must end the authenticated session and return the user to the homepage.
+- Browser Back navigation must never sign the user out. Private account routes remain protected by server-side authentication; users remain signed in while navigating backwards unless they explicitly choose Sign out. After successful authentication, avoid retaining the login/signup form as the previous in-app history entry.
