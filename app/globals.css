@@ -794,3 +794,9 @@ a.ref-need:hover .ref-solution-link{text-decoration:underline}
 .auth-card .auth-foot{text-align:center;font-size:13px;color:#68738a;margin-top:4px}
 .auth-card a{color:#5144d5}
 @media(max-width:480px){.auth-shell{padding:76px 14px 24px}.auth-home-link{top:14px;left:14px}.auth-card{border-radius:16px}}
+
+/* Login page: in-card navigation and premium brand treatment */
+.auth-card .auth-home-inside{position:static;display:inline-flex;align-items:center;gap:7px;width:max-content;margin:0 0 24px;padding:8px 13px;border:1px solid #e3e7f2;border-radius:999px;background:#f7f8ff;color:#394269;font-size:13px;font-weight:700;box-shadow:none;text-decoration:none}
+.auth-card .auth-home-inside:hover{background:#eeecff;color:#4534c8}
+.auth-card .auth-brand-beautiful{display:block;width:max-content;margin:0 0 20px;font-size:clamp(30px,5vw,39px);font-weight:900;letter-spacing:-1.7px;line-height:1.15;color:#25265e;text-decoration:none;text-shadow:0 2px 12px rgba(91,70,246,.10)}
+.auth-card .auth-brand-beautiful span{background:linear-gradient(110deg,#6651ed 5%,#b13fc8 55%,#f0765d 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:#6651ed}
