@@ -226,10 +226,11 @@ export default function HomePageClient({ initialProducts, initialMarket }: Props
                   <path d="M5.5 20c.4-3.5 2.8-5.5 6.5-5.5s6.1 2 6.5 5.5" />
                 </svg>
               </span>
-              <span>My Account</span><span aria-hidden="true" style={{ fontSize: 11 }}>▾</span>
+              <span>{session ? (session.user?.name || session.user?.email || 'My Account') : 'My Account'}</span><span aria-hidden="true" style={{ fontSize: 11 }}>▾</span>
             </button>
             {accountMenuOpen && <div role="menu" aria-label="My Account options" style={{ position: 'absolute', top: 'calc(100% + 8px)', right: 0, zIndex: 1100, width: 210, padding: 8, background: '#fff', border: '1px solid #e0e5ee', borderRadius: 12, boxShadow: '0 14px 32px rgba(20,30,60,.18)' }}>
               {session ? <>
+                <div style={{ padding: '9px 12px 10px', color: '#667085', fontSize: 12, borderBottom: '1px solid #edf0f4', marginBottom: 5 }}>Signed in as <strong style={{ display: 'block', marginTop: 3, color: '#172033', fontSize: 14, overflowWrap: 'anywhere' }}>{session.user?.name || session.user?.email || 'DigiNanba user'}</strong></div>
                 <Link role="menuitem" href="/account" onClick={() => setAccountMenuOpen(false)} style={{ display: 'block', padding: '11px 12px', borderRadius: 8, color: '#172033', textDecoration: 'none', fontWeight: 600 }}>My account</Link>
                 <button role="menuitem" type="button" onClick={() => signOut({ callbackUrl: '/' })} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '11px 12px', border: 0, borderRadius: 8, background: '#fff', color: '#b42318', font: 'inherit', fontWeight: 700, cursor: 'pointer' }}>Sign out</button>
               </> : <>
