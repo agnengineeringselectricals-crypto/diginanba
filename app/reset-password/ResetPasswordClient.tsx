@@ -58,7 +58,7 @@ export default function ResetPasswordClient({ token = '' }: { token?: string }) 
   return (
     <main className="auth-shell">
       <form className="auth-card" onSubmit={submit}>
-        <a href="/" className="brand">DigiNanba</a>
+        <div className="auth-topline"><a href="/" className="auth-home-link auth-home-inside" aria-label="Go to DigiNanba home"><span aria-hidden="true">⌂</span> Home</a><span className="auth-tagline">Create · Earn &amp; Grow</span></div><a href="/" className="brand auth-brand-beautiful">Digi<span>Nanba</span></a>
         {emailSent && !hasToken ? (
           <section className="reset-email-confirmation" role="status" aria-live="polite">
             <h1>Check your email</h1>
@@ -76,8 +76,8 @@ export default function ResetPasswordClient({ token = '' }: { token?: string }) 
           </section>
         ) : (
           <>
-            <h1>{hasToken ? 'Choose a new password' : 'Reset your password'}</h1>
-            <p>{hasToken ? 'Choose a strong password with at least 8 characters.' : 'Enter the email address associated with your DigiNanba account.'}</p>
+            <h1 className="reset-page-title">{hasToken ? 'Choose a new password' : 'Reset your password'}</h1>
+            {hasToken && <p>Choose a strong password with at least 8 characters.</p>}
             {error && <div className="error" role="alert">{error}</div>}
             {message && <div className="success" role="status">{message}</div>}
             {hasToken ? (
