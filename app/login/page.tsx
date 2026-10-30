@@ -1,9 +1,9 @@
 'use client';
-import { FormEvent, useState } from 'react';
-import { signIn } from 'next-auth/react';
+import { FormEvent, useEffect, useState } from 'react';
+import { signIn, useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 export default function LoginPage() {
-  const router = useRouter(); const [email,setEmail]=useState(''); const [password,setPassword]=useState(''); const [error,setError]=useState(''); const [loading,setLoading]=useState(false);
-  async function submit(e:FormEvent){e.preventDefault();setLoading(true);setError('');const result=await signIn('credentials',{email,password,redirect:false});setLoading(false);if(!result?.ok)return setError('Email or password is incorrect.');router.push('/account');router.refresh();}
+  const router = useRouter(); const { status } = useSession(); useEffect(() => { if (status === 'authenticated') router.replace('/'); }, [status, router]); const [email,setEmail]=useState(''); const [password,setPassword]=useState(''); const [error,setError]=useState(''); const [loading,setLoading]=useState(false);
+  async function submit(e:FormEvent){e.preventDefault();setLoading(true);setError('');const result=await signIn('credentials',{email,password,redirect:false});setLoading(false);if(!result?.ok)return setError('Email or password is incorrect.');router.replace('/');router.refresh();}
   return <main className="auth-shell"><form className="auth-card" onSubmit={submit}><div className="auth-topline"><a href="/" className="auth-home-link auth-home-inside" aria-label="Go to DigiNanba home"><span aria-hidden="true">⌂</span> Home</a><span className="auth-tagline">Create · Earn &amp; Grow</span></div><a href="/" className="brand auth-brand-beautiful">Digi<span>Nanba</span></a><h1>Sign in</h1>{error&&<div className="error">{error}</div>}<label>Email<input type="email" value={email} onChange={e=>setEmail(e.target.value)} required autoComplete="email" /></label><label>Password<input type="password" value={password} onChange={e=>setPassword(e.target.value)} required autoComplete="current-password" /></label><p className="auth-recovery"><a href="/reset-password">Forgot your password?</a></p><button className="primary" disabled={loading}>{loading?'Signing in…':'Sign in'}</button><div className="auth-foot">New to DigiNanba? <a href="/signup">Create an account</a></div></form></main>;
 }
