@@ -800,3 +800,10 @@ a.ref-need:hover .ref-solution-link{text-decoration:underline}
 .auth-card .auth-home-inside:hover{background:#eeecff;color:#4534c8}
 .auth-card .auth-brand-beautiful{display:block;width:max-content;margin:0 0 20px;font-size:clamp(30px,5vw,39px);font-weight:900;letter-spacing:-1.7px;line-height:1.15;color:#25265e;text-decoration:none;text-shadow:0 2px 12px rgba(91,70,246,.10)}
 .auth-card .auth-brand-beautiful span{background:linear-gradient(110deg,#6651ed 5%,#b13fc8 55%,#f0765d 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:#6651ed}
+
+/* Consistent in-card Home placement and DigiNanba identity on login and signup. */
+.auth-shell{padding-top:32px!important}
+.auth-card .auth-home-inside{position:static!important;top:auto!important;left:auto!important;align-self:flex-start;margin:0 0 8px!important}
+.auth-card .auth-brand-beautiful{font-family:Georgia,'Times New Roman',serif;font-size:clamp(32px,6vw,40px);font-weight:900;letter-spacing:-1.8px;background:linear-gradient(100deg,#25265e 0%,#5144d5 48%,#c044a3 78%,#ee795e 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:#5144d5;text-shadow:none}
+.auth-card .auth-brand-beautiful span{background:none;-webkit-text-fill-color:currentColor;color:#c044a3}
+@media(max-width:480px){.auth-shell{padding:18px 14px!important}.auth-card{gap:13px}}
