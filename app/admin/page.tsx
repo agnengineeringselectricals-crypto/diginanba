@@ -23,6 +23,7 @@ async function countRows(metric: 'users' | 'products' | 'orders' | 'categories' 
 
 const adminAreas = [
   { href: '/admin/business', icon: '↗', number: '01', title: 'Business analytics', description: 'Review business performance with daily, weekly, monthly, yearly and custom-range graphs for products, users, orders and paid order value.', detail: 'PERFORMANCE & TRENDS', color: '#087f8c', tint: '#e6f7f7' },
+  { href: '/admin/energy-intelligence', icon: 'ϟ', number: '09', title: 'Energy Intelligence', description: 'Monitor industrial substations, energy meters, gateway health, power quality, consumption trends and operational alerts.', detail: 'INDUSTRIAL IOT & ENERGY', color: '#087f8c', tint: '#e6f7f7' },
   { href: '/admin/catalog', icon: '▦', number: '02', title: 'Catalog management', description: 'Review product records, editions, pricing and publishing status.', detail: 'PRODUCTS & CATEGORIES', color: '#6757f5', tint: '#f0edff' },
   { href: '/admin/creator-review', icon: '✎', number: '08', title: 'Creator & custom requests', description: 'Review creator publication submissions and manage customer customization requests.', detail: 'CREATOR PUBLISHING', color: '#176b45', tint: '#e8f7ee' },
   { href: '/admin/users', icon: '♙', number: '03', title: 'Users & access', description: 'Manage administrator access and review role assignments.', detail: 'ACCOUNTS & PERMISSIONS', color: '#087f8c', tint: '#e6f7f7' },
@@ -48,6 +49,7 @@ export default async function AdminPage() {
   const roleNames = new Set<string>(roleResult.rows.map((row: { name: string }) => String(row.name)));
   const areaRoles: Record<string, string[]> = {
     '/admin/business': ['Super Admin', 'Operations Admin', 'Finance Manager', 'Read-Only Analyst'],
+    '/admin/energy-intelligence': ['Super Admin', 'Operations Admin', 'Read-Only Analyst'],
     '/admin/catalog': ['Super Admin', 'Operations Admin', 'Catalog Manager'],
     '/admin/creator-review': ['Super Admin', 'Operations Admin', 'Catalog Manager'],
     '/admin/users': ['Super Admin', 'Operations Admin', 'Support Agent'],
@@ -115,6 +117,7 @@ export default async function AdminPage() {
             { href: '/admin/team', label: 'Team & hierarchy', roles: ['Super Admin', 'Operations Admin'] },
             { href: '/admin/markets', label: 'Global Markets', roles: ['Super Admin', 'Operations Admin'] },
             { href: '/admin/analytics', label: 'Analytics', roles: ['Super Admin', 'Operations Admin', 'Finance Manager', 'Read-Only Analyst'] },
+            { href: '/admin/energy-intelligence', label: 'Energy Intelligence', roles: ['Super Admin', 'Operations Admin', 'Read-Only Analyst'] },
             { href: '/admin/activity', label: 'Audit & Activity', roles: ['Super Admin', 'Operations Admin'] },
           ].filter((item) => item.roles.some((role) => roleNames.has(role))).map((item) => <Link key={item.href} href={item.href} aria-current={item.href === '/admin' ? 'page' : undefined} style={{ whiteSpace: 'normal', overflowWrap: 'anywhere', textDecoration: 'none', borderRadius: 999, padding: '10px 13px', fontSize: 12, lineHeight: 1.3, fontWeight: 750, background: item.href === '/admin' ? '#5143d8' : '#fff', color: item.href === '/admin' ? '#fff' : '#586176', border: '1px solid #e5e7f0', maxWidth: '100%' }}>{item.label}</Link>)}
         </nav>
