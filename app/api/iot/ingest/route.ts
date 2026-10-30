@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 const readingSchema = z.object({
   meterCode: z.string().trim().min(1).max(100),
   metric: z.string().trim().min(1).max(80).regex(/^[a-zA-Z][a-zA-Z0-9_.-]*$/),
-  value: z.number().finite().abs().lte(1e15),
+  value: z.number().finite().min(-1e15).max(1e15),
   unit: z.string().trim().min(1).max(24),
   timestamp: z.string().datetime({ offset: true }).optional(),
   quality: z.enum(['good','uncertain','bad','estimated']).default('good'),
