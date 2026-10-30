@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { signOut, useSession } from 'next-auth/react';
 import type { CatalogProduct } from '@/lib/catalog';
 import type { Market } from '@/lib/market';
 import CreatorEarningsShowcase from './CreatorEarningsShowcase';
@@ -71,6 +72,7 @@ const categoryMatches: Record<string, string[]> = {
 type Props = { initialProducts: CatalogProduct[]; initialMarket: Market };
 
 export default function HomePageClient({ initialProducts, initialMarket }: Props) {
+  const { data: session, status: sessionStatus } = useSession();
   const [market, setMarket] = useState<Market>('US');
   const [products, setProducts] = useState(initialProducts);
   const [query, setQuery] = useState('');
@@ -227,8 +229,13 @@ export default function HomePageClient({ initialProducts, initialMarket }: Props
               <span>My Account</span><span aria-hidden="true" style={{ fontSize: 11 }}>▾</span>
             </button>
             {accountMenuOpen && <div role="menu" aria-label="My Account options" style={{ position: 'absolute', top: 'calc(100% + 8px)', right: 0, zIndex: 1100, width: 210, padding: 8, background: '#fff', border: '1px solid #e0e5ee', borderRadius: 12, boxShadow: '0 14px 32px rgba(20,30,60,.18)' }}>
-              <Link role="menuitem" href="/login" onClick={() => setAccountMenuOpen(false)} style={{ display: 'block', padding: '11px 12px', borderRadius: 8, color: '#172033', textDecoration: 'none', fontWeight: 600 }}>Log in</Link>
-              <Link role="menuitem" href="/signup" onClick={() => setAccountMenuOpen(false)} style={{ display: 'block', padding: '11px 12px', borderRadius: 8, color: '#172033', textDecoration: 'none', fontWeight: 600 }}>Create an account</Link>
+              {session ? <>
+                <Link role="menuitem" href="/account" onClick={() => setAccountMenuOpen(false)} style={{ display: 'block', padding: '11px 12px', borderRadius: 8, color: '#172033', textDecoration: 'none', fontWeight: 600 }}>My account</Link>
+                <button role="menuitem" type="button" onClick={() => signOut({ callbackUrl: '/' })} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '11px 12px', border: 0, borderRadius: 8, background: '#fff', color: '#b42318', font: 'inherit', fontWeight: 700, cursor: 'pointer' }}>Sign out</button>
+              </> : <>
+                <Link role="menuitem" href="/login" onClick={() => setAccountMenuOpen(false)} style={{ display: 'block', padding: '11px 12px', borderRadius: 8, color: '#172033', textDecoration: 'none', fontWeight: 600 }}>Log in</Link>
+                <Link role="menuitem" href="/signup" onClick={() => setAccountMenuOpen(false)} style={{ display: 'block', padding: '11px 12px', borderRadius: 8, color: '#172033', textDecoration: 'none', fontWeight: 600 }}>Create an account</Link>
+              </>}
             </div>}
           </div>
           <Link className="ref-cart" href="/cart" aria-label={`Cart, ${cartCount} items`}><svg className="ref-cart-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h2l2.2 11.2a2 2 0 0 0 2 1.6h7.9a2 2 0 0 0 1.9-1.4L21 8H7" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><circle cx="10" cy="20" r="1.3" fill="currentColor"/><circle cx="18" cy="20" r="1.3" fill="currentColor"/></svg><span className="ref-count">{cartCount}</span></Link>
