@@ -1,0 +1,197 @@
+DIGINANBA — MASTER REQUIREMENTS & PRD SOURCE REGISTER
+Version: 1.0 | Created: 2026-10-30
+Status: Living requirements record; update throughout the project.
+
+PURPOSE AND THREE-FILE SYSTEM
+This is the third separate DigiNanba record. Maintain:
+1. DigiNanba_Standard_Instructions.txt — assistant working instructions, communication style, workflow, safety and governance.
+2. Knowledge_Learning_Notes.txt — explanations, lessons, examples and troubleshooting knowledge.
+3. DigiNanba_Master_Requirements_and_PRD_Source.txt — the user's product vision, instructions, requirements, design decisions, scope, constraints, launch gates and unresolved decisions. Use this as a core source for the final DigiNanba PRD.
+Keep the files separate. Preserve existing useful history. Add dated entries for new instructions. Mark superseded decisions and distinguish user-approved requirements from recommendations, assumptions, implementation status and open questions. Newer explicit user instructions take precedence.
+Completeness note: this initial register is reconstructed from available project context and conversation summaries as of 2026-10-30; it is not a verbatim export of every historical chat. Add older details if recovered and all future instructions as they arise.
+
+1. VISION AND BUSINESS MODEL
+- Brand/domain: DigiNanba, diginanba.com. GitHub: agnengineeringselectricals-crypto/diginanba.
+- Build a global digital-product marketplace where people discover, create, sell, buy and use useful digital products.
+- Serve individuals, homemakers, students, freelancers, professionals, small businesses, creators, organizations and institutions.
+- Support creators publishing products/tools and earning. Creators can set local-market prices; customers should see suitable local currency.
+- Owner is based in India and uses an Indian INR bank account. Design currency conversion, settlement, provider fees, taxes and cross-border payouts accordingly; validate details before launch.
+- Long-term ambition: reach at least 20% of each country's population as accounts. This is an aspiration, not a forecast.
+- Select the first two target countries based on evidence of digital-product demand and revenue potential. Record the final decision and rationale.
+
+2. GLOBALIZATION AND LOCALIZATION
+- Support national and relevant local languages across countries.
+- Localize suitable high-demand/trending products into local languages, subject to quality, rights, accuracy and safety checks.
+- Display local currency, support creator local-currency pricing and reliable conversion.
+- Market detection must not assume all users are in the US. Use reliable signals and allow manual country/market override.
+- Header preference: replace US/UK currency labels with a two-letter language/country indicator and flag (Amazon-like), with sign-in and cart nearby.
+- Historical issue: market selection was temporary homepage state; some pages defaulted to US unless passed in URL. Earlier detection recognized UK locale/time zone otherwise defaulted US. Unify and test market behavior.
+- Prevent mixed-market cart/checkout errors and clearly handle currency compatibility.
+
+3. AI PRODUCT DISCOVERY AND FACTORY
+- Internal AI agents should research regional demand/trends, discover product needs, create digital-product drafts, localize and improve them.
+- Do not rely only on sellers submitting products; factory should proactively draft products based on demand.
+- All AI-created products remain drafts until quality review, testing and explicit publication approval. Never auto-publish.
+- Review originality/IP rights, accuracy, localization, safety, usability and completeness.
+- Internal agent features, prompts, job queues, agent names and controls must not leak into customer pages. The user explicitly said internal agent-only “+save” functionality must not be shown to customers.
+- Aim for one controlled factory job/workflow, avoid duplicate jobs and unnecessary tables/helpers. Inspect dependencies/backups before cleanup.
+- Control AI spending, rate limits, retries and queues. API credits were previously exhausted and tasks received HTTP 429. Do not assume paid API credits exist or trigger paid usage without authorization. Support offline scaffolding where practical.
+- Maintain human review/correction/testing and a report before publication.
+
+4. CATALOG AND TAXONOMY
+- Broad, extensible categories include ebooks/guides; Excel/Google Sheets templates, trackers and calculators; business/finance templates; productivity/planners; education/student resources; freelancer/professional tools; design/creative assets; marketing/sales resources; interactive tools and web utilities.
+- Allow new product types/categories to be added.
+- Product records should include unique ID, title, short useful description, category/type, creator/author name and creator ID, market/pricing, language and searchable metadata.
+- Search by product ID, title, description and creator/author; creator ID should be available to relevant workflows.
+- Existing demo products can receive suitable IDs; attribute AI-created products to DigiNanba only when that is accurate.
+- Demand/search records should support continent > region > country > state > district hierarchy.
+
+5. BUYER AND CREATOR EXPERIENCE
+- Buyers: browse, search, product detail, cart, purchase and access/download entitlements.
+- Creators: role-appropriate workspace for creating/editing products, managing drafts/listings and viewing earnings.
+- Routine editor operations (typing, formatting, colors, layout, formulas, charts from existing data) should not trigger unnecessary AI calls.
+- Keep in-progress drafts isolated from published products and production assets until an explicit validated lifecycle action.
+- Account/settings experience should be attractive and easy to use, with Amazon.in-like usability.
+- Account pages must provide real purchase history and download/access fulfillment; earlier versions had placeholders.
+
+6. PROFESSIONAL-CATEGORY PERSONALIZATION
+- Homepage recommendations should adapt to profession/life situation. Explicit examples: freelancers see freelancer-relevant products; school students see student-relevant products.
+- Suggested starting categories: Freelancer/Independent professional; School student; College/University student; Teacher/Educator; Small business owner/Entrepreneur; Homemaker; Employee/Corporate professional; Developer/IT professional; Designer/Creative professional; Marketing/Sales professional; Finance/Accounting professional; Engineer/Technical professional; Healthcare professional; Organization/Institution; Job seeker; Researcher; Other.
+- Add suitable profile fields during signup/account setup.
+- First-time user may skip and browse. Continue to prompt users who have not chosen a basic category, with a considerate cadence.
+- Persist category in authenticated user's database profile, not only localStorage. Allow edits in account settings and sync across sessions/devices.
+- Recommendations should consider profile, search intent, market, language and product metadata; simple keyword reordering is only an interim implementation.
+- Historical implementation used localStorage/sessionStorage and keyword ranking on a limited fetched set; this is incomplete until database-backed and properly tested.
+
+7. HOMEPAGE, NAVIGATION AND UI/UX
+- Polished Amazon-like marketplace, responsive on desktop/laptop, tablet, Android and iOS.
+- Header: DigiNanba identity, country/language/flag control, sign-in/sign-up and cart.
+- Remove “Popular in the United States” panel and replace it with at least six Amazon-style product/item boxes.
+- In left homepage panel, move search box to top; exact headline: “Find the digital tools that solve your problem.” Remove “Shop by category” heading above category tiles.
+- Keep that headline on one line on mobile/tablet by responsive font sizing.
+- User supplied a colorful dashboard reference image and expects the actual dashboard to match its colors/background/layout; user rejected a generic/plain mockup as not matching.
+- “What do you need?” buttons and category tiles must work, not be presentation-only. Homepage search must submit and return relevant results. Featured cards should use actual catalog data where appropriate.
+- In create-product box, show existing DigiNanba products/tools below the search field as the user types; relevant suggestions should scroll horizontally or vertically as suitable.
+- Remove internal AI-agent text/actions from public pages and loading states. Remove specifically unwanted “Popular solutions” row or other identified elements only after locating exact code.
+- Auth screens: remove redundant “Welcome back” and “Sign in to access your DigiNanba account and downloads.” text from login; remove redundant “Create your account” and “Save purchases, access downloads and manage your DigiNanba profile.” from signup where requested. Home link belongs inside card, not outside top-left. Wordmark should look attractive.
+- 2026-10-30: user requested “Create Earn & Grow” immediately after Home on both login and create-account cards, attractive coloring/typography, same line, never wrap to a second line. Code was committed on main; deployment was queued/building at last check. Verify READY and actual mobile/desktop rendering before marking complete.
+
+8. IDENTITY, AUTH AND SECURITY
+- Support credentials login/signup and Google sign-in where enabled.
+- Password reset should support email/phone and two-step verification as appropriate, with secure tokens and expiry.
+- System-generated unique account/user ID must not be editable by user/creator.
+- User's proposed ID concept: country first 2 or 3 letters; total length described as 8 digits, with remaining 5 or 6 digits used for uniqueness; user also considered alphanumeric base36/base62. Final exact format, collision strategy and migration must be decided and documented.
+- Record IP/session information for security/audit only where lawful and proportionate; define purpose, retention and privacy. Do not expose IP to other users or permit editing system-generated audit fields.
+- Protect passwords, sessions, reset tokens and personal data. Never expose API keys, passwords or database URLs in chat, source or public repositories.
+
+9. PAYMENTS, ORDERS, REFUNDS AND PAYOUTS
+- Build complete payment/order lifecycle, provider verification, secure price revalidation, signed webhook verification, idempotency and correct handling of duplicate/out-of-order events.
+- Razorpay was configured/discussed. Never expose secrets; use provider dashboard environment variables.
+- Earlier checkout created pending order/order-item rows but was demo mode without live provider session/payment record. Verify current state.
+- Never enable real-money collection without explicit user approval, even if keys are configured.
+- Build order history/statuses, cancellations/refunds, disputes/support, creator earnings and payouts, currency conversion, fees, tax/invoice handling.
+- Grant downloads only after verified payment; reconcile entitlements for refunds/chargebacks.
+- Validate INR settlement, cross-border rules, fees, taxes, payout timing and provider availability before launch. Never trust client price/payment status.
+
+10. DIGITAL DELIVERY AND PRODUCT LIFECYCLE
+- Paid products must appear in buyer account with authorized access/download.
+- Protect downloads with authorization, expiring/signed URLs or equivalent controls, rate limits and audit trails.
+- Distinguish draft, review, approved, published, suspended/withdrawn and archived states.
+- Version products; do not silently overwrite purchased/approved versions.
+- Provide license/usage terms and support for digital delivery issues.
+
+11. SEARCH, DISCOVERY AND ANALYTICS
+- Search product ID/title/description/creator and relevant metadata.
+- Use geographic hierarchy and language/market for demand research and recommendations.
+- Track demand responsibly using privacy-conscious aggregation and retention.
+- Measure acquisition, engagement, conversion, retention, revenue, refunds, creator outcomes, search success and product quality. Never fabricate popularity/sales.
+
+12. ADMIN AND OPERATIONS
+- Access-controlled admin tools for moderation, categories, creators, orders, refunds, payouts, support, localization, AI drafts and audit trails.
+- Separate internal tools from public pages.
+- Keep one controlled AI factory workflow; inspect dependencies/backups before deleting jobs, tables or helper files. Never casually delete production data.
+- Add budget controls, queue monitoring, retry/backoff and failure reporting.
+
+13. LEGAL, POLICY AND TRUST
+- User requested Terms & Conditions, Privacy Policy, cancellation/refund, copyright/IP and related legal/support pages and links placed suitably on the website.
+- Draft policies to protect DigiNanba's legitimate interests, but do not claim any wording makes the business immune from lawsuits or guarantees a court result.
+- Address marketplace role, creator responsibilities, prohibited content, IP ownership/licensing, takedowns, refunds/cancellations, digital delivery, account suspension, liability, dispute resolution, privacy, cookies, payments and international users.
+- Obtain qualified legal review in relevant operating countries before treating policies as final/enforceable.
+- Place policy links in footer and relevant signup/checkout flows; record acceptance/version/time where required.
+
+14. TECHNICAL AND DEPLOYMENT CONTEXT (HISTORICAL; RE-VERIFY)
+- GitHub repository: https://github.com/agnengineeringselectricals-crypto/diginanba.git; production branch main unless user directs otherwise.
+- Vercel hosts project diginanba; primary domain diginanba.com.
+- Neon PostgreSQL is used. Historical project sweet-sky-41023729 and production branch br-lingering-hill-b8tlh0nf; verify current configuration before migrations/destructive actions.
+- Next.js 16.3.8 was historically detected; NextAuth v5 beta and credentials/Google auth were discussed. Verify current dependencies/compatibility.
+- Resend email and GoDaddy DNS management were discussed. Use exact DNS values from provider dashboards; never guess.
+- Historical issues included localhost PostgreSQL ECONNREFUSED, missing pg types, NextAuth Request/NextRequest types, server 500s and auth failures. These are historical only; re-test.
+- Keep preview and production databases/environment variables separate. Back up and review migrations before applying.
+- Do not reveal secrets. User enters secrets directly in provider dashboards.
+- User prefers work on existing main/production branch and avoiding unnecessary branches.
+- Workflow: inspect exact issue, identify cause, make targeted change, commit/push, wait for deployment, inspect logs, fix errors, test actual user behavior and provide exact verified URL. A code change/build alone does not prove end-to-end success.
+
+15. RESPONSIVE ACCESSIBILITY
+- Support laptop/desktop, tablet, Android and iOS.
+- Test real responsive behavior for navigation, forms, cards, rollers, checkout and account flows.
+- Honor requested single-line elements where practical (homepage headline; Home + Create Earn & Grow auth row) without clipping on small devices.
+- Use semantic controls, keyboard support, labels, visible focus and reduced-motion support where appropriate.
+
+16. USER'S WORKING RULES
+- Be efficient and action-oriented; do not repeatedly ask the user to say OK or approve every safe minor step.
+- When already authorized and safe, proceed without unnecessary pauses.
+- Avoid redundant checks and unnecessary new branches.
+- Report exactly what changed, what was actually tested, outcomes and what remains unverified. Never claim a test passed or deployment is live without evidence.
+- Preserve working features and avoid unrelated/destructive changes.
+- Do not publish products or enable real-money payments without explicit approval.
+- Do not launch until launch blockers are addressed and the user explicitly approves.
+
+17. PRE-LAUNCH GATES
+- Verify production routes, responsive UI, navigation and user-facing copy.
+- Test signup, login, Google auth if enabled, sessions, account settings and password reset end-to-end.
+- Verify database connectivity, migrations, backups, environment separation and security.
+- Test search, categories, product details, cart, market/currency and personalization.
+- Test payment provider sandbox, webhook signatures/idempotency, order states, refunds and entitlements. Keep live payment disabled pending explicit approval.
+- Test creator onboarding, editing, drafts/review/publish controls, earnings and payout plan.
+- Review AI drafting/review/correction/testing, localization and cost controls.
+- Confirm no internal AI controls leak to customers.
+- Verify legal pages, consent/acceptance and legal review.
+- Verify support channels, monitoring, logging, backup/restore and privacy.
+- Review Income & Expense Tracker before launch: Standard manual entry + bank-statement import; Advanced automated companion service. Confirm AI drafting/review/correction/testing workflow, inspect test report/localization readiness and obtain explicit publication approval. Never publish automatically.
+- Obtain explicit user go-live approval.
+
+18. INCOME & EXPENSE TRACKER — SPECIFIC PRODUCT
+- India-focused digital product for small-business owners: editable monthly income/expense tracker for Microsoft Excel and Google Sheets.
+- Standard: manual-entry plus bank-statement import.
+- Advanced: automated companion service; define automation, permissions, integrations, data handling and security.
+- Review formulas, import behavior, sample data, instructions, limitations, localization, privacy/security and test report before publication. Draft ID acf4fb0b was previously created; it is a draft, not approved/public.
+
+19. HISTORICAL MVP SNAPSHOT — NOT CURRENT COMPLETION CLAIMS
+- Earlier MVP had homepage/category tiles, search, featured cards, catalog, product details and browser-local cart. Some tiles/search were initially nonfunctional; later fixes were requested.
+- Catalog once had a small seeded set. Cart used localStorage, could mix markets and lacked quantity/remove controls at that stage.
+- Checkout later created pending orders/items but remained demo mode.
+- Account purchase/download fulfillment was placeholder.
+- Market state was temporary and some pages defaulted US.
+- AI factory had agent/task tables; tasks encountered 429; offline draft scaffolding existed.
+- Authentication/deployment previously had 500/database errors; a later diagnostic reported DB connected. Verify current state.
+
+20. CHANGE LOG
+2026-10-30 — User instructed creation and maintenance of a third file containing all DigiNanba instructions, to be used as source material for a polished final PRD.
+2026-10-30 — Auth UI: “Create Earn & Grow” immediately after Home on login and signup cards, attractive text/color, same line/no second line. Code committed on main; deployment was queued/building at the time; verify before marking done.
+
+21. OPEN DECISIONS FOR PRD SIGN-OFF
+- First two launch countries and evidence-based rationale.
+- Legal entity, jurisdiction, tax, privacy, consumer and cross-border compliance.
+- Country/language/currency coverage matrix and translation QA.
+- Exact account ID format and collision/migration approach.
+- Creator verification, commissions, payout methods/timing and tax reporting.
+- Payment provider coverage and INR settlement/conversion model.
+- Moderation, IP/takedown and prohibited-content policies.
+- AI model/provider, spend limits, data governance, quality scoring and approval process.
+- Complete database-backed professional-category profile and recommendations.
+- Digital fulfillment, download entitlements, refunds and chargeback lifecycle.
+- Operational SLAs, analytics definitions, support and disaster recovery.
+- Confirm end-to-end launch tests pass in production-like environments.
+
+FINAL PRD GENERATION
+At project completion, combine this register with Standard Instructions, Knowledge & Learning Notes, approved product decisions, verified implementation/architecture/schema, test evidence and open issues. Produce a polished PRD with executive summary, vision/goals, personas, scope/non-goals, user journeys, functional and non-functional requirements, localization/market model, AI governance, buyer/creator/admin workflows, data model, integrations, security/privacy/compliance, analytics, acceptance criteria, release plan, risks/dependencies and appendices. Label approved requirements, assumptions, recommendations and unresolved decisions. Never fabricate market data or implementation status.
