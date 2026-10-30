@@ -807,3 +807,10 @@ a.ref-need:hover .ref-solution-link{text-decoration:underline}
 .auth-card .auth-brand-beautiful{font-family:Georgia,'Times New Roman',serif;font-size:clamp(32px,6vw,40px);font-weight:900;letter-spacing:-1.8px;background:linear-gradient(100deg,#25265e 0%,#5144d5 48%,#c044a3 78%,#ee795e 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:#5144d5;text-shadow:none}
 .auth-card .auth-brand-beautiful span{background:none;-webkit-text-fill-color:currentColor;color:#c044a3}
 @media(max-width:480px){.auth-shell{padding:18px 14px!important}.auth-card{gap:13px}}
+
+
+/* Compact brand promise beside Home on authentication cards. */
+.auth-card .auth-topline{display:flex;align-items:center;gap:12px;flex-wrap:nowrap;min-width:0;white-space:nowrap;margin:0 0 8px}
+.auth-card .auth-topline .auth-home-inside{flex:0 0 auto;margin:0!important}
+.auth-card .auth-tagline{display:inline-block;min-width:0;white-space:nowrap;font-size:clamp(11px,2.8vw,13px);font-weight:900;letter-spacing:.015em;background:linear-gradient(100deg,#5144d5 0%,#b13fc8 52%,#e87945 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:#5144d5}
+@media(max-width:380px){.auth-card .auth-topline{gap:8px}.auth-card .auth-topline .auth-home-inside{padding:7px 10px;font-size:12px}.auth-card .auth-tagline{font-size:11px;letter-spacing:0}}
