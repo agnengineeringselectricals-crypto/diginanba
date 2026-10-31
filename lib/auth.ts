@@ -67,11 +67,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ],
   callbacks: {
     async jwt({ token, user }) {
-      if (user) token.userId = user.id;
+      if (user) {
+        token.userId = user.id;
+        // Keep the provider/database display name in the JWT for reliable header rendering.
+        token.name = user.name || user.email || token.name;
+      }
       return token;
     },
     async session({ session, token }) {
-      if (session.user && token.userId) session.user.id = String(token.userId);
+      if (session.user) {
+        if (token.userId) session.user.id = String(token.userId);
+        session.user.name = token.name || session.user.name || session.user.email || 'DigiNanba user';
+      }
       return session;
     },
   },
