@@ -93,7 +93,4 @@ function formatRow(r:any, market:Market):CatalogProduct {
   };
 }
 function formatMoney(minor:number, market:Market){const locale=market==='US'?'en-US':market==='UK'?'en-GB':'en-IN';const currency=market==='US'?'USD':market==='UK'?'GBP':'INR';return new Intl.NumberFormat(locale,{style:'currency',currency}).format(minor/100)}
-:market==='UK'?'£':'₹',
-    amountMinor:Number(r.amount_minor),price:formatMoney(Number(r.amount_minor),market)};
-}
 function formatMoney(minor:number, market:Market){const locale=market==='US'?'en-US':market==='UK'?'en-GB':'en-IN';const currency=market==='US'?'USD':market==='UK'?'GBP':'INR';return new Intl.NumberFormat(locale,{style:'currency',currency}).format(minor/100)}
