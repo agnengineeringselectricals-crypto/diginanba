@@ -273,7 +273,7 @@ export default function HomePageClient({ initialProducts, initialMarket }: Props
 
     <main id="home">
 
-      <div className="ref-container"><ProductRequestWorkspace /></div>
+      <div className="ref-container"><ProductRequestWorkspace market={market} /></div>
 
       {/* Removed the two low-value rows directly below the unified product workspace. */}
 
