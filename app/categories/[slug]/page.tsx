@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getProducts } from '@/lib/catalog';
+import { getRequestMarket } from '@/lib/request-market';
 
 const categoryMap: Record<string, { name: string; description: string; query: string }> = {
   'ebooks-guides': { name: 'Ebooks & Guides', description: 'Practical ebooks, playbooks and step-by-step digital guides.', query: 'Ebooks & Guides' },
@@ -42,7 +43,8 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
   const category = categoryMap[slug];
   if (!category) notFound();
 
-  const products = await getProducts('US', category.query);
+  const market = await getRequestMarket();
+  const products = await getProducts(market, category.query);
 
   const itemList = products.map((p, index) => ({
     '@type': 'ListItem',
@@ -59,11 +61,11 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
           <h1>{category.name}</h1>
           <p className="muted">{category.description}</p>
         </div>
-        <Link className="btn" href="/explore">Explore all</Link>
+        <Link className="btn" href={'/explore?market=' + market}>Explore all</Link>
       </div>
       <div className="catalog-grid">
         {products.map((p) => (
-          <Link href={`/products/${p.slug}`} className="product-card" key={p.id}>
+          <Link href={`/products/${p.slug}?market=${market}`} className="product-card" key={p.id}>
             <span className="category">{p.category}</span>
             <h2>{p.title}</h2>
             <p className="muted">{p.description}</p>
