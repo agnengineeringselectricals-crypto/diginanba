@@ -127,7 +127,7 @@ export async function POST(req: Request) {
     );
     const products = rows.map((row: any) => {
       const amountMinor = Number(row.amount_minor);
-      const currency = row.currency_code;
+      const currency = market === 'IN' ? 'INR' : market === 'UK' ? 'GBP' : 'USD';
       const localeForCurrency = currency === 'INR' ? 'en-IN' : currency === 'GBP' ? 'en-GB' : 'en-US';
       return { id: row.id, publicId: row.public_id ?? row.id, slug: row.slug, title: row.title, description: row.description ?? '', category: row.category,
         creatorName: row.creator_name ?? 'DigiNanba', creatorId: row.creator_id ?? 'DN-C-000001', market: row.market_code, currency, amountMinor,
