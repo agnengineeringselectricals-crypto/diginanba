@@ -166,10 +166,6 @@ export default function ProductRequestWorkspace() {
   const [expanded] = useState(true);
   const descriptionInputRef = useRef<HTMLTextAreaElement | null>(null);
   const [productSearch, setProductSearch] = useState('');
-  const [professionalCategory, setProfessionalCategory] = useState('');
-  const [categoryPrompt, setCategoryPrompt] = useState(false);
-  const [categoryChoice, setCategoryChoice] = useState('');
-  const professionalOptions = ['Freelancer / Independent professional','School student','College / University student','Teacher / Educator','Small business owner / Entrepreneur','Homemaker','Employee / Corporate professional','Developer / IT professional','Designer / Creative professional','Marketing / Sales professional','Finance / Accounting professional','Engineer / Technical professional','Healthcare professional','Organization / Institution','Job seeker','Researcher','Other'];
   const [existingProducts, setExistingProducts] = useState<{id:string;publicId?:string;slug:string;title:string;description:string;category:string;creatorName?:string;creatorId?:string;price?:string}[]>([]);
   const [searchingProducts, setSearchingProducts] = useState(false);
   const [hasSearchedProducts, setHasSearchedProducts] = useState(false);
@@ -177,52 +173,6 @@ export default function ProductRequestWorkspace() {
   const [idea, setIdea] = useState('');
   const [kind, setKind] = useState<string>('Interactive web tool or dashboard');
   const [kindQuery, setKindQuery] = useState<string>('Interactive web tool or dashboard');
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem('diginanba-professional-category') || '';
-      setProfessionalCategory(saved);
-      setCategoryChoice(saved);
-      if (!saved && !sessionStorage.getItem('diginanba-category-skipped')) setCategoryPrompt(true);
-    } catch {}
-  }, []);
-
-  function saveProfessionalCategory(value: string) {
-    if (!value) return;
-    try {
-      localStorage.setItem('diginanba-professional-category', value);
-      sessionStorage.removeItem('diginanba-category-skipped');
-    } catch {}
-    setProfessionalCategory(value);
-    setCategoryChoice(value);
-    setCategoryPrompt(false);
-  }
-
-  const categoryTerms: Record<string, string[]> = {
-    'Freelancer / Independent professional': ['freelance','invoice','proposal','portfolio','project','marketing','design','time'],
-    'School student': ['student','study','school','quiz','flashcard','lesson','learning','education','homework'],
-    'College / University student': ['student','study','research','resume','learning','education','presentation','career'],
-    'Teacher / Educator': ['teacher','lesson','student','school','quiz','assessment','education','course'],
-    'Small business owner / Entrepreneur': ['business','sales','invoice','finance','inventory','customer','marketing','budget'],
-    'Homemaker': ['budget','meal','planner','home','family','expense','habit','printable'],
-    'Employee / Corporate professional': ['project','task','meeting','presentation','report','team','productivity','career'],
-    'Developer / IT professional': ['developer','code','api','software','web','app','automation','database'],
-    'Designer / Creative professional': ['design','creative','template','graphics','photo','video','audio','portfolio'],
-    'Marketing / Sales professional': ['marketing','sales','seo','social','campaign','lead','customer','content'],
-    'Finance / Accounting professional': ['finance','accounting','invoice','tax','gst','budget','expense','payroll'],
-    'Engineer / Technical professional': ['engineering','cad','technical','calculator','project','simulation','automation'],
-    'Healthcare professional': ['health','medical','clinic','patient','appointment','schedule','wellness'],
-    'Organization / Institution': ['team','organization','school','management','project','staff','workflow','attendance'],
-    'Job seeker': ['resume','cv','career','cover letter','interview','job','portfolio','skill'],
-    'Researcher': ['research','data','analysis','report','survey','spreadsheet','presentation']
-  };
-  const recommendedProducts = professionalCategory && productSearch.trim().length < 2
-    ? [...existingProducts].sort((a, b) => {
-        const terms = categoryTerms[professionalCategory] || [];
-        const score = (p: typeof existingProducts[number]) => terms.reduce((n, term) => n + ((p.title + ' ' + p.description + ' ' + p.category).toLowerCase().includes(term) ? 1 : 0), 0);
-        return score(b) - score(a);
-      })
-    : existingProducts;
-
   useEffect(() => {
     if (!createMode) return;
     const timer = window.setTimeout(() => {
@@ -329,18 +279,6 @@ export default function ProductRequestWorkspace() {
       <div className="dn-pw-orbit" aria-hidden="true"><span>✦</span><i>✧</i><b>↗</b></div>
     </div>
     <div className="dn-pw-builder dn-pw-search-first">
-      {categoryPrompt && <div className="dn-pw-category-prompt" role="dialog" aria-labelledby="dn-pw-category-title">
-        <strong id="dn-pw-category-title">Personalise your DigiNanba homepage</strong>
-        <p>Choose your main profession or situation to see more relevant products.</p>
-        <label>Professional category
-          <select value={categoryChoice} onChange={(event) => setCategoryChoice(event.target.value)}>
-            <option value="">Select your category</option>
-            {professionalOptions.map((option) => <option key={option} value={option}>{option}</option>)}
-          </select>
-        </label>
-        <div className="dn-pw-category-actions"><button type="button" className="dn-pw-start" disabled={!categoryChoice} onClick={() => saveProfessionalCategory(categoryChoice)}>Save and personalise</button><button type="button" className="dn-pw-category-skip" onClick={() => { try { sessionStorage.setItem('diginanba-category-skipped','1'); } catch {} setCategoryPrompt(false); }}>Skip for now</button></div>
-      </div>}
-      {professionalCategory && <div className="dn-pw-category-current">Recommendations for <strong>{professionalCategory}</strong> <button type="button" onClick={() => setCategoryPrompt(true)}>Change</button></div>}
       <div className="dn-pw-search-toolbar">
         <label className="dn-pw-field-full dn-pw-product-search-label">
           <span className="dn-pw-search-caption">Find a digital tool or product</span>
@@ -352,7 +290,7 @@ export default function ProductRequestWorkspace() {
       <div className="dn-pw-existing-results" aria-live="polite">
         {(existingProducts.length > 0 || productSearch.trim().length < 2) && <div className="dn-pw-existing-heading"><strong>{productSearch.trim().length >= 2 ? 'Matching products and tools' : 'Explore existing products'}</strong><span>{productSearch.trim().length >= 2 ? 'Relevant matches from the marketplace' : 'Start here, or type to find something specific'}</span></div>}
         {searchingProducts && <p className="dn-pw-search-status" role="status">Finding relevant products…</p>}
-        {!searchingProducts && recommendedProducts.length > 0 ? <div className="dn-pw-existing-roller">{recommendedProducts.slice(0,12).map((product) => <Link className="dn-pw-existing-card" key={product.id} href={`/products/${product.slug}?market=IN`}>
+        {!searchingProducts && recommendedProducts.length > 0 ? <div className="dn-pw-existing-roller">{existingProducts.slice(0,12).map((product) => <Link className="dn-pw-existing-card" key={product.id} href={`/products/${product.slug}?market=IN`}>
           <strong>{product.title}</strong>{product.creatorName && product.creatorName.trim().toLowerCase() !== "diginanba" && <small className="dn-pw-result-creator">by {product.creatorName.trim().split(/\s+/).slice(0,2).join(" ")}</small>}{product.price && <small className="dn-pw-result-price">{product.price}</small>}<span className="dn-pw-existing-open">View product →</span>
         </Link>)}</div> : !searchingProducts && hasSearchedProducts ? <div className="dn-pw-no-match-card"><p><strong>Wow! “{productSearch.trim()}” isn’t here yet.</strong></p><p>Create it and earn with DigiNanba.</p><button type="button" className="dn-pw-start dn-pw-create-earn" onClick={() => { setIdea((current) => current.trim() ? current : productSearch.trim()); setCreateMode(true); setError(''); setSuccess(''); }}>✨ Create it &amp; earn</button></div> : null}
         {(!hasSearchedProducts || existingProducts.length > 0) && <a className="dn-pw-marketplace-link" href={productSearch.trim().length >= 2 ? `/explore?market=IN&q=${encodeURIComponent(productSearch.trim())}` : '/explore?market=IN'}>Browse all marketplace products →</a>}
