@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { getProducts } from '@/lib/catalog';
 import type { Market } from '@/lib/market';
+import { getRequestMarket } from '@/lib/request-market';
 import AddToCartButton from '@/app/products/[slug]/AddToCartButton';
 
 const categories = [
@@ -16,7 +17,7 @@ export default async function Explore({
   searchParams: Promise<{ q?: string; market?: string; category?: string; sort?: string; maxPrice?: string }>;
 }) {
   const p = await searchParams;
-  const market = (p.market === 'UK' || p.market === 'IN' ? p.market : 'US') as Market;
+  const market = (p.market === 'UK' || p.market === 'IN' || p.market === 'US' ? p.market : await getRequestMarket()) as Market;
   const allProducts = await getProducts(market, p.q || '');
   const category = p.category || 'All categories';
   const maxPrice = p.maxPrice === '10' || p.maxPrice === '25' || p.maxPrice === '50' ? Number(p.maxPrice) : 0;
