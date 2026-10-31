@@ -281,14 +281,12 @@ export default function ProductRequestWorkspace() {
     <div className="dn-pw-builder dn-pw-search-first">
       <div className="dn-pw-search-toolbar">
         <label className="dn-pw-field-full dn-pw-product-search-label">
-          <span className="dn-pw-search-caption">Find a digital tool or product</span>
           <input type="search" list="dn-pw-product-search-types" value={productSearch} onChange={(event) => { setProductSearch(event.target.value); setCreateMode(false); }} placeholder="Search by product name, description or creator…" autoComplete="off" />
           <datalist id="dn-pw-product-search-types">{productKinds.map((item) => <option key={item.value} value={item.label} />)}</datalist>
         </label>
         <button type="button" className="dn-pw-start dn-pw-create-cta" onClick={() => { setIdea((current) => current.trim() ? current : productSearch.trim()); setCreateMode(true); setError(''); setSuccess(''); }}>Find or Create</button>
       </div>
       <div className="dn-pw-existing-results" aria-live="polite">
-        {(existingProducts.length > 0 || productSearch.trim().length < 2) && <div className="dn-pw-existing-heading"><strong>{productSearch.trim().length >= 2 ? 'Matching products and tools' : 'Explore existing products'}</strong><span>{productSearch.trim().length >= 2 ? 'Relevant matches from the marketplace' : 'Start here, or type to find something specific'}</span></div>}
         {searchingProducts && <p className="dn-pw-search-status" role="status">Finding relevant products…</p>}
         {!searchingProducts && existingProducts.length > 0 ? <div className="dn-pw-existing-roller">{existingProducts.slice(0,12).map((product) => <Link className="dn-pw-existing-card" key={product.id} href={`/products/${product.slug}?market=IN`}>
           <strong>{product.title}</strong>{product.creatorName && product.creatorName.trim().toLowerCase() !== "diginanba" && <small className="dn-pw-result-creator">by {product.creatorName.trim().split(/\s+/).slice(0,2).join(" ")}</small>}{product.price && <small className="dn-pw-result-price">{product.price}</small>}<span className="dn-pw-existing-open">View product →</span>
