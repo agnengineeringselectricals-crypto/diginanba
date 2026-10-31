@@ -160,7 +160,7 @@ export default function HomePageClient({ initialProducts, initialMarket }: Props
   function chooseCategory(value: string) {
     setCategory(value);
     const categoryName = categories.find(([, label]) => label === value)?.[2] ?? value;
-    const params = new URLSearchParams({ market, q: categoryName });
+    const params = new URLSearchParams({ market, category: categoryName });
     window.location.href = `/explore?${params.toString()}`;
   }
 
