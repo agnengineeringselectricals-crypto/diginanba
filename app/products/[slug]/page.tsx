@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getProduct, getProducts } from '@/lib/catalog';
+import { getRequestMarket } from '@/lib/request-market';
 import type { Market } from '@/lib/market';
 import AddToCartButton from './AddToCartButton';
 import ProductEngagement from './ProductEngagement';
@@ -19,7 +20,7 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params, searchParams }: PageProps) {
   const { slug } = await params;
   const search = await searchParams;
-  const market = (search.market === 'UK' || search.market === 'IN' ? search.market : 'US') as Market;
+  const market = (search.market === 'UK' || search.market === 'IN' || search.market === 'US' ? search.market : await getRequestMarket()) as Market;
   const product = await getProduct(slug, market);
   if (!product) return {};
 
@@ -39,7 +40,7 @@ export async function generateMetadata({ params, searchParams }: PageProps) {
 export default async function ProductPage({ params, searchParams }: PageProps) {
   const { slug } = await params;
   const search = await searchParams;
-  const market = (search.market === 'UK' || search.market === 'IN' ? search.market : 'US') as Market;
+  const market = (search.market === 'UK' || search.market === 'IN' || search.market === 'US' ? search.market : await getRequestMarket()) as Market;
   const product = await getProduct(slug, market);
   if (!product) notFound();
 
