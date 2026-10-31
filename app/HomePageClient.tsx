@@ -282,38 +282,38 @@ export default function HomePageClient({ initialProducts, initialMarket }: Props
       <section className="dn-organization-pathways" aria-labelledby="dn-organization-title">
         <div className="ref-container">
           <div className="dn-organization-heading">
-            <div><span className="dn-organization-kicker">FOR ORGANIZATIONS &amp; TEAMS</span><h2 id="dn-organization-title">Find tools for the way your organization works.</h2><p>Explore existing resources for department workflows and business operations. Review each listing to confirm its capabilities, access model and pricing before adopting it.</p></div>
+            <div><h2 id="dn-organization-title">Tools for organizations &amp; teams</h2></div>
           </div>
           <div className="dn-organization-grid">
-            <Link href={`/explore?market=${market}&q=${encodeURIComponent('HR employee onboarding workflow')}`} className="dn-organization-card"><span aria-hidden="true">👥</span><strong>HR &amp; people workflows</strong><small>Explore onboarding checklists, recruitment trackers, training resources and employee process templates.</small><em>Find HR tools →</em></Link>
-            <Link href={`/explore?market=${market}&q=${encodeURIComponent('inventory stock billing invoices')}`} className="dn-organization-card"><span aria-hidden="true">📦</span><strong>Inventory, billing &amp; finance</strong><small>Look for stock registers, invoice templates, purchase tracking and reporting resources.</small><em>Find operations tools →</em></Link>
-            <Link href={`/explore?market=${market}&q=${encodeURIComponent('project management approval workflow')}`} className="dn-organization-card"><span aria-hidden="true">🗂️</span><strong>Projects &amp; approvals</strong><small>Discover project trackers, task planning, approval flows and team operating templates.</small><em>Find workflow tools →</em></Link>
+            <Link href={`/explore?market=${market}&q=${encodeURIComponent('HR employee onboarding workflow')}`} className="dn-organization-card"><span aria-hidden="true">👥</span><strong>HR &amp; people workflows</strong></Link>
+            <Link href={`/explore?market=${market}&q=${encodeURIComponent('inventory stock billing invoices')}`} className="dn-organization-card"><span aria-hidden="true">📦</span><strong>Inventory, billing &amp; finance</strong></Link>
+            <Link href={`/explore?market=${market}&q=${encodeURIComponent('project management approval workflow')}`} className="dn-organization-card"><span aria-hidden="true">🗂️</span><strong>Projects &amp; approvals</strong></Link>
           </div>
-          <div className="dn-organization-workspace-cta"><div><strong>Need shared tools for your whole team?</strong><span>Create a workspace to organize digital tools for your whole team.</span></div><Link className="ref-primary" href="/organizations">Set up an organization →</Link></div>
+          <div className="dn-organization-workspace-cta"><div><strong>Organization workspace</strong></div><Link className="ref-primary" href="/organizations">Set up an organization →</Link></div>
             </div>
       </section>
 
       <section className="ref-section dn-feature-map"><div className="ref-container">
-        <div className="ref-section-head"><div><h2>Find, review and choose with confidence</h2><p>Explore digital resources for everyday life, learning, independent work, small businesses and teams. Review the product details before deciding.</p></div></div>
+        <div className="ref-section-head"><h2>Marketplace features</h2></div>
         <div className="dn-feature-grid">
-          <Link href="/explore"><span>🔎</span><strong>Discover digital tools</strong><small>Search, browse categories and find resources for your goals.</small></Link>
-          <Link href="/compare"><span>⚖️</span><strong>Compare products</strong><small>Review features, descriptions and prices side by side before choosing.</small></Link>
-          <Link href="/bundles"><span>🧰</span><strong>Curated bundles</strong><small>Browse collections of complementary digital resources.</small></Link>
-          <Link href="/account/wishlist"><span>♡</span><strong>Save your favorites</strong><small>Keep a wishlist and access it again when you are ready.</small></Link>
-          <Link href="/explore"><span>ⓘ</span><strong>Review product details</strong><small>Check descriptions, prices and product information before choosing.</small></Link>
-          <Link href="/account/orders"><span>🧾</span><strong>Orders & purchases</strong><small>View your order history from your signed-in account.</small></Link>
-          <Link href="/account/library"><span>📚</span><strong>Customer library</strong><small>Find digital items made available to your account after an eligible order is fulfilled.</small></Link>
-          <Link href="/signup"><span>✨</span><strong>Create from what you know</strong><small>Students, homemakers, retired people, professionals and organizations can all have useful ideas worth turning into digital resources.</small></Link>
-          <Link href="/guides"><span>🌍</span><strong>Learn and grow</strong><small>Read practical guides and discover new ways to work.</small></Link>
+          <Link href="/explore"><span>🔎</span><strong>Discover digital tools</strong></Link>
+          <Link href="/compare"><span>⚖️</span><strong>Compare products</strong></Link>
+          <Link href="/bundles"><span>🧰</span><strong>Curated bundles</strong></Link>
+          <Link href="/account/wishlist"><span>♡</span><strong>Save your favorites</strong></Link>
+          <Link href="/explore"><span>ⓘ</span><strong>Review product details</strong></Link>
+          <Link href="/account/orders"><span>🧾</span><strong>Orders & purchases</strong></Link>
+          <Link href="/account/library"><span>📚</span><strong>Customer library</strong></Link>
+          <Link href="/signup"><span>✨</span><strong>Create from what you know</strong></Link>
+          <Link href="/guides"><span>🌍</span><strong>Learn and grow</strong></Link>
         </div>
       </div></section>
 
       <section id="needs" className="ref-section"><div className="ref-container">
-        <div className="ref-section-head"><div><h2>What would you like to get done?</h2><p>From school projects and household planning to freelance work, business operations and organization workflows, start with the problem you want to solve.</p></div></div>
+        <div className="ref-section-head"><h2>What would you like to get done?</h2></div>
         <div className="ref-needs">{needs.map(([icon, label, target]) => <button className="ref-need" key={label} onClick={() => chooseNeed(target)}>{icon} {label}</button>)}</div>
       </div></section>
       <section className="ref-section ref-discovery-row"><div className="ref-container">
-        <div className="ref-section-head"><div><h2>Trending digital products</h2><p>Discover practical digital tools for work, learning and everyday tasks.</p></div><Link href="/explore" className="ref-view-product">View all →</Link></div>
+        <div className="ref-section-head"><h2>Trending digital products</h2><Link href="/explore" className="ref-view-product">View all →</Link></div>
         <div className="ref-products ref-horizontal">{products.slice(0,4).map((product)=><article className="ref-product dn-clickable-card" key={'trend-'+product.id}><Link className="dn-card-hit-area" href={`/products/${product.slug}?market=${market}`} aria-label={`View ${product.title}`} tabIndex={-1} /><div className="ref-product-body"><h3><Link href={'/products/'+product.slug+'?market='+market}>{product.title}</Link></h3>{product.creatorName && product.creatorName.trim().toLowerCase() !== 'diginanba' && <small className="ref-compact-creator">by {product.creatorName.trim().split(/\s+/).slice(0,2).join(' ')}</small>}<div className="ref-price-row"><span className="ref-price">{product.price}</span><button className="ref-view-product" onClick={(event)=>{event.stopPropagation();addToCart(product)}}>Add to cart</button></div></div></article>)}</div>
       </div></section>
 
