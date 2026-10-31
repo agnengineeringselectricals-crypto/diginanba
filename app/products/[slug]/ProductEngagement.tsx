@@ -1,22 +1,19 @@
 'use client';
 
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 
 type Review = {
   id?: string;
-  name: string;
   rating: number;
-  text: string;
-  verifiedPurchase?: boolean;
   createdAt?: string;
 };
 
 export default function ProductEngagement({ product }: { product: { slug: string; title: string; price: string; category: string } }) {
   const [saved, setSaved] = useState(false);
   const [reviews, setReviews] = useState<Review[]>([]);
-  const [rating, setRating] = useState(5);
-  const [text, setText] = useState('');
+  const [canRate, setCanRate] = useState(false);
+  const [rating, setRating] = useState(0);
   const [reviewMessage, setReviewMessage] = useState('');
   const [loadingReviews, setLoadingReviews] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -33,11 +30,16 @@ export default function ProductEngagement({ product }: { product: { slug: string
     setLoadingReviews(true);
     fetch('/api/products/' + encodeURIComponent(product.slug) + '/reviews')
       .then(async (response) => {
-        if (!response.ok) throw new Error('Reviews are temporarily unavailable.');
+        if (!response.ok) throw new Error('Ratings are temporarily unavailable.');
         return response.json();
       })
-      .then((data) => { if (active) setReviews(Array.isArray(data.reviews) ? data.reviews : []); })
-      .catch(() => { if (active) setReviewMessage('Reviews are temporarily unavailable. Please try again later.'); })
+      .then((data) => {
+        if (!active) return;
+        setReviews(Array.isArray(data.reviews) ? data.reviews : []);
+        setCanRate(Boolean(data.canRate));
+        if (data.userRating) setRating(Number(data.userRating));
+      })
+      .catch(() => { if (active) setReviewMessage('Ratings are temporarily unavailable.'); })
       .finally(() => { if (active) setLoadingReviews(false); });
     return () => { active = false; };
   }, [product.slug]);
@@ -53,16 +55,12 @@ export default function ProductEngagement({ product }: { product: { slug: string
       localStorage.setItem('diginanba-wishlist', JSON.stringify(next));
       setSaved(nextSaved);
       setReviewMessage('');
-
-      // Guests retain a browser-local wishlist; signed-in customers also sync to PostgreSQL.
       const response = await fetch('/api/wishlist', {
         method: nextSaved ? 'POST' : 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ slug: product.slug }),
       });
-      if (response.status === 503) {
-        setReviewMessage('Saved on this device. Account sync is temporarily unavailable.');
-      }
+      if (response.status === 503) setReviewMessage('Saved on this device. Account sync is temporarily unavailable.');
     } catch {
       setReviewMessage('Saved on this device, but account sync could not be reached.');
     }
@@ -80,27 +78,24 @@ export default function ProductEngagement({ product }: { product: { slug: string
     }
   }
 
-  async function publishReview(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!text.trim() || submitting) return;
+  async function submitRating(value: number) {
+    if (!canRate || submitting) return;
     setSubmitting(true);
     setReviewMessage('');
     try {
       const response = await fetch('/api/products/' + encodeURIComponent(product.slug) + '/reviews', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rating, text: text.trim() }),
+        body: JSON.stringify({ rating: value }),
       });
       const data = await response.json();
       if (!response.ok) {
-        setReviewMessage(response.status === 401
-          ? 'Please sign in before reviewing a purchase.'
-          : data.error || 'Unable to publish your review.');
+        setReviewMessage(data.error || 'Unable to save your rating.');
         return;
       }
+      setRating(value);
       setReviews((current) => [data.review, ...current.filter((review) => review.id !== data.review.id)]);
-      setText('');
-      setReviewMessage('Your verified-purchase review has been published.');
+      setReviewMessage('Your rating has been saved.');
     } catch {
       setReviewMessage('Connection problem. Please try again.');
     } finally {
@@ -108,7 +103,7 @@ export default function ProductEngagement({ product }: { product: { slug: string
     }
   }
 
-  const average = reviews.length ? (reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length).toFixed(1) : 'New';
+  const average = reviews.length ? (reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length).toFixed(1) : null;
 
   return (
     <>
@@ -118,40 +113,23 @@ export default function ProductEngagement({ product }: { product: { slug: string
         <button className="btn" onClick={addToCompare}>Add to compare</button>
         <Link className="btn" href="/compare">Compare selected</Link>
       </div>
-      <section className="panel product-detail-grid">
-        <div>
-          <h2>What you get</h2>
-          <ul className="feature-list">
-            <li>Practical ready-to-use digital resource</li>
-            <li>Market-localized edition</li>
-            <li>Review the product-specific usage terms before use</li>
-            <li>Digital delivery after successful payment and fulfillment</li>
-          </ul>
-          <p className="muted">Please review the product description and applicable usage terms before purchasing.</p>
+      <section className="panel product-rating-panel" aria-label="Product rating">
+        <div className="product-rating-line">
+          {average && <strong>{average}/5</strong>}
+          <span className="product-rating-stars" aria-label={average ? average + ' out of 5 stars' : 'No ratings yet'}>{'★'.repeat(5)}</span>
+          <span className="muted">{reviews.length ? reviews.length + (reviews.length === 1 ? ' rating' : ' ratings') : 'No ratings yet'}</span>
         </div>
-        <div>
-          <h2>Ratings &amp; verified reviews</h2>
-          <div className="review-summary"><b>{average}</b><span>{reviews.length} verified review{reviews.length === 1 ? '' : 's'}</span></div>
-          {loadingReviews && <p className="muted">Loading reviews…</p>}
-          {!loadingReviews && reviews.length === 0 && <p className="muted">No verified reviews yet. Customers can review after a completed purchase.</p>}
-          {reviews.slice(0, 5).map((review, index) => (
-            <div className="review" key={review.id || index}>
-              <b>{'★'.repeat(review.rating)}{'☆'.repeat(5 - review.rating)}</b>
-              <p>{review.text}</p>
-              <small>{review.name} · Verified purchase</small>
+        {loadingReviews ? <p className="muted">Loading…</p> : canRate ? (
+          <div className="product-rate-control" aria-label="Rate this purchased product">
+            <span className="muted">Your rating</span>
+            <div className="product-rate-stars">
+              {[1, 2, 3, 4, 5].map((value) => (
+                <button key={value} type="button" className={value <= rating ? 'selected' : ''} onClick={() => submitRating(value)} disabled={submitting} aria-label={'Rate ' + value + ' out of 5 stars'}>★</button>
+              ))}
             </div>
-          ))}
-          <form className="review-form" onSubmit={publishReview}>
-            <label htmlFor="review-rating">Your rating</label>
-            <select id="review-rating" value={rating} onChange={(event) => setRating(Number(event.target.value))}>
-              {[5, 4, 3, 2, 1].map((value) => <option key={value} value={value}>{value} star{value === 1 ? '' : 's'}</option>)}
-            </select>
-            <label htmlFor="review-text">Your review</label>
-            <textarea id="review-text" value={text} onChange={(event) => setText(event.target.value)} maxLength={2000} placeholder="Share what you found useful…" required />
-            <button className="btn primary" type="submit" disabled={submitting}>{submitting ? 'Publishing…' : 'Publish verified review'}</button>
-          </form>
-          {reviewMessage && <p className="muted" role="status">{reviewMessage} {reviewMessage.includes('sign in') && <Link href="/login">Sign in</Link>}</p>}
-        </div>
+          </div>
+        ) : null}
+        {reviewMessage && <p className="muted" role="status">{reviewMessage} {reviewMessage.includes('sign in') && <Link href="/login">Sign in</Link>}</p>}
       </section>
     </>
   );
