@@ -21,10 +21,6 @@ export default function CreatorEarningsShowcase() {
           
           <h2 id="dn-creator-title">Anyone can create something useful.</h2>
           <p>Turn your knowledge, skills and creativity into digital products.</p>
-          <div className="dn-creator-hero-actions">
-            <Link className="dn-creator-cta" href="/signup">Get started <span aria-hidden="true">→</span></Link>
-            <Link className="dn-creator-secondary-cta" href="/explore">Explore digital products</Link>
-          </div>
         </div>
         <div className="dn-creator-hero-art" aria-hidden="true">
           <span className="dn-creator-art-card dn-art-card-one">📊<small>Templates</small></span>
