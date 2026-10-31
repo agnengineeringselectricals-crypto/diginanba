@@ -82,10 +82,15 @@ export async function getProduct(slug:string, market:Market) {
 }
 
 function formatRow(r:any, market:Market):CatalogProduct {
-  return {id:r.id,publicId:r.public_id || r.id,slug:r.slug,title:r.title,description:r.description||'',
-    category:r.category||'Digital Products',creatorName:r.creator_name||'DigiNanba',creatorId:r.creator_id||'DN-C-000001',
-    market,currency:market==='US'?'USD':market==='UK'?'GBP':'INR',symbol:market==='US'?'
-    amountMinor:Number(r.amount_minor),price:formatMoney(Number(r.amount_minor),market)};
+  const currency = market === 'US' ? 'USD' : market === 'UK' ? 'GBP' : 'INR';
+  const symbol = market === 'US' ? '$' : market === 'UK' ? '£' : '₹';
+  return {
+    id:r.id, publicId:r.public_id || r.id, slug:r.slug, title:r.title,
+    description:r.description || '', category:r.category || 'Digital Products',
+    creatorName:r.creator_name || 'DigiNanba', creatorId:r.creator_id || 'DN-C-000001',
+    market, currency, symbol,
+    amountMinor:Number(r.amount_minor), price:formatMoney(Number(r.amount_minor), market)
+  };
 }
 function formatMoney(minor:number, market:Market){const locale=market==='US'?'en-US':market==='UK'?'en-GB':'en-IN';const currency=market==='US'?'USD':market==='UK'?'GBP':'INR';return new Intl.NumberFormat(locale,{style:'currency',currency}).format(minor/100)}
 :market==='UK'?'£':'₹',
