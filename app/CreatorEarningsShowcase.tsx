@@ -18,9 +18,9 @@ export default function CreatorEarningsShowcase() {
     <div className="dn-creator-wrap">
       <div className="dn-creator-hero">
         <div className="dn-creator-hero-copy">
-          <span className="dn-creator-kicker">For everyone with an idea · creators · makers</span>
+          
           <h2 id="dn-creator-title">Anyone can create something useful.</h2>
-          <p>You could be a school student with guardian support, a college student, homemaker, freelancer, professional, retired person, educator or organization. Turn your knowledge, creativity, daily-life experience or repeatable work into useful digital resources. Explore ideas without promises of guaranteed income.</p>
+          <p>Turn your knowledge, skills and creativity into digital products.</p>
           <div className="dn-creator-hero-actions">
             <Link className="dn-creator-cta" href="/signup">Get started <span aria-hidden="true">→</span></Link>
             <Link className="dn-creator-secondary-cta" href="/explore">Explore digital products</Link>
@@ -35,21 +35,21 @@ export default function CreatorEarningsShowcase() {
       </div>
 
       <div className="dn-creator-path-heading">
-        <div><span className="dn-creator-kicker">Find your starting point</span><h3>Ideas for every kind of creator</h3></div>
-        <p>Everyday know-how counts too—from home budgeting and meal planning to professional workflows and team toolkits.</p>
+        <div><h3>Ideas for every kind of creator</h3></div>
+        
       </div>
       <div className="dn-creator-path-grid">
         {creatorPaths.map((path) => <article className="dn-creator-path-card" key={path.title}>
           <span className="dn-creator-path-icon" aria-hidden="true">{path.icon}</span>
-          <div className="dn-creator-path-copy"><h4>{path.title}</h4><p>{path.audience}</p></div>
-          <div className="dn-creator-path-ideas"><span>Product ideas</span><p>{path.ideas}</p></div>
+          <div className="dn-creator-path-copy"><h4>{path.title}</h4></div>
+          <div className="dn-creator-path-ideas"><p>{path.ideas}</p></div>
           <Link href={path.href}>Explore related products <span aria-hidden="true">↗</span></Link>
         </article>)}
       </div>
 
       <div className="dn-creator-research" aria-labelledby="dn-creator-research-title">
         <div className="dn-creator-research-copy">
-          <span className="dn-creator-kicker">Grounded in market research</span>
+          
           <h3 id="dn-creator-research-title">Build a product business with realistic expectations.</h3>
           <p>Creator-economy research shows that earnings vary widely and are concentrated among a small share of creators. These findings are industry context—not DigiNanba sales results or a forecast of what an individual seller will earn.</p>
         </div>
