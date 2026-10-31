@@ -73,7 +73,7 @@ type Props = { initialProducts: CatalogProduct[]; initialMarket: Market };
 
 export default function HomePageClient({ initialProducts, initialMarket }: Props) {
   const { data: session, status: sessionStatus } = useSession();
-  const [market, setMarket] = useState<Market>('US');
+  const [market, setMarket] = useState<Market>(initialMarket);
   const [products, setProducts] = useState(initialProducts);
   const [query, setQuery] = useState('');
   const [heroQuery, setHeroQuery] = useState('');
@@ -85,15 +85,14 @@ export default function HomePageClient({ initialProducts, initialMarket }: Props
   const [sort, setSort] = useState('featured');
   const [languageOpen, setLanguageOpen] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
-  const [countryCode, setCountryCode] = useState('US');
+  const [countryCode, setCountryCode] = useState(initialMarket === 'IN' ? 'IN' : initialMarket === 'UK' ? 'GB' : 'US');
   const [cartCount, setCartCount] = useState(0);
   const [languageCode, setLanguageCode] = useState('EN');
-  const [countryFlag, setCountryFlag] = useState('🇺🇸');
+  const [countryFlag, setCountryFlag] = useState(initialMarket === 'IN' ? '🇮🇳' : initialMarket === 'UK' ? '🇬🇧' : '🇺🇸');
   const [selectedLanguage, setSelectedLanguage] = useState('English');
 
   useEffect(() => {
-    const savedMarket = localStorage.getItem('diginanba-market') as Market | null;
-    const selected: Market = savedMarket === 'US' || savedMarket === 'UK' || savedMarket === 'IN' ? savedMarket : initialMarket;
+    const selected: Market = initialMarket;
     setMarket(selected);
     const language = (navigator.language || 'en-US').toLowerCase();
     const localeCountry = selected === 'UK' ? 'GB' : selected === 'IN' ? 'IN' : 'US';
@@ -246,7 +245,7 @@ export default function HomePageClient({ initialProducts, initialMarket }: Props
             </button>
             {languageOpen && <div className="ref-language-menu" role="menu" aria-label="Country and language settings">
               <strong className="ref-language-menu-heading">Store country</strong>
-              {[{market:'US' as Market,code:'US',flag:'🇺🇸',label:'United States'},{market:'UK' as Market,code:'GB',flag:'🇬🇧',label:'United Kingdom'},{market:'IN' as Market,code:'IN',flag:'🇮🇳',label:'India'}].map((option) => <button key={option.market} role="menuitem" className={market === option.market ? 'active' : ''} onClick={() => { setMarket(option.market); setCountryCode(option.code); setCountryFlag(option.flag); localStorage.setItem('diginanba-market', option.market); setLanguageOpen(false); }}>{option.flag} {option.label}</button>)}
+              {[{market:'US' as Market,code:'US',flag:'🇺🇸',label:'United States'},{market:'UK' as Market,code:'GB',flag:'🇬🇧',label:'United Kingdom'},{market:'IN' as Market,code:'IN',flag:'🇮🇳',label:'India'}].map((option) => <button key={option.market} role="menuitem" className={market === option.market ? 'active' : ''} onClick={() => { setMarket(option.market); setCountryCode(option.code); setCountryFlag(option.flag); localStorage.setItem('diginanba-market', option.market); document.cookie = `diginanba-market=${option.market}; Path=/; Max-Age=31536000; SameSite=Lax; Secure`; setLanguageOpen(false); }}>{option.flag} {option.label}</button>)}
               <strong className="ref-language-menu-heading">Language preference</strong>
               {availableLanguages.map((language) => <button key={language.code} role="menuitem" className={language.code === languageCode ? 'active' : ''} onClick={() => { setLanguageCode(language.code); setSelectedLanguage(language.label); setLanguageOpen(false); }}>{language.code} · {language.label}</button>)}
             </div>}
