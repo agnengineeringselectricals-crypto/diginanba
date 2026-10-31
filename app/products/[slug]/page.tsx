@@ -142,11 +142,6 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
             <h3>Payment and access</h3>
             <p className="muted">An item in your cart is not a completed purchase. Access should be provided only after payment is confirmed and the product's delivery flow is enabled.</p>
           </div>
-          <div>
-            <h3>Need another option?</h3>
-            <p className="muted">Compare alternatives and review the product details before deciding.</p>
-            <Link className="ref-view-product" href="/compare">Compare products →</Link>
-          </div>
         </div>
       </section>
 
