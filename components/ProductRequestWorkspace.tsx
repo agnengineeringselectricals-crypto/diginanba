@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import './product-request-workspace.css';
+import type { Market } from '@/lib/market';
 
 type ProductKind = string;
 const productKinds: { value: ProductKind; label: string }[] = [
@@ -162,7 +163,7 @@ const productKinds: { value: ProductKind; label: string }[] = [
   { value: "Personal productivity tool", label: "Personal productivity tool" },
 ];
 
-export default function ProductRequestWorkspace() {
+export default function ProductRequestWorkspace({ market }: { market: Market }) {
   const [expanded] = useState(true);
   const descriptionInputRef = useRef<HTMLTextAreaElement | null>(null);
   const [productSearch, setProductSearch] = useState('');
@@ -189,7 +190,7 @@ export default function ProductRequestWorkspace() {
     const timer = setTimeout(async () => {
       setSearchingProducts(true);
       try {
-        const params = new URLSearchParams({ market: 'IN' });
+        const params = new URLSearchParams({ market });
         if (query.length >= 2) params.set('q', query);
         const response = await fetch('/api/products?' + params.toString(), { signal: controller.signal });
         const data = await response.json();
@@ -242,8 +243,8 @@ export default function ProductRequestWorkspace() {
           title: idea.trim().slice(0, 160),
           description,
           kind: 'new_product',
-          market: 'IN',
-          locale: 'en-IN',
+          market,
+          locale: market === 'IN' ? 'en-IN' : market === 'UK' ? 'en-GB' : 'en-US',
           preferredFormat: 'not_sure',
           budgetRange: 'not_sure',
           visitorId,
@@ -288,10 +289,10 @@ export default function ProductRequestWorkspace() {
       </div>
       <div className="dn-pw-existing-results" aria-live="polite">
         {searchingProducts && <p className="dn-pw-search-status" role="status">Finding relevant products…</p>}
-        {!searchingProducts && existingProducts.length > 0 ? <div className="dn-pw-existing-roller">{existingProducts.slice(0,12).map((product) => <Link className="dn-pw-existing-card" key={product.id} href={`/products/${product.slug}?market=IN`}>
+        {!searchingProducts && existingProducts.length > 0 ? <div className="dn-pw-existing-roller">{existingProducts.slice(0,12).map((product) => <Link className="dn-pw-existing-card" key={product.id} href={`/products/${product.slug}?market=${market}`}>
           <strong>{product.title}</strong>{product.creatorName && product.creatorName.trim().toLowerCase() !== "diginanba" && <small className="dn-pw-result-creator">by {product.creatorName.trim().split(/\s+/).slice(0,2).join(" ")}</small>}{product.price && <small className="dn-pw-result-price">{product.price}</small>}<span className="dn-pw-existing-open">View product →</span>
         </Link>)}</div> : !searchingProducts && hasSearchedProducts ? <div className="dn-pw-no-match-card"><p><strong>Wow! “{productSearch.trim()}” isn’t here yet.</strong></p><p>Create it and earn with DigiNanba.</p><button type="button" className="dn-pw-start dn-pw-create-earn" onClick={() => { setIdea((current) => current.trim() ? current : productSearch.trim()); setCreateMode(true); setError(''); setSuccess(''); }}>✨ Create it &amp; earn</button></div> : null}
-        {(!hasSearchedProducts || existingProducts.length > 0) && <a className="dn-pw-marketplace-link" href={productSearch.trim().length >= 2 ? `/explore?market=IN&q=${encodeURIComponent(productSearch.trim())}` : '/explore?market=IN'}>Browse all marketplace products →</a>}
+        {(!hasSearchedProducts || existingProducts.length > 0) && <a className="dn-pw-marketplace-link" href={productSearch.trim().length >= 2 ? `/explore?market=${market}&q=${encodeURIComponent(productSearch.trim())}` : `/explore?market=${market}`}>Browse all marketplace products →</a>}
       </div>
     </div>
     {expanded && createMode && <div className="dn-pw-builder">
