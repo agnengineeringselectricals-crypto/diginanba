@@ -1,0 +1,3 @@
+import MarketplaceCategoryPage from '@/components/MarketplaceCategoryPage';
+export const metadata = { title: 'My Professionals' };
+export default function Page(){return <MarketplaceCategoryPage eyebrow="Qualified expertise" title="My Professionals" intro="Find qualified experts and consultants for technical, business, legal, financial and design requirements." examples={['Electrical engineers','Civil engineers','Architects','Structural consultants','Chartered accountants','Lawyers','Business consultants','Technical specialists']} providerLabel="Are you a qualified professional?" note="Professional profiles will support qualification details, experience, areas served and verification before public discovery."/>}
