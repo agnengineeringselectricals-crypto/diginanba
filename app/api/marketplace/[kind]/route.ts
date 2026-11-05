@@ -8,7 +8,7 @@ type Kind = 'shops'|'services'|'professionals'|'healthcare'|'career';
 const kinds = new Set<Kind>(['shops','services','professionals','healthcare','career']);
 const businessSchema = z.object({
   businessName:z.string().trim().min(2).max(160), description:z.string().trim().max(4000).default(''),
-  phone:z.string().trim().max(40).optional(), email:z.string().email().max(254).optional(), websiteUrl:z.string().url().max(500).optional(),
+  phone:z.string().trim().max(40).optional(), email:z.union([z.string().email().max(254),z.literal('')]).optional(), websiteUrl:z.union([z.string().url().max(500),z.literal('')]).optional(),
   countryCode:z.string().length(2).default('IN'), region:z.string().max(120).optional(), district:z.string().max(120).optional(),
   city:z.string().max(120).optional(), locality:z.string().max(120).optional(), postalCode:z.string().max(20).optional(),
   addressLine:z.string().max(500).optional()
@@ -34,7 +34,7 @@ const healthcareSchema=z.object({
   region:z.string().max(120).optional(),district:z.string().max(120).optional(),city:z.string().max(120).optional(),locality:z.string().max(120).optional(),
   clinicAddress:z.string().max(500).optional(),publicPhone:z.string().max(40).optional()
 });
-const employerSchema=z.object({companyName:z.string().trim().min(2).max(160),websiteUrl:z.string().url().max(500).optional(),contactEmail:z.string().email().max(254).optional(),countryCode:z.string().length(2).default('IN')});
+const employerSchema=z.object({companyName:z.string().trim().min(2).max(160),websiteUrl:z.union([z.string().url().max(500),z.literal('')]).optional(),contactEmail:z.union([z.string().email().max(254),z.literal('')]).optional(),countryCode:z.string().length(2).default('IN')});
 const jobSchema=z.object({
   employerAccountId:z.string().uuid(),title:z.string().trim().min(3).max(180),description:z.string().trim().min(30).max(8000),
   skills:z.array(z.string().max(80)).max(40).default([]),employmentType:z.enum(['full_time','part_time','contract','temporary','internship']).default('full_time'),
@@ -96,7 +96,7 @@ export async function POST(request:Request, context:{params:Promise<{kind:string
    const p=healthcareSchema.safeParse(body);if(!p.success)return NextResponse.json({error:'Please check the provider details.',details:p.error.flatten()},{status:400});const v=p.data;
    const r=await db.query(`INSERT INTO healthcare_provider_profiles(user_id,provider_type,display_name,specialty,qualifications,registration_authority,registration_number_encrypted,consultation_modes,languages,country_code,region,district,city,locality,clinic_address,public_phone)
     VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING id,provider_type,display_name,verification_status,profile_visibility`,
-    [user,v.providerType,v.displayName,v.specialty||null,v.qualifications,v.registrationAuthority||null,v.registrationNumber||null,v.consultationModes,v.languages,v.countryCode,v.region||null,v.district||null,v.city||null,v.locality||null,v.clinicAddress||null,v.publicPhone||null]);
+    [user,v.providerType,v.displayName,v.specialty||null,v.qualifications,v.registrationAuthority||null,null,v.consultationModes,v.languages,v.countryCode,v.region||null,v.district||null,v.city||null,v.locality||null,v.clinicAddress||null,v.publicPhone||null]);
    return NextResponse.json({provider:r.rows[0],message:'Healthcare profile saved privately for credential review. It is not publicly listed.'},{status:201});
   }
   if(kind==='career'){
