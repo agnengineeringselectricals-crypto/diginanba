@@ -37,7 +37,7 @@ export async function POST(request:Request){
    return NextResponse.json({job:r.rows[0],message:'Job post saved for moderation.'},{status:201});
   }
   if(v.action==='job_application'){
-   const candidate=await db.query('SELECT id FROM candidate_profiles WHERE user_id=$1 AND profile_status<>'deleted'',[user]);
+   const candidate=await db.query("SELECT id FROM candidate_profiles WHERE user_id=$1 AND profile_status <> 'deleted'",[user]);
    if(!candidate.rowCount)return NextResponse.json({error:'Create a candidate profile before applying.'},{status:400});
    const r=await db.query(`INSERT INTO marketplace_job_applications(job_post_id,candidate_profile_id,cover_note)
     SELECT j.id,$2,$3 FROM marketplace_job_posts j WHERE j.id=$1 AND j.status='published'
