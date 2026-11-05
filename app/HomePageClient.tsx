@@ -254,25 +254,34 @@ export default function HomePageClient({ initialProducts, initialMarket }: Props
       </div>
     </header>
 
-    <nav className="ref-category-nav" aria-label="Browse digital product categories">
+    <nav className="ref-category-nav" aria-label="My DigiNanba marketplace">
       <div className="ref-category-nav-inner">
-        <Link href={`/explore?market=${market}`}>Explore</Link>
-        <Link href={`/explore?market=${market}&q=Templates`}>Templates</Link>
-        <Link href={`/explore?market=${market}&q=Business`}>Business</Link>
-        <Link href={`/explore?market=${market}&q=Finance`}>Finance &amp; Accounting</Link>
-        <Link href={`/explore?market=${market}&q=AI`}>AI &amp; Automation</Link>
-        <Link href={`/explore?market=${market}&q=Office`}>Office Productivity</Link>
-        <Link href={`/explore?market=${market}&q=Learning`}>Learning</Link>
-        <Link href={`/explore?market=${market}&q=Design`}>Design</Link>
-        <Link href={`/explore?market=${market}&q=Marketing`}>Marketing</Link>
-        <Link href={`/explore?market=${market}&q=Engineering`}>Engineering &amp; CAD</Link>
-        <Link href="/guides">Guides</Link>
+        <Link href="/explore?market=${market}">My Digital Products</Link>
+        <Link href="/shops">My Shops</Link>
+        <Link href="/services">My Services</Link>
+        <Link href="/professionals">My Professionals</Link>
+        <Link href="/healthcare">Doctors &amp; Healthcare</Link>
+        <Link href="/career">My Career</Link>
       </div>
     </nav>
 
     <main id="home">
 
       <div className="ref-container"><ProductRequestWorkspace market={market} /></div>
+
+      <section id="marketplace-pillars" className="ref-section" aria-labelledby="dn-pillars-title">
+        <div className="ref-container">
+          <div className="ref-section-head"><h2 id="dn-pillars-title">My DigiNanba — everything you need, in one place</h2></div>
+          <div className="dn-marketplace-pillars">
+            <Link href={`/explore?market=${market}`} className="dn-marketplace-pillar dn-pillar-digital"><span aria-hidden="true">💻</span><strong>My Digital Products</strong><small>Templates, eBooks, software and digital tools</small></Link>
+            <Link href="/shops" className="dn-marketplace-pillar dn-pillar-shops"><span aria-hidden="true">🏪</span><strong>My Shops</strong><small>Home needs, groceries, hardware and local stores</small></Link>
+            <Link href="/services" className="dn-marketplace-pillar dn-pillar-services"><span aria-hidden="true">🛠️</span><strong>My Services</strong><small>Plumbers, electricians, mechanics and tradespeople</small></Link>
+            <Link href="/professionals" className="dn-marketplace-pillar dn-pillar-professionals"><span aria-hidden="true">👷</span><strong>My Professionals</strong><small>Engineers, architects, accountants and experts</small></Link>
+            <Link href="/healthcare" className="dn-marketplace-pillar dn-pillar-healthcare"><span aria-hidden="true">🩺</span><strong>Doctors &amp; Healthcare</strong><small>Find verified doctors, clinics and healthcare providers</small></Link>
+            <Link href="/career" className="dn-marketplace-pillar dn-pillar-career"><span aria-hidden="true">💼</span><strong>My Career</strong><small>Create a candidate profile and connect with employers</small></Link>
+          </div>
+        </div>
+      </section>
 
       {/* Removed the two low-value rows directly below the unified product workspace. */}
 
