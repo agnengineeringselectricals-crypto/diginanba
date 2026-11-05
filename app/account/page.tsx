@@ -7,6 +7,7 @@ import AccountSignOut from './AccountSignOut';
 import MaskedSensitiveValue from '@/components/MaskedSensitiveValue';
 
 const destinations = [
+  { icon: '🔐', title: 'My Files', description: 'Secure personal cloud storage with trusted-device access controls.', href: '/account/files', action: 'Open secure files' },
   { icon: '📚', title: 'My DigiNanba Library', description: 'Access purchased resources and future updates.', href: '/account/library', action: 'Open library' },
   { icon: '🧾', title: 'Orders & purchases', description: 'Review your order history and payment status.', href: '/account/orders', action: 'View orders' },
   { icon: '❤️', title: 'Wishlist', description: 'Keep useful products saved for later.', href: '/account/wishlist', action: 'View wishlist' },
