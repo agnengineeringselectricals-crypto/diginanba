@@ -1,3 +1,12 @@
-import MarketplaceCategoryPage from '@/components/MarketplaceCategoryPage';
+import CustomerDiscoveryPage from '@/components/CustomerDiscoveryPage';
+
 export const metadata = { title: 'My Career' };
-export default function Page(){return <MarketplaceCategoryPage kind="career" eyebrow="Talent and recruitment" title="My Career" intro="Create a candidate profile, add your skills and experience, and choose whether verified employers can discover your profile." examples={['Upload a PDF or DOCX resume','Create a profile without a resume','Add education and qualifications','List skills and work experience','Choose preferred roles and locations','Set expected salary and work type','Control profile visibility','Employers search eligible candidates']} providerLabel="Ready to create your career profile?" note="Candidate contact details and resumes must remain private unless the candidate opts in. Employer access will be controlled, paid access will be recorded, and candidate consent will be required before contact details are unlocked."/>}
+
+export default function Page() {
+  return <CustomerDiscoveryPage
+    kind="career"
+    title="My Career"
+    intro="Explore job opportunities by role, skill and location. Find full-time, part-time, contract and internship opportunities that match what you are looking for."
+    categories={['Engineering Jobs','Electrical Jobs','Civil Jobs','IT & Software','Accounting & Finance','Administration','Sales & Marketing','Technicians & Trades','Healthcare Jobs','Teaching & Training','Work From Home','Internships','Part-time Jobs','Government Exam Preparation']}
+  />;
+}
