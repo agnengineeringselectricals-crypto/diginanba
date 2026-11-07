@@ -2,7 +2,7 @@
 
 import { useEffect,useState,type CSSProperties,type FormEvent } from 'react';
 
-type Shop={id:string;public_id:string;business_name:string;phone:string|null;email:string|null;city:string|null;region:string|null;verification_status:string;listings:{id:string;title:string;category:string;priceAmount:number|null;currency:string|null;priceUnit:string|null;availability:string}[]};
+type Shop={id:string;public_id:string;business_name:string;country_code:string;phone:string|null;email:string|null;city:string|null;region:string|null;verification_status:string;listings:{id:string;title:string;category:string;priceAmount:number|null;currency:string|null;priceUnit:string|null;availability:string}[]};
 const field:CSSProperties={width:'100%',boxSizing:'border-box',padding:'11px 12px',border:'1px solid #d0d5dd',borderRadius:10,font:'inherit',background:'#fff'};
 const button:CSSProperties={border:0,borderRadius:999,padding:'11px 16px',background:'#176b4d',color:'#fff',fontWeight:750,cursor:'pointer'};
 
