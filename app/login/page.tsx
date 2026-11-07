@@ -2,6 +2,7 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { signIn, useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+function callbackTarget(){const value=new URLSearchParams(window.location.search).get('callbackUrl');return value&&value.startsWith('/')&&!value.startsWith('//')?value:'/';}
 export default function LoginPage() {
   const router = useRouter(); const { status } = useSession(); useEffect(() => { if (status === 'authenticated') router.replace(callbackTarget()); }, [status, router]); const [email,setEmail]=useState(''); const [password,setPassword]=useState(''); const [error,setError]=useState(''); const [loading,setLoading]=useState(false);
   async function submit(e:FormEvent){e.preventDefault();setLoading(true);setError('');const result=await signIn('credentials',{email,password,redirect:false});setLoading(false);if(!result?.ok)return setError('Email or password is incorrect.');router.replace(callbackTarget());router.refresh();}
