@@ -1,3 +1,12 @@
-import MarketplaceCategoryPage from '@/components/MarketplaceCategoryPage';
+import CustomerDiscoveryPage from '@/components/CustomerDiscoveryPage';
+
 export const metadata = { title: 'Doctors & Healthcare' };
-export default function Page(){return <MarketplaceCategoryPage kind="healthcare" eyebrow="Dedicated healthcare directory" title="Doctors & Healthcare" intro="A dedicated place to discover doctors, family physicians, specialists, clinics, hospitals, diagnostic laboratories and other healthcare providers." examples={['Family doctors and general physicians','Specialist doctors','Dentists','Hospitals and clinics','Diagnostic laboratories','Pharmacies','In-person appointments','Teleconsultation providers']} providerLabel="Are you a registered healthcare provider?" note="Healthcare providers will have a separate profile and verification process. Medical registration credentials must be checked before a profile is shown as verified. Do not use this directory for emergencies."/>}
+
+export default function Page() {
+  return <CustomerDiscoveryPage
+    kind="healthcare"
+    title="Doctors & Healthcare"
+    intro="Find healthcare support when you need it, from family doctors and specialists to dentists, clinics, hospitals, diagnostic centres and pharmacies."
+    categories={['General Physicians','Paediatricians','Cardiologists','Dermatologists','Orthopaedic Doctors','Gynaecologists','Dentists','Eye Specialists','Hospitals & Clinics','Diagnostic Laboratories','Pharmacies','Physiotherapy','Home Nursing','Teleconsultation']}
+  />;
+}
