@@ -211,3 +211,30 @@ SIGNED-IN IDENTITY VISIBILITY (2026-10-30)
 - The homepage My Account control must visibly display the authenticated user's name (fall back to email only if the name is unavailable), rather than showing the same generic label for signed-in and signed-out users.
 - When the account dropdown opens for an authenticated user, show a clear "Signed in as" identity line with the user's name (email fallback), followed by My account and explicit Sign out actions.
 - This visible identity confirmation must be sourced from the authenticated session, not hard-coded or inferred.
+
+
+18. CUSTOMER-LED LOCAL MARKETPLACE, SHOP INVITATIONS AND COMPACT PUBLIC IDS (2026-11-07)
+USER-APPROVED PRODUCT REQUIREMENTS
+- My Shops begins with a horizontally scrollable "My Regular Shops" row above "What are you looking for?". Customers can save shops they frequently visit.
+- Customer invitation is one-tap and WhatsApp-first. Customers must not be asked to enter shop name, address, phone or email to invite a shop. DigiNanba creates a unique invitation link; customer selects the shop owner's WhatsApp contact and sends a friendly, non-pressuring invitation.
+- Invitation must not disclose the inviting customer's private phone/email to the shop. Track the invitation internally; if the shop registers using it, add that shop to the inviter's My Regular Shops.
+- Shop owner controls their own shop information. Initial registration is intentionally minimal: shop name and address required; country and state/region identified from location/address; optional current-location pin; phone and email optional and can be added later in Shop Owner Profile Settings. Do not demand GST, licence, bank details or long questionnaires at initial registration.
+- Shop owner receives a permanent public ID immediately and can start adding products immediately. Do not make the owner wait for manual verification to register or create basic product listings. Show "New on DigiNanba" until verification is complete; never display an unearned verification badge.
+- Product entry uses pre-existing category-specific forms (grocery, vegetables, pharmacy, food/bakery, clothing, electronics, hardware, etc.) with simple fields for product name, category, unit/pack, price and availability. More complete product attributes can be added progressively.
+- Customers can search by shop name, product name/category or public Shop ID while typing. Show matching shops and useful product previews; customer can open a shop profile and add it to My Regular Shops. Ordering/enquiries are future connected workflows and must not be represented as complete unless implemented and tested.
+- Shop cards and profiles may display average star rating plus rating count only when real ratings exist. New shops show "No ratings yet". Never invent ratings. Rating submission must be tied to a genuine completed/confirmed transaction or otherwise abuse-controlled; verification status is displayed separately from customer rating.
+- Public shop profile has a permanent URL and QR code that opens that exact shop. Shop owner can copy the ID/link and share the profile through WhatsApp or print the QR.
+- Global public ID format approved: REGION-CODE + hyphen + 5 Base32 characters, e.g. TN-7K9MQ. Region prefix is derived from shop's registered location; country code is stored internally and omitted from the short displayed ID. The five-character alphabet is 23456789ABCDEFGHJKLMNPQRSTUVWXYZ (32 symbols; avoids O/0 and I/1), giving 33,554,432 suffixes per two-letter region prefix. Allocate IDs collision-safely in the database, never recycle or change an issued ID. Prefix namespace must remain globally unique across countries when the same two-letter region code is reused; capacity is shared for that prefix. If a business relocates, retain its original ID and update its address separately.
+- The same compact public-ID approach is intended for all six pillars, using a shared allocator/namespace. Do not let the same public ID identify two different marketplace entities.
+- International examples: IN/TN => TN-xxxxx; US/CA => CA-xxxxx; GB/EN => EN-xxxxx; AU/NS => NS-xxxxx. Maintain a country-aware region-code directory to resolve ambiguous region prefixes; country is retained internally.
+- Owner and customer experiences must be respectful and low-friction. No payment or subscription demand during initial shop registration.
+
+IMPLEMENTATION STATUS (2026-11-07; feature branch only)
+- Added additive SQL migration file db/migrations/20261108_compact_ids_and_shop_onboarding.sql. It defines a shared per-prefix Base32 allocator, shop public ID/location/rating fields, invitation tracking, saved regular shops and shop request records. Migration has NOT been applied to any database.
+- Added WhatsApp invitation endpoint and invitation attribution on shop registration.
+- Added minimal invited-shop registration page with optional contact fields, current-device geolocation pin capture and Google Maps pin link, immediate shop ID display, QR/link sharing and first-product form.
+- Added My Shops customer discovery UI with regular-shop row, live search by shop/product/ID, ratings when available, "New on DigiNanba" status and WhatsApp invitation action.
+- Added public shop profile route with catalogue and QR/link sharing; added save-to-regular-shops endpoint.
+- Shop registration currently asks the owner to select country and region from the available lists; current geolocation saves coordinates and opens Google Maps, but does not yet reverse-geocode the address/state automatically. Do not claim automatic address recognition is complete.
+- The first-product form is implemented for common shop categories, but richer category-specific fields, full owner settings/dashboard, order/enquiry messaging, genuine transaction-backed ratings and six-pillar ID assignment remain further work.
+- Feature branch: feature/six-marketplace-pillars-foundation. Do not merge to production or apply the migration to the production database without the appropriate release and database approval gates.
