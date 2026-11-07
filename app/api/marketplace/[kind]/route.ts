@@ -108,7 +108,7 @@ export async function POST(request:Request, context:{params:Promise<{kind:string
     ? await db.query(`INSERT INTO marketplace_businesses(owner_user_id,business_name,business_type,description,phone,email,website_url,country_code,region_code,region,district,city,locality,postal_code,address_line,latitude,longitude,public_id,verification_status,listing_status)
       VALUES($1,$2,'shop',$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,allocate_marketplace_public_id($8),'pending','published')
       RETURNING id,public_id,business_name,business_type,verification_status,listing_status,average_rating,rating_count`,
-      [user,v.businessName,v.description,v.phone||null,v.email||null,v.websiteUrl||null,v.regionCode,v.region||null,v.district||null,v.city||null,v.locality||null,v.postalCode||null,v.addressLine,v.latitude??null,v.longitude??null])
+      [user,v.businessName,v.description,v.phone||null,v.email||null,v.websiteUrl||null,v.countryCode,v.regionCode,v.region||null,v.district||null,v.city||null,v.locality||null,v.postalCode||null,v.addressLine,v.latitude??null,v.longitude??null])
     : await db.query(`INSERT INTO marketplace_businesses(owner_user_id,business_name,business_type,description,phone,email,website_url,country_code,region,district,city,locality,postal_code,address_line)
       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING id,business_name,business_type,verification_status,listing_status`,
       [user,v.businessName,type,v.description,v.phone||null,v.email||null,v.websiteUrl||null,v.countryCode,v.region||null,v.district||null,v.city||null,v.locality||null,v.postalCode||null,v.addressLine||null]);
