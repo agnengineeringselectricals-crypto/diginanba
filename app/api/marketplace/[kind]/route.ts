@@ -9,9 +9,9 @@ const kinds = new Set<Kind>(['shops','services','professionals','healthcare','ca
 const businessSchema = z.object({
   businessName:z.string().trim().min(2).max(160), description:z.string().trim().max(4000).default(''),
   phone:z.string().trim().max(40).optional(), email:z.union([z.string().email().max(254),z.literal('')]).optional(), websiteUrl:z.union([z.string().url().max(500),z.literal('')]).optional(),
-  countryCode:z.string().length(2).default('IN'), region:z.string().max(120).optional(), district:z.string().max(120).optional(),
+  countryCode:z.string().length(2).default('IN'), regionCode:z.string().length(2).optional(), region:z.string().max(120).optional(), district:z.string().max(120).optional(),
   city:z.string().max(120).optional(), locality:z.string().max(120).optional(), postalCode:z.string().max(20).optional(),
-  addressLine:z.string().max(500).optional()
+  addressLine:z.string().max(500).optional(), latitude:z.number().min(-90).max(90).optional(), longitude:z.number().min(-180).max(180).optional()
 });
 const listingSchema=z.object({
   businessId:z.string().uuid(), title:z.string().trim().min(3).max(180), description:z.string().trim().max(5000).default(''),
@@ -50,18 +50,18 @@ async function userId(){const s=await auth();return s?.user?.id||null;}
 export async function GET(request:Request, context:{params:Promise<{kind:string}>}) {
  const {kind}=await context.params;if(!kinds.has(kind as Kind))return NextResponse.json({error:'Unknown marketplace area.'},{status:404});
  const user=await userId();const url=new URL(request.url);const q=(url.searchParams.get('q')||'').trim().slice(0,100);
- const category=(url.searchParams.get('category')||'').trim().slice(0,100);const city=(url.searchParams.get('city')||'').trim().slice(0,120);
+ const category=(url.searchParams.get('category')||'').trim().slice(0,100);const city=(url.searchParams.get('city')||'').trim().slice(0,120);const publicIdQuery=q.toUpperCase().replace(/[^A-Z0-9]/g,'');
  try {
   if(kind==='shops'||kind==='services'||kind==='professionals'){
    const type=kind==='shops'?'shop':kind==='services'?'service':'professional';
-   const r=await db.query(`SELECT b.id,b.business_name,b.description,b.country_code,b.region,b.district,b.city,b.locality,b.verification_status,
+   const r=await db.query(`SELECT b.id,b.public_id,b.business_name,b.description,b.country_code,b.region_code,b.region,b.district,b.city,b.locality,b.verification_status,b.average_rating,b.rating_count,
     COALESCE(json_agg(json_build_object('id',l.id,'title',l.title,'description',l.description,'category',l.category,'listingType',l.listing_type,'priceAmount',l.price_amount,'currency',l.currency,'priceUnit',l.price_unit)) FILTER(WHERE l.id IS NOT NULL),'[]') AS listings
     FROM marketplace_businesses b LEFT JOIN marketplace_listings l ON l.business_id=b.id AND l.listing_status='published'
-    WHERE b.business_type=$1 AND b.listing_status='published' AND b.verification_status='verified'
-    AND ($2='' OR b.business_name ILIKE '%'||$2||'%' OR b.description ILIKE '%'||$2||'%' OR l.title ILIKE '%'||$2||'%' OR l.category ILIKE '%'||$2||'%')
+    WHERE b.business_type=$1 AND b.listing_status='published'
+    AND ($2='' OR b.business_name ILIKE '%'||$2||'%' OR b.description ILIKE '%'||$2||'%' OR l.title ILIKE '%'||$2||'%' OR l.category ILIKE '%'||$2||'%' OR replace(upper(COALESCE(b.public_id,'')),'-','')=$5)
     AND ($3='' OR EXISTS (SELECT 1 FROM marketplace_listings lc WHERE lc.business_id=b.id AND lc.listing_status='published' AND (lc.category ILIKE '%'||$3||'%' OR lc.title ILIKE '%'||$3||'%')))
     AND ($4='' OR COALESCE(b.city,'') ILIKE '%'||$4||'%' OR COALESCE(b.locality,'') ILIKE '%'||$4||'%' OR COALESCE(b.district,'') ILIKE '%'||$4||'%')
-    GROUP BY b.id ORDER BY b.created_at DESC LIMIT 50`,[type,q,category,city]);
+    GROUP BY b.id ORDER BY b.created_at DESC LIMIT 50`,[type,q,category,city,publicIdQuery]);
    return NextResponse.json({items:r.rows});
   }
   if(kind==='healthcare'){
@@ -96,10 +96,16 @@ export async function POST(request:Request, context:{params:Promise<{kind:string
   if(kind==='shops'||kind==='services'||kind==='professionals'){
    const p=businessSchema.safeParse(body);if(!p.success)return NextResponse.json({error:'Please check the business details.',details:p.error.flatten()},{status:400});
    const type=kind==='shops'?'shop':kind==='services'?'service':'professional';const v=p.data;
-   const r=await db.query(`INSERT INTO marketplace_businesses(owner_user_id,business_name,business_type,description,phone,email,website_url,country_code,region,district,city,locality,postal_code,address_line)
-    VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING id,business_name,business_type,verification_status,listing_status`,
-    [user,v.businessName,type,v.description,v.phone||null,v.email||null,v.websiteUrl||null,v.countryCode,v.region||null,v.district||null,v.city||null,v.locality||null,v.postalCode||null,v.addressLine||null]);
-   return NextResponse.json({business:r.rows[0],message:'Profile saved as a draft. Complete verification before public listing.'},{status:201});
+   if(kind==='shops' && (!v.regionCode || !v.addressLine?.trim())) return NextResponse.json({error:'Shop address and its two-letter state or region code are required.'},{status:400});
+   const r=kind==='shops'
+    ? await db.query(`INSERT INTO marketplace_businesses(owner_user_id,business_name,business_type,description,phone,email,website_url,country_code,region_code,region,district,city,locality,postal_code,address_line,latitude,longitude,public_id,verification_status,listing_status)
+      VALUES($1,$2,'shop',$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,allocate_marketplace_public_id($8),'pending','published')
+      RETURNING id,public_id,business_name,business_type,verification_status,listing_status,average_rating,rating_count`,
+      [user,v.businessName,v.description,v.phone||null,v.email||null,v.websiteUrl||null,v.regionCode,v.region||null,v.district||null,v.city||null,v.locality||null,v.postalCode||null,v.addressLine,v.latitude??null,v.longitude??null])
+    : await db.query(`INSERT INTO marketplace_businesses(owner_user_id,business_name,business_type,description,phone,email,website_url,country_code,region,district,city,locality,postal_code,address_line)
+      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING id,business_name,business_type,verification_status,listing_status`,
+      [user,v.businessName,type,v.description,v.phone||null,v.email||null,v.websiteUrl||null,v.countryCode,v.region||null,v.district||null,v.city||null,v.locality||null,v.postalCode||null,v.addressLine||null]);
+   return NextResponse.json({business:r.rows[0],message:kind==='shops'?'Your shop is registered and can start listing products now. Verification is separate and does not block basic listing.':'Profile saved as a draft. Complete verification before public listing.'},{status:201});
   }
   if(kind==='healthcare'){
    const p=healthcareSchema.safeParse(body);if(!p.success)return NextResponse.json({error:'Please check the provider details.',details:p.error.flatten()},{status:400});const v=p.data;
@@ -126,12 +132,13 @@ export async function PUT(request:Request, context:{params:Promise<{kind:string}
  try{
   if(kind==='shops'||kind==='services'||kind==='professionals'){
    const p=listingSchema.safeParse(body);if(!p.success)return NextResponse.json({error:'Invalid listing details.'},{status:400});const v=p.data;
-   const r=await db.query(`INSERT INTO marketplace_listings(business_id,listing_type,title,slug,description,category,price_amount,currency,price_unit)
-    SELECT b.id,$2,$3,lower(regexp_replace(trim($3),'[^a-zA-Z0-9]+','-','g'))||'-'||substr(gen_random_uuid()::text,1,8),$4,$5,$6,$7,$8
+   const publishImmediately=kind==='shops';
+   const r=await db.query(`INSERT INTO marketplace_listings(business_id,listing_type,title,slug,description,category,price_amount,currency,price_unit,listing_status)
+    SELECT b.id,$2,$3,lower(regexp_replace(trim($3),'[^a-zA-Z0-9]+','-','g'))||'-'||substr(gen_random_uuid()::text,1,8),$4,$5,$6,$7,$8,CASE WHEN $10 THEN 'published' ELSE 'draft' END
     FROM marketplace_businesses b WHERE b.id=$1 AND b.owner_user_id=$9 AND b.listing_status<>'rejected'
-    RETURNING id,title,listing_status`,[v.businessId,v.listingType,v.title,v.description,v.category,v.priceAmount??null,v.currency??null,v.priceUnit??null,user]);
+    RETURNING id,title,listing_status`,[v.businessId,v.listingType,v.title,v.description,v.category,v.priceAmount??null,v.currency??null,v.priceUnit??null,user,publishImmediately]);
    if(!r.rowCount)return NextResponse.json({error:'Business profile not found or not owned by your account.'},{status:404});
-   return NextResponse.json({listing:r.rows[0],message:'Listing saved as draft for review.'},{status:201});
+   return NextResponse.json({listing:r.rows[0],message:publishImmediately?'Product added to your shop.':'Listing saved as draft for review.'},{status:201});
   }
   if(kind==='career'){
    const p=employerSchema.safeParse(body);if(!p.success)return NextResponse.json({error:'Invalid employer details.'},{status:400});const v=p.data;
