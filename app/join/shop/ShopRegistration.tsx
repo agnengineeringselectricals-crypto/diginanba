@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type CSSProperties, type FormEvent } from 'react';
 
 const regions: Record<string, { name: string; code: string }[]> = {
   IN: [
@@ -53,7 +53,7 @@ export default function ShopRegistration({ invitationCode }: { invitationCode: s
       window.open('https://www.google.com/maps/search/?api=1&query='+lat+','+lng,'_blank','noopener,noreferrer');
     },()=>setNotice('Could not access location. Please allow location permission or enter the address.'),{enableHighAccuracy:true,timeout:12000});
   }
-  async function registerShop(e:React.FormEvent<HTMLFormElement>) {
+  async function registerShop(e:FormEvent<HTMLFormElement>) {
     e.preventDefault();setBusy(true);setNotice('');
     try {
       const response=await fetch('/api/marketplace/shops',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({
@@ -160,6 +160,6 @@ export default function ShopRegistration({ invitationCode }: { invitationCode: s
   </main>;
 }
 
-const field:React.CSSProperties={width:'100%',boxSizing:'border-box',padding:'12px 13px',border:'1px solid #d0d5dd',borderRadius:10,font:'inherit',background:'#fff',color:'#172033'};
+const field:CSSProperties={width:'100%',boxSizing:'border-box',padding:'12px 13px',border:'1px solid #d0d5dd',borderRadius:10,font:'inherit',background:'#fff',color:'#172033'};
 const primaryButton:React.CSSProperties={border:0,borderRadius:999,padding:'12px 18px',background:'#176b4d',color:'#fff',fontWeight:750,cursor:'pointer',textAlign:'center'};
 const secondaryButton:React.CSSProperties={border:'1px solid #d0d5dd',borderRadius:999,padding:'11px 16px',background:'#fff',color:'#344054',fontWeight:650,cursor:'pointer'};
