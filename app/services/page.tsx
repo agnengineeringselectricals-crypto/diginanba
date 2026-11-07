@@ -1,3 +1,31 @@
-import MarketplaceCategoryPage from '@/components/MarketplaceCategoryPage';
+import CustomerDiscoveryPage from '@/components/CustomerDiscoveryPage';
+
 export const metadata = { title: 'My Services' };
-export default function Page(){return <MarketplaceCategoryPage kind="services" eyebrow="Local help and skilled trades" title="My Services" intro="Find people who can help with repairs, installations, construction, maintenance and everyday work in your area." examples={['Plumbers','Electricians','Carpenters','Painters','Civil labourers','Masons / civil mestri','Motorcycle mechanics','AC and appliance repair']} providerLabel="Do you provide a service?" note="Service providers will be able to create service-area profiles, describe their skills, receive enquiries and manage bookings after onboarding is enabled."/>}
+
+export default function Page() {
+  return <CustomerDiscoveryPage
+    kind="services"
+    title="My Services"
+    intro="Find a service when you need one. Whether it is an electrician for a wiring problem, a plumber for a leak or someone to repair an appliance, discover help in your area."
+    categories={[
+      'Electricians & Electrical Repair',
+      'Plumbers & Pipe Work',
+      'Carpenters & Furniture Repair',
+      'Painting & Waterproofing',
+      'AC & Appliance Repair',
+      'House Cleaning',
+      'Pest Control',
+      'Masonry & Construction',
+      'Civil & Building Work',
+      'Vehicle Mechanics',
+      'Tyre & Puncture Repair',
+      'Computer & Mobile Repair',
+      'Transport & Packers',
+      'Tailoring & Alterations',
+      'Beauty & Personal Care',
+      'Tutoring & Training',
+      'Catering & Event Services',
+      'Gardening & Landscaping',
+    ]}
+  />;
+}
