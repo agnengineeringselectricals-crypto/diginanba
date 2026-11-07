@@ -9,7 +9,7 @@ export default async function JoinShopPage({ searchParams }: { searchParams: Pro
   const session = await auth();
   if (!session?.user) {
     const callbackUrl = '/join/shop' + (params.invite ? '?invite=' + encodeURIComponent(params.invite) : '');
-    redirect('/login?callbackUrl=' + encodeURIComponent(callbackUrl));
+    redirect('/signup?callbackUrl=' + encodeURIComponent(callbackUrl));
   }
   return <ShopRegistration invitationCode={params.invite || ''} />;
 }
