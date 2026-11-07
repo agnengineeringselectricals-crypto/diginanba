@@ -236,5 +236,5 @@ IMPLEMENTATION STATUS (2026-11-07; feature branch only)
 - Added My Shops customer discovery UI with regular-shop row, live search by shop/product/ID, ratings when available, "New on DigiNanba" status and WhatsApp invitation action.
 - Added public shop profile route with catalogue and QR/link sharing; added save-to-regular-shops endpoint.
 - Shop registration currently asks the owner to select country and region from the available lists; current geolocation saves coordinates and opens Google Maps, but does not yet reverse-geocode the address/state automatically. Do not claim automatic address recognition is complete.
-- The first-product form is implemented for common shop categories, but richer category-specific fields, full owner settings/dashboard, order/enquiry messaging, genuine transaction-backed ratings and six-pillar ID assignment remain further work.
+- The first-product form and reusable owner dashboard product form are implemented for common shop categories; richer category-specific fields, order/enquiry messaging, genuine transaction-backed ratings and six-pillar ID assignment remain further work.
 - Feature branch: feature/six-marketplace-pillars-foundation. Do not merge to production or apply the migration to the production database without the appropriate release and database approval gates.
