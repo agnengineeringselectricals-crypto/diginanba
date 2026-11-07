@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 
 type Shop = { id:string; public_id:string|null; business_name:string; country_code:string; region_code:string|null; city:string|null; locality:string|null; verification_status:string; average_rating:number|null; rating_count:number; listings?:{id:string;title:string;category:string;priceAmount:number|null;currency:string|null;priceUnit:string|null}[] };
 const categories=['Groceries & Daily Needs','Vegetables & Fruits','Medical Shops & Pharmacy','Food, Bakery & Sweets','Clothing & Footwear','Mobile & Electronics','Electrical & Hardware','Home & Kitchen','Building Materials','Vehicle Spares','Stationery & Books','Beauty & Personal Care','Agriculture & Garden','Pet Supplies'];
@@ -116,6 +116,6 @@ export default function MyShopsDiscovery() {
   </main>;
 }
 
-const field:React.CSSProperties={width:'100%',boxSizing:'border-box',padding:'13px 14px',border:'1px solid #d0d5dd',borderRadius:12,background:'#fff',color:'#172033',font:'inherit'};
+const field:CSSProperties={width:'100%',boxSizing:'border-box',padding:'13px 14px',border:'1px solid #d0d5dd',borderRadius:12,background:'#fff',color:'#172033',font:'inherit'};
 const primaryButton:React.CSSProperties={border:0,borderRadius:999,padding:'11px 17px',background:'#176b4d',color:'#fff',fontWeight:750,cursor:'pointer'};
 function chip(active:boolean):React.CSSProperties{return{border:'1px solid '+(active?'#263c91':'#d0d5dd'),borderRadius:999,padding:'8px 12px',background:active?'#263c91':'#fff',color:active?'#fff':'#344054',fontSize:12,cursor:'pointer'}}
