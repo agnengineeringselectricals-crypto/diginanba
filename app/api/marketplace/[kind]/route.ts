@@ -50,6 +50,7 @@ async function userId(){const s=await auth();return s?.user?.id||null;}
 export async function GET(request:Request, context:{params:Promise<{kind:string}>}) {
  const {kind}=await context.params;if(!kinds.has(kind as Kind))return NextResponse.json({error:'Unknown marketplace area.'},{status:404});
  const user=await userId();const url=new URL(request.url);const q=(url.searchParams.get('q')||'').trim().slice(0,100);
+ const category=(url.searchParams.get('category')||'').trim().slice(0,100);const city=(url.searchParams.get('city')||'').trim().slice(0,120);
  try {
   if(kind==='shops'||kind==='services'||kind==='professionals'){
    const type=kind==='shops'?'shop':kind==='services'?'service':'professional';
@@ -57,8 +58,10 @@ export async function GET(request:Request, context:{params:Promise<{kind:string}
     COALESCE(json_agg(json_build_object('id',l.id,'title',l.title,'description',l.description,'category',l.category,'listingType',l.listing_type,'priceAmount',l.price_amount,'currency',l.currency,'priceUnit',l.price_unit)) FILTER(WHERE l.id IS NOT NULL),'[]') AS listings
     FROM marketplace_businesses b LEFT JOIN marketplace_listings l ON l.business_id=b.id AND l.listing_status='published'
     WHERE b.business_type=$1 AND b.listing_status='published' AND b.verification_status='verified'
-    AND ($2='' OR b.business_name ILIKE '%'||$2||'%' OR b.description ILIKE '%'||$2||'%' OR l.title ILIKE '%'||$2||'%')
-    GROUP BY b.id ORDER BY b.created_at DESC LIMIT 50`,[type,q]);
+    AND ($2='' OR b.business_name ILIKE '%'||$2||'%' OR b.description ILIKE '%'||$2||'%' OR l.title ILIKE '%'||$2||'%' OR l.category ILIKE '%'||$2||'%')
+    AND ($3='' OR EXISTS (SELECT 1 FROM marketplace_listings lc WHERE lc.business_id=b.id AND lc.listing_status='published' AND (lc.category ILIKE '%'||$3||'%' OR lc.title ILIKE '%'||$3||'%')))
+    AND ($4='' OR COALESCE(b.city,'') ILIKE '%'||$4||'%' OR COALESCE(b.locality,'') ILIKE '%'||$4||'%' OR COALESCE(b.district,'') ILIKE '%'||$4||'%')
+    GROUP BY b.id ORDER BY b.created_at DESC LIMIT 50`,[type,q,category,city]);
    return NextResponse.json({items:r.rows});
   }
   if(kind==='healthcare'){
