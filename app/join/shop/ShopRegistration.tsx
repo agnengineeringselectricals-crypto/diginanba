@@ -57,7 +57,7 @@ export default function ShopRegistration({ invitationCode }: { invitationCode: s
     e.preventDefault();setBusy(true);setNotice('');
     try {
       const response=await fetch('/api/marketplace/shops',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({
-        businessName:shopName,countryCode:country,regionCode,region:regionName,city,addressLine:address,phone:phone||undefined,email:email||undefined,
+        businessName:shopName,countryCode:country,regionCode,region:regionName,city,addressLine:address,phone:phone||undefined,email:email||undefined,invitationCode:invitationCode||undefined,
         latitude:coords?.lat,longitude:coords?.lng,description:''
       })});
       const data=await response.json();
