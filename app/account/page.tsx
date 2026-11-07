@@ -12,6 +12,7 @@ const destinations = [
   { icon: '🧾', title: 'Orders & purchases', description: 'Review your order history and payment status.', href: '/account/orders', action: 'View orders' },
   { icon: '❤️', title: 'Wishlist', description: 'Keep useful products saved for later.', href: '/account/wishlist', action: 'View wishlist' },
   { icon: '⚙️', title: 'Settings & preferences', description: 'Manage your region, language and display preferences.', href: '/account/settings', action: 'Manage settings' },
+  { icon: '🏪', title: 'My Shop Dashboard', description: 'Manage your shop, contact details and product listings.', href: '/account/my-shops', action: 'Manage my shops' },
   { icon: '🛍️', title: 'Creator Studio', description: 'Apply to create products and manage your product drafts.', href: '/seller/studio', action: 'Open studio' },
 ];
 export default async function AccountPage() {
