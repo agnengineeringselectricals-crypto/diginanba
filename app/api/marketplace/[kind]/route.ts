@@ -67,7 +67,7 @@ export async function GET(request:Request, context:{params:Promise<{kind:string}
     const saved=await db.query(`SELECT b.id,b.public_id,b.business_name,b.city,b.locality,b.average_rating,b.rating_count
       FROM marketplace_regular_shops s JOIN marketplace_businesses b ON b.id=s.business_id
       WHERE s.user_id=$1 AND b.listing_status='published' ORDER BY s.created_at DESC LIMIT 30`,[user]);
-    regularShops=s.rows;
+    regularShops=saved.rows;
    }
    return NextResponse.json({items:r.rows,regularShops});
   }
