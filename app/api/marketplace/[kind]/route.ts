@@ -67,14 +67,20 @@ export async function GET(request:Request, context:{params:Promise<{kind:string}
   if(kind==='healthcare'){
    const r=await db.query(`SELECT id,provider_type,display_name,specialty,qualifications,consultation_modes,languages,country_code,region,district,city,locality,clinic_address,public_phone
     FROM healthcare_provider_profiles WHERE verification_status='verified' AND profile_visibility='public'
-    AND ($1='' OR display_name ILIKE '%'||$1||'%' OR specialty ILIKE '%'||$1||'%') ORDER BY display_name LIMIT 50`,[q]);
+    AND ($1='' OR display_name ILIKE '%'||$1||'%' OR specialty ILIKE '%'||$1||'%' OR provider_type ILIKE '%'||$1||'%')
+    AND ($2='' OR provider_type ILIKE '%'||$2||'%' OR specialty ILIKE '%'||$2||'%')
+    AND ($3='' OR COALESCE(city,'') ILIKE '%'||$3||'%' OR COALESCE(locality,'') ILIKE '%'||$3||'%' OR COALESCE(district,'') ILIKE '%'||$3||'%')
+    ORDER BY display_name LIMIT 50`,[q,category,city]);
    return NextResponse.json({providers:r.rows});
   }
   if(kind==='career'){
    const jobs=await db.query(`SELECT j.id,j.title,j.description,j.skills,j.employment_type,j.experience_min,j.experience_max,j.salary_min,j.salary_max,j.salary_currency,j.country_code,j.region,j.district,j.city,e.company_name
     FROM marketplace_job_posts j JOIN employer_accounts e ON e.id=j.employer_account_id
-    WHERE j.status='published' AND e.verification_status='verified' AND ($1='' OR j.title ILIKE '%'||$1||'%' OR j.description ILIKE '%'||$1||'%' OR $1=ANY(j.skills))
-    ORDER BY j.created_at DESC LIMIT 50`,[q]);
+    WHERE j.status='published' AND e.verification_status='verified'
+    AND ($1='' OR j.title ILIKE '%'||$1||'%' OR j.description ILIKE '%'||$1||'%' OR $1=ANY(j.skills))
+    AND ($2='' OR j.title ILIKE '%'||$2||'%' OR $2=ANY(j.skills))
+    AND ($3='' OR COALESCE(j.city,'') ILIKE '%'||$3||'%' OR COALESCE(j.district,'') ILIKE '%'||$3||'%' OR COALESCE(j.region,'') ILIKE '%'||$3||'%')
+    ORDER BY j.created_at DESC LIMIT 50`,[q,category,city]);
    let own=null;if(user){const r=await db.query('SELECT id,full_name,headline,summary,skills,experience_years,preferred_roles,employment_types,profile_visibility,profile_status FROM candidate_profiles WHERE user_id=$1',[user]);own=r.rows[0]||null;}
    return NextResponse.json({jobs:jobs.rows,candidateProfile:own});
   }
