@@ -57,11 +57,11 @@ export async function GET(request:Request, context:{params:Promise<{kind:string}
    const r=await db.query(`SELECT b.id,b.public_id,b.business_name,b.description,b.country_code,b.region_code,b.region,b.district,b.city,b.locality,b.verification_status,b.average_rating,b.rating_count,
     COALESCE(json_agg(json_build_object('id',l.id,'title',l.title,'description',l.description,'category',l.category,'listingType',l.listing_type,'priceAmount',l.price_amount,'currency',l.currency,'priceUnit',l.price_unit)) FILTER(WHERE l.id IS NOT NULL),'[]') AS listings
     FROM marketplace_businesses b LEFT JOIN marketplace_listings l ON l.business_id=b.id AND l.listing_status='published'
-    WHERE b.business_type=$1 AND b.listing_status='published'
+    WHERE b.business_type=$1 AND b.listing_status='published' AND ($6 OR b.verification_status='verified')
     AND ($2='' OR b.business_name ILIKE '%'||$2||'%' OR b.description ILIKE '%'||$2||'%' OR l.title ILIKE '%'||$2||'%' OR l.category ILIKE '%'||$2||'%' OR replace(upper(COALESCE(b.public_id,'')),'-','')=$5)
     AND ($3='' OR EXISTS (SELECT 1 FROM marketplace_listings lc WHERE lc.business_id=b.id AND lc.listing_status='published' AND (lc.category ILIKE '%'||$3||'%' OR lc.title ILIKE '%'||$3||'%')))
     AND ($4='' OR COALESCE(b.city,'') ILIKE '%'||$4||'%' OR COALESCE(b.locality,'') ILIKE '%'||$4||'%' OR COALESCE(b.district,'') ILIKE '%'||$4||'%')
-    GROUP BY b.id ORDER BY b.created_at DESC LIMIT 50`,[type,q,category,city,publicIdQuery]);
+    GROUP BY b.id ORDER BY b.created_at DESC LIMIT 50`,[type,q,category,city,publicIdQuery,kind==='shops']);
    return NextResponse.json({items:r.rows});
   }
   if(kind==='healthcare'){
