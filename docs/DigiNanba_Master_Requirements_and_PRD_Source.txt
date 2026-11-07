@@ -234,7 +234,8 @@ IMPLEMENTATION STATUS (2026-11-07; feature branch only)
 - Added WhatsApp invitation endpoint and invitation attribution on shop registration.
 - Added minimal invited-shop registration page with optional contact fields, current-device geolocation pin capture and Google Maps pin link, immediate shop ID display, QR/link sharing and first-product form.
 - Added My Shops customer discovery UI with regular-shop row, live search by shop/product/ID, ratings when available, "New on DigiNanba" status and WhatsApp invitation action.
-- Added public shop profile route with catalogue and QR/link sharing; added save-to-regular-shops endpoint.\n- Added a signed-in Shop Owner Dashboard for managing shop listings and optional phone/email settings.
+- Added public shop profile route with catalogue and QR/link sharing; added save-to-regular-shops endpoint.
+- Added a signed-in Shop Owner Dashboard for managing shop listings and optional phone/email settings.
 - Shop registration currently asks the owner to select country and region from the available lists; current geolocation saves coordinates and opens Google Maps, but does not yet reverse-geocode the address/state automatically. Do not claim automatic address recognition is complete.
 - The first-product form and reusable owner dashboard product form are implemented for common shop categories; richer category-specific fields, order/enquiry messaging, genuine transaction-backed ratings and applying the shared ID system to all non-shop pillars remain further work.
 - Feature branch: feature/six-marketplace-pillars-foundation. Do not merge to production or apply the migration to the production database without the appropriate release and database approval gates.
