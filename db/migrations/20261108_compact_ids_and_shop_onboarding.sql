@@ -32,7 +32,7 @@ BEGIN
     RAISE EXCEPTION 'Public ID capacity reached for region %', v_region;
   END IF;
 
-  v_value := v_number - 1;
+  -- Affine permutation over 2^25: odd multiplier preserves uniqueness while making IDs less sequential.\n  v_value := (v_number * 1103515245 + 12345) % 33554432;
   FOR i IN 1..5 LOOP
     v_digit := (v_value % 32)::INTEGER;
     v_suffix := substr(v_alphabet, v_digit + 1, 1) || v_suffix;
