@@ -11,7 +11,7 @@ const businessSchema = z.object({
   phone:z.string().trim().max(40).optional(), email:z.union([z.string().email().max(254),z.literal('')]).optional(), websiteUrl:z.union([z.string().url().max(500),z.literal('')]).optional(),
   countryCode:z.string().length(2).default('IN'), regionCode:z.string().length(2).optional(), region:z.string().max(120).optional(), district:z.string().max(120).optional(),
   city:z.string().max(120).optional(), locality:z.string().max(120).optional(), postalCode:z.string().max(20).optional(),
-  addressLine:z.string().max(500).optional(), latitude:z.number().min(-90).max(90).optional(), longitude:z.number().min(-180).max(180).optional()
+  addressLine:z.string().max(500).optional(), latitude:z.number().min(-90).max(90).optional(), longitude:z.number().min(-180).max(180).optional(), invitationCode:z.string().max(64).optional()
 });
 const listingSchema=z.object({
   businessId:z.string().uuid(), title:z.string().trim().min(3).max(180), description:z.string().trim().max(5000).default(''),
@@ -62,7 +62,14 @@ export async function GET(request:Request, context:{params:Promise<{kind:string}
     AND ($3='' OR EXISTS (SELECT 1 FROM marketplace_listings lc WHERE lc.business_id=b.id AND lc.listing_status='published' AND (lc.category ILIKE '%'||$3||'%' OR lc.title ILIKE '%'||$3||'%')))
     AND ($4='' OR COALESCE(b.city,'') ILIKE '%'||$4||'%' OR COALESCE(b.locality,'') ILIKE '%'||$4||'%' OR COALESCE(b.district,'') ILIKE '%'||$4||'%')
     GROUP BY b.id ORDER BY b.created_at DESC LIMIT 50`,[type,q,category,city,publicIdQuery,kind==='shops']);
-   return NextResponse.json({items:r.rows});
+   let regularShops: unknown[] = [];
+   if(kind==='shops' && user) {
+    const saved=await db.query(`SELECT b.id,b.public_id,b.business_name,b.city,b.locality,b.average_rating,b.rating_count
+      FROM marketplace_regular_shops s JOIN marketplace_businesses b ON b.id=s.business_id
+      WHERE s.user_id=$1 AND b.listing_status='published' ORDER BY s.created_at DESC LIMIT 30`,[user]);
+    regularShops=s.rows;
+   }
+   return NextResponse.json({items:r.rows,regularShops});
   }
   if(kind==='healthcare'){
    const r=await db.query(`SELECT id,provider_type,display_name,specialty,qualifications,consultation_modes,languages,country_code,region,district,city,locality,clinic_address,public_phone
@@ -105,6 +112,14 @@ export async function POST(request:Request, context:{params:Promise<{kind:string
     : await db.query(`INSERT INTO marketplace_businesses(owner_user_id,business_name,business_type,description,phone,email,website_url,country_code,region,district,city,locality,postal_code,address_line)
       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING id,business_name,business_type,verification_status,listing_status`,
       [user,v.businessName,type,v.description,v.phone||null,v.email||null,v.websiteUrl||null,v.countryCode,v.region||null,v.district||null,v.city||null,v.locality||null,v.postalCode||null,v.addressLine||null]);
+   if(kind==='shops' && v.invitationCode) {
+    const invite=await db.query(`UPDATE marketplace_shop_invitations SET claimed_business_id=$2,status='registered',claimed_at=now()
+      WHERE invitation_code=$1 AND status IN ('sent','opened') AND expires_at>now()
+      RETURNING inviter_user_id`,[v.invitationCode,r.rows[0].id]);
+    if(invite.rowCount) {
+      await db.query(`INSERT INTO marketplace_regular_shops(user_id,business_id) VALUES($1,$2) ON CONFLICT DO NOTHING`,[invite.rows[0].inviter_user_id,r.rows[0].id]);
+    }
+   }
    return NextResponse.json({business:r.rows[0],message:kind==='shops'?'Your shop is registered and can start listing products now. Verification is separate and does not block basic listing.':'Profile saved as a draft. Complete verification before public listing.'},{status:201});
   }
   if(kind==='healthcare'){
