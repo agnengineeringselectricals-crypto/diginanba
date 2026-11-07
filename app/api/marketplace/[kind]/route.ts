@@ -117,7 +117,8 @@ export async function POST(request:Request, context:{params:Promise<{kind:string
       WHERE invitation_code=$1 AND status IN ('sent','opened') AND expires_at>now()
       RETURNING id,inviter_user_id`,[v.invitationCode,r.rows[0].id]);
     if(invite.rowCount) {
-      await db.query(`INSERT INTO marketplace_regular_shops(user_id,business_id) VALUES($1,$2) ON CONFLICT DO NOTHING`,[invite.rows[0].inviter_user_id,r.rows[0].id]);\n      await db.query(`UPDATE marketplace_shop_requests SET status='registered' WHERE invitation_id=$1`,[invite.rows[0].id]);
+      await db.query(`INSERT INTO marketplace_regular_shops(user_id,business_id) VALUES($1,$2) ON CONFLICT DO NOTHING`,[invite.rows[0].inviter_user_id,r.rows[0].id]);
+      await db.query(`UPDATE marketplace_shop_requests SET status='registered' WHERE invitation_id=$1`,[invite.rows[0].id]);
     }
    }
    return NextResponse.json({business:r.rows[0],message:kind==='shops'?'Your shop is registered and can start listing products now. Verification is separate and does not block basic listing.':'Profile saved as a draft. Complete verification before public listing.'},{status:201});
