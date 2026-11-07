@@ -829,3 +829,15 @@ a.ref-need:hover .ref-solution-link{text-decoration:underline}
 .product-rate-stars button.selected{color:#f59e0b}
 .product-rate-stars button:disabled{cursor:wait;opacity:.65}
 @media(max-width:600px){.product-rating-panel{align-items:flex-start;flex-direction:column}.product-rate-control{align-items:flex-start;flex-direction:column}}
+
+
+/* DigiNanba six-pillar marketplace navigation and discovery cards */
+.dn-marketplace-pillars{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.dn-marketplace-pillar{display:flex;min-height:174px;flex-direction:column;align-items:flex-start;justify-content:flex-start;gap:10px;padding:22px;border:1px solid #e2e8f0;border-radius:18px;text-decoration:none!important;box-shadow:0 5px 18px rgba(15,23,42,.055);transition:transform .18s ease,box-shadow .18s ease}
+.dn-marketplace-pillar:hover{transform:translateY(-3px);box-shadow:0 12px 28px rgba(15,23,42,.11)}
+.dn-marketplace-pillar>span{font-size:30px;line-height:1.1}
+.dn-marketplace-pillar strong{font-size:18px;line-height:1.25;color:#172033}
+.dn-marketplace-pillar small{font-size:13px;line-height:1.5;color:#475467}
+.dn-pillar-digital{background:#eef4ff}.dn-pillar-shops{background:#ecf8ef}.dn-pillar-services{background:#fff4e9}.dn-pillar-professionals{background:#f5efff}.dn-pillar-healthcare{background:#fff0f1;border-color:#f3cdd2}.dn-pillar-career{background:#fff7e9}
+@media(max-width:760px){.dn-marketplace-pillars{grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}.dn-marketplace-pillar{min-height:158px;padding:16px}.dn-marketplace-pillar strong{font-size:16px}}
+@media(max-width:420px){.dn-marketplace-pillars{grid-template-columns:1fr}.dn-marketplace-pillar{min-height:0}}
