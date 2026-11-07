@@ -1,3 +1,27 @@
-import MarketplaceCategoryPage from '@/components/MarketplaceCategoryPage';
+import CustomerDiscoveryPage from '@/components/CustomerDiscoveryPage';
+
 export const metadata = { title: 'My Shops' };
-export default function Page(){return <MarketplaceCategoryPage kind="shops" eyebrow="Local stores and products" title="My Shops" intro="Discover local shops and the everyday products you need, from home essentials to specialist hardware and building materials." examples={['Home and kitchen essentials','Groceries and daily needs','Electrical shops and supplies','Pipes, plumbing and sanitaryware','Iron, steel and hardware','Building and construction materials','Furniture and appliances','Motorcycle and vehicle spares']} providerLabel="Are you a shop owner?" note="Create your business account to prepare your shop profile and product catalogue for DigiNanba marketplace onboarding."/>}
+
+export default function Page() {
+  return <CustomerDiscoveryPage
+    kind="shops"
+    title="My Shops"
+    intro="Find the everyday shops you visit and the things you need nearby. You do not need to own a shop—browse groceries, vegetables, pharmacies, food stores and more."
+    categories={[
+      'Groceries & Daily Needs',
+      'Vegetables & Fruits',
+      'Medical Shops & Pharmacy',
+      'Food, Bakery & Sweets',
+      'Clothing & Footwear',
+      'Mobile & Electronics',
+      'Electrical & Hardware',
+      'Home & Kitchen',
+      'Building Materials',
+      'Vehicle Spares',
+      'Stationery & Books',
+      'Beauty & Personal Care',
+      'Agriculture & Garden',
+      'Pet Supplies',
+    ]}
+  />;
+}
