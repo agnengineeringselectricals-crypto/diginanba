@@ -69,6 +69,7 @@ const categoryMatches: Record<string, string[]> = {
   'Personal / Lifestyle': ['Personal / Lifestyle', 'Personal & Lifestyle'],
 };
 
+type ConnectedShop = { id: string; business_name: string; public_id: string | null; city: string | null; region: string | null; is_pinned: boolean };
 type Props = { initialProducts: CatalogProduct[]; initialMarket: Market };
 
 export default function HomePageClient({ initialProducts, initialMarket }: Props) {
@@ -90,6 +91,7 @@ export default function HomePageClient({ initialProducts, initialMarket }: Props
   const [languageCode, setLanguageCode] = useState('EN');
   const [countryFlag, setCountryFlag] = useState(initialMarket === 'IN' ? '🇮🇳' : initialMarket === 'UK' ? '🇬🇧' : '🇺🇸');
   const [selectedLanguage, setSelectedLanguage] = useState('English');
+  const [connectedShops, setConnectedShops] = useState<ConnectedShop[]>([]);
 
   useEffect(() => {
     const selected: Market = initialMarket;
@@ -120,6 +122,13 @@ export default function HomePageClient({ initialProducts, initialMarket }: Props
       .catch(() => undefined);
     return () => { cancelled = true; };
   }, [market]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (sessionStatus !== 'authenticated') { setConnectedShops([]); return; }
+    fetch('/api/marketplace/connections').then((response) => response.json()).then((data: { shops?: ConnectedShop[] }) => { if (!cancelled && Array.isArray(data.shops)) setConnectedShops(data.shops); }).catch(() => undefined);
+    return () => { cancelled = true; };
+  }, [sessionStatus]);
 
   useEffect(() => {
     const term = heroQuery.trim();
@@ -267,7 +276,15 @@ export default function HomePageClient({ initialProducts, initialMarket }: Props
 
     <main id="home">
 
-      <div className="ref-container"><ProductRequestWorkspace market={market} /></div>
+      <div className="ref-container">
+        {connectedShops.length > 0 && <section aria-label="Your connected shops" style={{margin:'0 0 12px',padding:'12px 14px',border:'1px solid #e4e7ec',borderRadius:14,background:'#fff'}}>
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10,marginBottom:9}}><strong style={{fontSize:14}}>Your shops</strong><Link href="/account" style={{fontSize:12}}>Manage all →</Link></div>
+          <div style={{display:'flex',gap:10,overflowX:'auto',paddingBottom:3}}>
+            {connectedShops.map(shop=><Link key={shop.id} href={'/shops?shop='+encodeURIComponent(shop.public_id||shop.id)} style={{flex:'0 0 auto',minWidth:150,maxWidth:220,padding:'10px 12px',border:'1px solid #e7ebf1',borderRadius:11,textDecoration:'none',color:'#172033',background:'#f8fafc'}}><strong style={{display:'block',fontSize:13}}>{shop.business_name}</strong><span style={{display:'block',fontSize:11,color:'#667085',marginTop:3}}>{[shop.city,shop.region].filter(Boolean).join(', ')||shop.public_id||'Connected shop'}</span>{shop.is_pinned?<span style={{fontSize:10,color:'#176b4d'}}>★ Pinned</span>:null}</Link>)}
+          </div>
+        </section>}
+        <ProductRequestWorkspace market={market} />
+      </div>
 
       <section id="marketplace-pillars" className="ref-section" aria-labelledby="dn-pillars-title">
         <div className="ref-container">
