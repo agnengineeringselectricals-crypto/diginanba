@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect,useState,type CSSProperties,type FormEvent } from 'react';
+import ShopFulfilmentSettings from '@/app/components/ShopFulfilmentSettings';
 
-type Shop={id:string;public_id:string;business_name:string;country_code:string;phone:string|null;email:string|null;city:string|null;region:string|null;verification_status:string;listings:{id:string;title:string;category:string;priceAmount:number|null;currency:string|null;priceUnit:string|null;availability:string}[]};
+type Shop={id:string;public_id:string;business_name:string;country_code:string;phone:string|null;email:string|null;city:string|null;region:string|null;verification_status:string;door_delivery_enabled:boolean;self_collection_enabled:boolean;listings:{id:string;title:string;category:string;priceAmount:number|null;currency:string|null;priceUnit:string|null;availability:string}[]};
 const field:CSSProperties={width:'100%',boxSizing:'border-box',padding:'11px 12px',border:'1px solid #d0d5dd',borderRadius:10,font:'inherit',background:'#fff'};
 const button:CSSProperties={border:0,borderRadius:999,padding:'11px 16px',background:'#176b4d',color:'#fff',fontWeight:750,cursor:'pointer'};
 
@@ -51,6 +52,7 @@ export default function MyShopsManager(){
    <button type="button" disabled={busy} onClick={createCustomerInvite} style={button}>{busy?'Creating…':'Create customer invitation link'}</button>
    {invitationLink?<><div style={{padding:10,background:'#f8fafc',borderRadius:8,overflowWrap:'anywhere',fontSize:13}}>{invitationLink}</div><div style={{display:'flex',gap:8,flexWrap:'wrap'}}><button type="button" onClick={()=>navigator.clipboard.writeText(invitationLink)} style={button}>Copy link</button><a href={'https://wa.me/?text='+encodeURIComponent('You are invited to connect with '+current.business_name+' on DigiNanba: '+invitationLink)} target="_blank" rel="noreferrer" style={{...button,textDecoration:'none'}}>Share on WhatsApp</a><a href={'sms:?body='+encodeURIComponent('You are invited to connect with '+current.business_name+' on DigiNanba: '+invitationLink)} style={{...button,textDecoration:'none'}}>Share by SMS</a></div></>:null}
   </section>
+  <ShopFulfilmentSettings businessId={current.id} initialDelivery={current.door_delivery_enabled} initialPickup={current.self_collection_enabled}/>
   <form onSubmit={saveContact} style={{marginTop:16,padding:18,border:'1px solid #e4e7ec',borderRadius:16,display:'grid',gap:12}}>
    <h2 style={{margin:0,fontSize:20}}>Shop Owner Profile Settings</h2><p style={{margin:0,color:'#667085',fontSize:13}}>Phone and email are optional. You can add or update them whenever you wish.</p>
    <label style={{display:'grid',gap:5,fontSize:14}}>Phone number<input type="tel" value={phone} onChange={e=>setPhone(e.target.value)} style={field}/></label>
