@@ -11,7 +11,7 @@ export async function GET() {
   try{
     const result=await db.query(
       `SELECT b.id,b.public_id,b.business_name,b.country_code,b.region_code,b.region,b.city,b.locality,b.address_line,b.phone,b.email,b.verification_status,b.average_rating,b.rating_count,b.door_delivery_enabled,b.self_collection_enabled,b.default_delivery_fee,
-       COALESCE(json_agg(json_build_object('id',l.id,'title',l.title,'category',l.category,'priceAmount',l.price_amount,'currency',l.currency,'priceUnit',l.price_unit,'availability',l.availability_status)) FILTER(WHERE l.id IS NOT NULL),'[]') AS listings
+       COALESCE(json_agg(json_build_object('id',l.id,'title',l.title,'category',l.category,'priceAmount',COALESCE(l.customer_price_amount,l.price_amount),'mrpAmount',COALESCE(l.mrp_amount,l.price_amount),'maxDiscountAmount',l.max_discount_amount,'currency',l.currency,'priceUnit',l.price_unit,'availability',l.availability_status)) FILTER(WHERE l.id IS NOT NULL),'[]') AS listings
        FROM marketplace_businesses b LEFT JOIN marketplace_listings l ON l.business_id=b.id
        WHERE b.owner_user_id=$1 AND b.business_type='shop'
        GROUP BY b.id ORDER BY b.created_at DESC`,
