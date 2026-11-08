@@ -22,7 +22,7 @@ export function calculateShopProductPrice(input:{
   const discountCapacity=Math.max(0,maxDiscount-feeFloor);
   const ratio=Math.min(1,Math.max(0,Number(p.discount_capture_ratio??1)));
   const customerDiscount=money(discountCapacity*ratio);
-  const nanbaFee=money(maxDiscount-customerDiscount);
+  const nanbaFee=money(Math.max(feeFloor,maxDiscount-customerDiscount));
   const customerPrice=money(protectedPayout+nanbaFee);
   return {protectedPayout,customerDiscount,nanbaFee,customerPrice,feeFloor};
 }
