@@ -13,7 +13,7 @@ export function calculateShopProductPrice(input:{
 }) {
   const money=(n:number)=>Math.round((n+Number.EPSILON)*100)/100;
   const p=input.policy;
-  const operating=Number(p.api_cost_per_order||0)+Number(p.database_cost_per_order||0)+Number(p.hosting_cost_per_order||0);
+  const operating=Number(p.operating_cost_per_order||0)+Number(p.api_cost_per_order||0)+Number(p.database_cost_per_order||0)+Number(p.hosting_cost_per_order||0);
   const target=Math.max(Number(p.minimum_fee_amount||0),Number(p.minimum_fee_percent||0)*input.mrp/100,operating+Number(p.target_profit_per_order||0),0.01);
   const taxRate=Math.max(0,Number(p.service_tax_rate||0))/100;
   const feeFloor=money(target*(1+taxRate));
