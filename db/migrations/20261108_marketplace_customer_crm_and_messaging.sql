@@ -306,7 +306,7 @@ BEGIN
       ADD CONSTRAINT marketplace_offer_campaigns_approval_required_check
       CHECK (
         status NOT IN ('approved','scheduled','queued','sending')
-        OR (approved_at IS NOT NULL AND approved_by IS NOT NULL)
+        OR (approved_at IS NOT NULL)
       );
   END IF;
 END;
