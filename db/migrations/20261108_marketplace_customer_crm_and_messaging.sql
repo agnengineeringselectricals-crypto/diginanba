@@ -226,3 +226,69 @@ COMMENT ON TABLE marketplace_campaign_recipients IS
   'Campaign delivery queue and per-customer status; recipient eligibility must be rechecked immediately before dispatch.';
 COMMENT ON TABLE marketplace_message_events IS
   'Provider webhook events for WhatsApp/SMS/email delivery tracking.';
+
+
+-- Database-level send gate: recipients cannot be queued or marked sent unless
+-- the campaign has an explicit approval timestamp and the customer has active,
+-- purpose-specific consent for the exact channel.
+CREATE OR REPLACE FUNCTION enforce_marketplace_campaign_recipient_send_gate()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  v_campaign_channel TEXT;
+  v_campaign_purpose TEXT;
+  v_campaign_status TEXT;
+  v_campaign_approved_at TIMESTAMPTZ;
+  v_customer_status TEXT;
+  v_consent_status TEXT;
+BEGIN
+  IF NEW.status IN ('queued','sent') THEN
+    SELECT channel, purpose, status, approved_at
+      INTO v_campaign_channel, v_campaign_purpose, v_campaign_status, v_campaign_approved_at
+    FROM marketplace_offer_campaigns
+    WHERE id = NEW.campaign_id
+      AND account_id = NEW.account_id
+      AND owner_user_id = NEW.owner_user_id;
+
+    IF NOT FOUND
+       OR v_campaign_channel <> NEW.channel
+       OR v_campaign_status NOT IN ('approved','scheduled','queued','sending')
+       OR v_campaign_approved_at IS NULL THEN
+      RAISE EXCEPTION 'Campaign must be explicitly approved and active before sending';
+    END IF;
+
+    SELECT status INTO v_customer_status
+    FROM marketplace_customers
+    WHERE id = NEW.customer_id
+      AND account_id = NEW.account_id
+      AND owner_user_id = NEW.owner_user_id;
+
+    IF v_customer_status IS DISTINCT FROM 'active' THEN
+      RAISE EXCEPTION 'Customer is not eligible to receive messages';
+    END IF;
+
+    SELECT consent_status INTO v_consent_status
+    FROM marketplace_customer_channel_consents
+    WHERE customer_id = NEW.customer_id
+      AND account_id = NEW.account_id
+      AND owner_user_id = NEW.owner_user_id
+      AND channel = NEW.channel
+      AND purpose = v_campaign_purpose;
+
+    IF v_consent_status IS DISTINCT FROM 'granted' THEN
+      RAISE EXCEPTION 'Current customer consent is required before queueing or sending';
+    END IF;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS marketplace_campaign_recipient_send_gate
+  ON marketplace_campaign_recipients;
+CREATE TRIGGER marketplace_campaign_recipient_send_gate
+  BEFORE INSERT OR UPDATE OF status, campaign_id, customer_id, channel, account_id, owner_user_id
+  ON marketplace_campaign_recipients
+  FOR EACH ROW
+  EXECUTE FUNCTION enforce_marketplace_campaign_recipient_send_gate();
