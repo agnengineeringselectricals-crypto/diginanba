@@ -7,7 +7,7 @@ const schema=z.object({
  status:z.enum(['owner_reviewing','clarification_needed','confirmed','preparing','ready','completed','cancelled','rejected']).optional(),
  ownerNote:z.string().max(2000).optional(),
  confirmedFulfilmentAt:z.string().datetime().optional().nullable(),
- items:z.array(z.object({id:z.string().uuid(),availabilityStatus:z.enum(['available','unavailable','substitute_suggested']),unitPrice:z.number().nonnegative().max(100000000).nullable().optional(),ownerNote:z.string().max(500).optional()})).max(100).optional()
+ items:z.array(z.object({id:z.string().uuid().optional(),itemName:z.string().trim().min(1).max(240),quantity:z.number().positive().max(100000),unit:z.string().trim().min(1).max(40),availabilityStatus:z.enum(['available','unavailable','substitute_suggested']),unitPrice:z.number().nonnegative().max(100000000).nullable().optional(),ownerNote:z.string().max(500).optional()})).max(100).optional()
 });
 function esc(v:unknown){return String(v??'').replace(/[&<>"]/g,function(c){return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'} as Record<string,string>)[c];});}
 function makePdf(lines:string[]){
@@ -29,10 +29,16 @@ export async function PATCH(req:Request,{params}:{params:Promise<{orderId:string
   if(!found.rowCount){await client.query('ROLLBACK');return NextResponse.json({error:'Order request not found.'},{status:404});}
   const o=found.rows[0];
   if(input.items){for(const item of input.items){
-   const upd=await client.query("UPDATE marketplace_shop_order_items SET availability_status=$3,unit_price=CASE WHEN $4::numeric IS NULL THEN unit_price ELSE $4 END,line_total=CASE WHEN $3='available' AND COALESCE($4::numeric,unit_price) IS NOT NULL THEN quantity*COALESCE($4::numeric,unit_price) ELSE NULL END,owner_note=$5 WHERE id=$1 AND order_request_id=$2 RETURNING item_name,quantity,unit,availability_status,owner_note",[item.id,orderId,item.availabilityStatus,item.unitPrice??null,item.ownerNote||null]);
+   let upd;
+   if(item.id){
+    upd=await client.query("UPDATE marketplace_shop_order_items SET item_name=$3,quantity=$4,unit=$5,availability_status=$6,unit_price=CASE WHEN $7::numeric IS NULL THEN unit_price ELSE $7 END,line_total=CASE WHEN $6='available' AND COALESCE($7::numeric,unit_price) IS NOT NULL THEN $4*COALESCE($7::numeric,unit_price) ELSE NULL END,owner_note=$8 WHERE id=$1 AND order_request_id=$2 RETURNING item_name,quantity,unit,availability_status,owner_note",[item.id,orderId,item.itemName,item.quantity,item.unit,item.availabilityStatus,item.unitPrice??null,item.ownerNote||null]);
+   }else{
+    upd=await client.query("INSERT INTO marketplace_shop_order_items(order_request_id,item_name,quantity,unit,availability_status,unit_price,line_total,owner_note) VALUES($1,$2,$3,$4,$5,$6,CASE WHEN $5='available' AND $6 IS NOT NULL THEN $3*$6 ELSE NULL END,$7) RETURNING item_name,quantity,unit,availability_status,owner_note",[orderId,item.itemName,item.quantity,item.unit,item.availabilityStatus,item.unitPrice??null,item.ownerNote||null]);
+   }
    if(upd.rowCount&&item.availabilityStatus==='unavailable'){const x=upd.rows[0];const msg=x.item_name+' (requested quantity: '+x.quantity+' '+x.unit+') is currently unavailable.'+(x.owner_note?' '+x.owner_note:'');await client.query("INSERT INTO marketplace_chat_messages(conversation_id,sender_user_id,message_type,body,metadata) VALUES($1,$2,'order_update',$3,jsonb_build_object('orderRequestId',$4::text,'itemUnavailable',true))",[o.conversation_id,userId,msg,orderId]);}
    if(upd.rowCount&&item.availabilityStatus==='substitute_suggested'){const x=upd.rows[0];const msg='For '+x.item_name+', the shop suggests an alternative.'+(x.owner_note?' '+x.owner_note:'')+' Please reply in chat if you would like to accept it.';await client.query("INSERT INTO marketplace_chat_messages(conversation_id,sender_user_id,message_type,body,metadata) VALUES($1,$2,'order_update',$3,jsonb_build_object('orderRequestId',$4::text,'substituteSuggested',true))",[o.conversation_id,userId,msg,orderId]);}
   }}
+
   const sum=await client.query("SELECT COALESCE(SUM(line_total),0)::numeric AS subtotal FROM marketplace_shop_order_items WHERE order_request_id=$1",[orderId]);
   const subtotal=Number(sum.rows[0].subtotal||0),delivery=Number(o.delivery_fee||0),tax=Number(o.tax_amount||0),total=subtotal+delivery+tax;
   const status=input.status||o.status;
