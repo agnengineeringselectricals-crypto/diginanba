@@ -87,7 +87,8 @@ export default function ShopRegistration({ invitationCode }: { invitationCode: s
       })});
       const data=await response.json();
       if(!response.ok) throw new Error(data.error||'Could not register the shop.');
-      setBusiness(data.business);setNotice(data.message||'Your shop is registered. You can start adding products.');
+      setBusiness(data.business);setNotice(data.message||'Your shop is registered.');
+      if(data.redirectTo){window.location.assign(data.redirectTo);return;}
     } catch(error) { setNotice(error instanceof Error?error.message:'Could not register the shop. Please try again.'); }
     finally {setBusy(false);}
   }
@@ -134,7 +135,7 @@ export default function ShopRegistration({ invitationCode }: { invitationCode: s
       <label style={{display:'grid',gap:6,fontWeight:650,fontSize:14}}>Shop address *
         <textarea required minLength={5} value={address} onChange={e=>setAddress(e.target.value)} placeholder="Door number, street, area and landmark" rows={3} style={{...field,resize:'vertical'}}/>
       </label>
-      <button type="button" onClick={useLocation} style={secondaryButton}>📍 Use my current location on Google Maps</button>
+      <button type="button" onClick={useLocation} style={secondaryButton}>📍 Use my current location</button>
       {coords ? <small style={{color:'#027a48'}}>Location pin saved: {coords.lat}, {coords.lng}</small> : null}
       <div style={{borderTop:'1px solid #eaecf0',paddingTop:13,display:'grid',gap:12}}>
         <strong>Contact details (optional)</strong>
