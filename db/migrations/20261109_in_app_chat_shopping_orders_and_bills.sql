@@ -86,7 +86,7 @@ CREATE TABLE IF NOT EXISTS marketplace_shop_order_requests (
   total_amount NUMERIC(14,2) NOT NULL DEFAULT 0 CHECK(total_amount>=0),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  CHECK(owner_user_id<>customer_user_id),
+  CHECK(owner_user_id<>customer_user_id)
 );
 CREATE INDEX IF NOT EXISTS marketplace_shop_orders_customer_idx ON marketplace_shop_order_requests(customer_user_id,created_at DESC);
 CREATE INDEX IF NOT EXISTS marketplace_shop_orders_owner_idx ON marketplace_shop_order_requests(owner_user_id,status,created_at DESC);
@@ -122,6 +122,6 @@ CREATE TABLE IF NOT EXISTS marketplace_shop_order_bills (
 CREATE INDEX IF NOT EXISTS marketplace_shop_order_bills_created_idx ON marketplace_shop_order_bills(created_at DESC);
 
 COMMENT ON TABLE marketplace_conversations IS 'Private DigiNanba in-app chat between a connected customer and workspace owner; no third-party messaging provider.';
-COMMENT ON TABLE marketplace_chat_attachments IS 'Private small-file attachment bytes; access only via authenticated conversation participant routes. Max 8 MiB per file.';
+COMMENT ON TABLE marketplace_chat_attachments IS 'Private small-file attachment bytes; access only via authenticated conversation participant routes. Max 4 MiB per file.';
 COMMENT ON TABLE marketplace_shop_order_requests IS 'Customer catalogue/custom handwritten-list order requests; owner confirmation is required before fulfilment is booked.';
 COMMENT ON TABLE marketplace_shop_order_bills IS 'Owner-issued itemized bill. Completion flow posts the bill into the same chat as a bill message and downloadable attachment.';
