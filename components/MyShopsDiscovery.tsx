@@ -13,6 +13,8 @@ export default function MyShopsDiscovery() {
   const [regular,setRegular]=useState<Shop[]>([]);
   const [loading,setLoading]=useState(false);
   const [notice,setNotice]=useState('');
+  const [inviteChannel,setInviteChannel]=useState<'whatsapp'|'email'|'other'>('whatsapp');
+  const [inviteContact,setInviteContact]=useState('');
   const [error,setError]=useState('');
 
   useEffect(()=>{
@@ -35,20 +37,36 @@ export default function MyShopsDiscovery() {
   },[query,city,category]);
 
   async function inviteShop(){
+    const contact=inviteContact.trim();
+    if(inviteChannel==='whatsapp'&&!contact){setNotice('Enter the shop owner’s WhatsApp number, including country code.');return;}
+    if(inviteChannel==='email'&&!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(contact)){setNotice('Enter a valid email address for the shop owner.');return;}
+    const phoneDigits=contact.replace(/\\D/g,'');
+    if(inviteChannel==='whatsapp'&&(phoneDigits.length<7||phoneDigits.length>15)){setNotice('Enter a valid phone number with country code.');return;}
     setNotice('Creating your invitation…');
-    const shareWindow=window.open('about:blank','_blank');
+    const shareWindow=inviteChannel==='whatsapp'?window.open('about:blank','_blank'):null;
     try{
       const response=await fetch('/api/marketplace/shop-invitations',{method:'POST'});
       const data=await response.json();
       if(!response.ok)throw new Error(data.error||'Please sign in to invite a shop.');
       const link=window.location.origin+data.invitationPath;
-      const message='Hello! I use DigiNanba to discover and connect with local shops. It would be great to find your shop there too. You can add your shop using this simple link: '+link;
-      const whatsapp='https://wa.me/?text='+encodeURIComponent(message);
-      if(shareWindow)shareWindow.location.href=whatsapp;
-      else if(navigator.share)await navigator.share({title:'Join DigiNanba',text:message,url:link});
-      else window.location.href=whatsapp;
-      setNotice('Your WhatsApp invitation is ready. Choose the shop owner and send it.');
-    }catch(e){if(shareWindow)shareWindow.close();setNotice(e instanceof Error?e.message:'Could not create the invitation.');}
+      const message='Hello! I use DigiNanba to discover and connect with local shops. I would love to see your shop listed there. Join DigiNanba using this link: '+link;
+      if(inviteChannel==='whatsapp'){
+        const whatsapp='https://wa.me/'+phoneDigits+'?text='+encodeURIComponent(message);
+        if(shareWindow)shareWindow.location.href=whatsapp;else window.location.href=whatsapp;
+        setNotice('WhatsApp opened with the invitation addressed to '+contact+'. Review and send the message.');
+      }else if(inviteChannel==='email'){
+        window.location.href='mailto:'+encodeURIComponent(contact)+'?subject='+encodeURIComponent('Join DigiNanba — let customers find your shop')+'&body='+encodeURIComponent(message);
+        setNotice('Your email app is opening with the invitation addressed to '+contact+'.');
+      }else{
+        if(navigator.share)await navigator.share({title:'Join DigiNanba',text:message,url:link});
+        else{await navigator.clipboard.writeText(message);setNotice('Invitation copied. Paste it into WhatsApp or your preferred social app.');return;}
+        setNotice('Choose your preferred social or messaging app and send the invitation.');
+      }
+    }catch(e){
+      if(shareWindow)shareWindow.close();
+      if(e instanceof Error&&e.name==='AbortError'){setNotice('Sharing cancelled.');return;}
+      setNotice(e instanceof Error?e.message:'Could not create the invitation.');
+    }
   }
 
   return <main style={{maxWidth:1160,margin:'0 auto',padding:'34px 20px 76px',color:'#172033'}}>
@@ -71,10 +89,19 @@ export default function MyShopsDiscovery() {
       </div>:<div style={{border:'1px dashed #d0d5dd',borderRadius:14,padding:17,color:'#667085',fontSize:14}}>Your regular shops will appear here. Search for a shop below and save it, or invite your regular shop owner to join DigiNanba.</div>}
     </section>
 
-    <section style={{margin:'0 0 20px',padding:'14px 16px',border:'1px solid #b7dfca',borderRadius:16,background:'#f1faf5',display:'flex',justifyContent:'space-between',alignItems:'center',gap:12,flexWrap:'wrap'}}>
-      <div><strong style={{display:'block',color:'#145c3f'}}>Your regular shop isn't listed?</strong><span style={{fontSize:13,color:'#526b5e'}}>Invite the shop owner to join DigiNanba. It only takes a moment.</span></div>
-      <button type="button" onClick={inviteShop} style={primaryButton}>Invite a Shop on WhatsApp</button>
-      {notice?<p role="status" style={{width:'100%',margin:'2px 0 0',fontSize:13,color:'#475467'}}>{notice}</p>:null}
+    <section id="invite-shop-panel" style={{margin:'0 0 20px',padding:'16px',border:'1px solid #b7dfca',borderRadius:16,background:'linear-gradient(135deg,#f1faf5,#fff)',display:'grid',gap:11}}>
+      <div><strong style={{display:'block',color:'#145c3f',fontSize:17}}>Can't find your regular shop? Invite them to DigiNanba.</strong><span style={{fontSize:13,color:'#526b5e'}}>Enter the shop owner's WhatsApp number or email, or share through another social app.</span></div>
+      <div style={{display:'grid',gridTemplateColumns:'minmax(130px,.7fr) minmax(190px,1.3fr)',gap:9}}>
+        <select aria-label="Invitation method" value={inviteChannel} onChange={e=>setInviteChannel(e.target.value as 'whatsapp'|'email'|'other')} style={field}>
+          <option value="whatsapp">WhatsApp</option><option value="email">Email</option><option value="other">Other social apps</option>
+        </select>
+        {inviteChannel!=='other'?<input aria-label={inviteChannel==='whatsapp'?'Shop owner WhatsApp number':'Shop owner email address'} type={inviteChannel==='email'?'email':'tel'} value={inviteContact} onChange={e=>setInviteContact(e.target.value)} placeholder={inviteChannel==='whatsapp'?'Phone with country code (e.g. +91…)':'Shop owner email address'} style={field}/>:<div style={{...field,display:'flex',alignItems:'center',color:'#667085',fontSize:13}}>Opens your device's share options</div>}
+      </div>
+      <div style={{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap'}}>
+        <button type="button" onClick={inviteShop} style={primaryButton}>Invite shop owner {inviteChannel==='whatsapp'?'on WhatsApp':inviteChannel==='email'?'by Email':'via social apps'}</button>
+        <span style={{fontSize:12,color:'#667085'}}>The owner reviews and sends the invitation; nothing is sent automatically.</span>
+      </div>
+      {notice?<p role="status" style={{margin:0,fontSize:13,color:'#475467'}}>{notice}</p>:null}
     </section>
 
     <section style={{padding:'clamp(18px,3vw,26px)',border:'1px solid #e4e7ec',borderRadius:20,background:'linear-gradient(135deg,#f7f9ff,#fff 70%)',boxShadow:'0 8px 24px rgba(16,24,40,.04)'}}>
@@ -95,6 +122,10 @@ export default function MyShopsDiscovery() {
         <span style={{fontSize:12,color:'#667085'}}>{loading?'Searching…':items.length+' shops'}</span>
       </div>
       {error?<p role="alert" style={{color:'#b42318'}}>{error}</p>:null}
+      {!loading&&query.trim()&&!items.length&&!error?<div style={{marginTop:14,padding:14,border:'1px dashed #b7dfca',borderRadius:14,background:'#f7fcf8'}}>
+        <strong>Shop not listed on DigiNanba yet?</strong>
+        <p style={{margin:'5px 0 0',fontSize:13,color:'#526b5e'}}>You can invite the owner directly using the WhatsApp number or email box above.</p>
+      </div>:null}
       <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(min(100%,280px),1fr))',gap:13,marginTop:14}}>
         {items.map(shop=><article key={shop.id} style={{border:'1px solid #e4e7ec',borderRadius:16,padding:17,background:'#fff',display:'grid',gap:8}}>
           <div style={{display:'flex',justifyContent:'space-between',gap:8}}>
