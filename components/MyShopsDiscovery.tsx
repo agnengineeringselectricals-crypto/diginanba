@@ -13,8 +13,9 @@ export default function MyShopsDiscovery() {
   const [regular,setRegular]=useState<Shop[]>([]);
   const [loading,setLoading]=useState(false);
   const [notice,setNotice]=useState('');
-  const [inviteChannel,setInviteChannel]=useState<'whatsapp'|'email'|'other'>('whatsapp');
+  const [inviteChannel,setInviteChannel]=useState<'whatsapp'|'email'|'x'|'instagram'|'facebook'|'telegram'>('whatsapp');
   const [inviteContact,setInviteContact]=useState('');
+  const [countryDialCode,setCountryDialCode]=useState('+91');
   const [error,setError]=useState('');
 
   useEffect(()=>{
@@ -38,10 +39,11 @@ export default function MyShopsDiscovery() {
 
   async function inviteShop(){
     const contact=inviteContact.trim();
-    if(inviteChannel==='whatsapp'&&!contact){setNotice('Enter the shop owner’s WhatsApp number, including country code.');return;}
+    if(inviteChannel==='whatsapp'){
+      const localDigits=contact.replace(/\\D/g,'');
+      if(localDigits.length!==10){setNotice('Enter the 10-digit mobile number. Select the country code separately.');return;}
+    }
     if(inviteChannel==='email'&&!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(contact)){setNotice('Enter a valid email address for the shop owner.');return;}
-    const phoneDigits=contact.replace(/\\D/g,'');
-    if(inviteChannel==='whatsapp'&&(phoneDigits.length<7||phoneDigits.length>15)){setNotice('Enter a valid phone number with country code.');return;}
     setNotice('Creating your invitation…');
     const shareWindow=inviteChannel==='whatsapp'?window.open('about:blank','_blank'):null;
     try{
@@ -50,17 +52,28 @@ export default function MyShopsDiscovery() {
       if(!response.ok)throw new Error(data.error||'Please sign in to invite a shop.');
       const link=window.location.origin+data.invitationPath;
       const message='Hello! I use DigiNanba to discover and connect with local shops. I would love to see your shop listed there. Join DigiNanba using this link: '+link;
+      const encodedMessage=encodeURIComponent(message);
       if(inviteChannel==='whatsapp'){
-        const whatsapp='https://wa.me/'+phoneDigits+'?text='+encodeURIComponent(message);
+        const fullPhone=countryDialCode.replace(/\\D/g,'')+contact.replace(/\\D/g,'');
+        const whatsapp='https://wa.me/'+fullPhone+'?text='+encodedMessage;
         if(shareWindow)shareWindow.location.href=whatsapp;else window.location.href=whatsapp;
-        setNotice('WhatsApp opened with the invitation addressed to '+contact+'. Review and send the message.');
+        setNotice('WhatsApp opened with the invitation addressed to '+countryDialCode+' '+contact+'. Review and send the message.');
       }else if(inviteChannel==='email'){
-        window.location.href='mailto:'+encodeURIComponent(contact)+'?subject='+encodeURIComponent('Join DigiNanba — let customers find your shop')+'&body='+encodeURIComponent(message);
+        window.location.href='mailto:'+contact+'?subject='+encodeURIComponent('Join DigiNanba — let customers find your shop')+'&body='+encodedMessage;
         setNotice('Your email app is opening with the invitation addressed to '+contact+'.');
+      }else if(inviteChannel==='x'){
+        window.open('https://twitter.com/intent/tweet?text='+encodedMessage,'_blank','noopener,noreferrer');
+        setNotice('X (Twitter) opened with your invitation ready to post.');
+      }else if(inviteChannel==='facebook'){
+        window.open('https://www.facebook.com/sharer/sharer.php?u='+encodeURIComponent(link)+'&quote='+encodedMessage,'_blank','noopener,noreferrer');
+        setNotice('Facebook opened with your DigiNanba invitation link ready to share.');
+      }else if(inviteChannel==='telegram'){
+        window.open('https://t.me/share/url?url='+encodeURIComponent(link)+'&text='+encodedMessage,'_blank','noopener,noreferrer');
+        setNotice('Telegram opened with your invitation ready to share.');
       }else{
         if(navigator.share)await navigator.share({title:'Join DigiNanba',text:message,url:link});
-        else{await navigator.clipboard.writeText(message);setNotice('Invitation copied. Paste it into WhatsApp or your preferred social app.');return;}
-        setNotice('Choose your preferred social or messaging app and send the invitation.');
+        else{await navigator.clipboard.writeText(message);setNotice('Invitation copied. Paste it into Instagram to share with the shop owner.');return;}
+        setNotice('Choose Instagram from your device share options and send the invitation.');
       }
     }catch(e){
       if(shareWindow)shareWindow.close();
@@ -90,15 +103,20 @@ export default function MyShopsDiscovery() {
     </section>
 
     <section id="invite-shop-panel" style={{margin:'0 0 20px',padding:'16px',border:'1px solid #b7dfca',borderRadius:16,background:'linear-gradient(135deg,#f1faf5,#fff)',display:'grid',gap:11}}>
-      <div><strong style={{display:'block',color:'#145c3f',fontSize:17}}>Can't find your regular shop? Invite them to DigiNanba.</strong><span style={{fontSize:13,color:'#526b5e'}}>Enter the shop owner's WhatsApp number or email, or share through another social app.</span></div>
+      <div><strong style={{display:'block',color:'#145c3f',fontSize:17}}>Can't find your regular shop? Invite them to DigiNanba.</strong><span style={{fontSize:13,color:'#526b5e'}}>Choose where to share the invitation. For WhatsApp, enter the owner's 10-digit mobile number and select the country code.</span></div>
       <div style={{display:'grid',gridTemplateColumns:'minmax(130px,.7fr) minmax(190px,1.3fr)',gap:9}}>
-        <select aria-label="Invitation method" value={inviteChannel} onChange={e=>setInviteChannel(e.target.value as 'whatsapp'|'email'|'other')} style={field}>
-          <option value="whatsapp">WhatsApp</option><option value="email">Email</option><option value="other">Other social apps</option>
+        <select aria-label="Invitation method" value={inviteChannel} onChange={e=>setInviteChannel(e.target.value as 'whatsapp'|'email'|'x'|'instagram'|'facebook'|'telegram')} style={field}>
+          <option value="whatsapp">WhatsApp</option><option value="email">Email</option><option value="x">X (Twitter)</option><option value="instagram">Instagram</option><option value="facebook">Facebook</option><option value="telegram">Telegram</option>
         </select>
-        {inviteChannel!=='other'?<input aria-label={inviteChannel==='whatsapp'?'Shop owner WhatsApp number':'Shop owner email address'} type={inviteChannel==='email'?'email':'tel'} value={inviteContact} onChange={e=>setInviteContact(e.target.value)} placeholder={inviteChannel==='whatsapp'?'Phone with country code (e.g. +91…)':'Shop owner email address'} style={field}/>:<div style={{...field,display:'flex',alignItems:'center',color:'#667085',fontSize:13}}>Opens your device's share options</div>}
+        {inviteChannel==='whatsapp'?<div style={{display:'grid',gridTemplateColumns:'minmax(105px,.7fr) minmax(110px,1.3fr)',gap:8}}>
+          <select aria-label="Country calling code" value={countryDialCode} onChange={e=>setCountryDialCode(e.target.value)} style={field}>
+            <option value="+91">🇮🇳 +91</option><option value="+1">🇺🇸 +1</option><option value="+44">🇬🇧 +44</option><option value="+61">🇦🇺 +61</option><option value="+971">🇦🇪 +971</option><option value="+65">🇸🇬 +65</option><option value="+60">🇲🇾 +60</option><option value="+94">🇱🇰 +94</option><option value="+880">🇧🇩 +880</option><option value="+977">🇳🇵 +977</option><option value="+966">🇸🇦 +966</option><option value="+974">🇶🇦 +974</option><option value="+968">🇴🇲 +968</option><option value="+27">🇿🇦 +27</option><option value="+49">🇩🇪 +49</option><option value="+33">🇫🇷 +33</option><option value="+81">🇯🇵 +81</option><option value="+82">🇰🇷 +82</option><option value="+86">🇨🇳 +86</option><option value="+64">🇳🇿 +64</option>
+          </select>
+          <input aria-label="Shop owner's 10-digit mobile number" type="tel" inputMode="numeric" maxLength={10} value={inviteContact} onChange={e=>setInviteContact(e.target.value.replace(/\\D/g,'').slice(0,10))} placeholder="10-digit mobile number" style={field}/>
+        </div>:inviteChannel==='email'?<input aria-label="Shop owner email address" type="email" value={inviteContact} onChange={e=>setInviteContact(e.target.value)} placeholder="Shop owner email address" style={field}/>:<div style={{...field,display:'flex',alignItems:'center',color:'#667085',fontSize:13}}>{inviteChannel==='instagram'?'Instagram share via your device share options':inviteChannel==='x'?'Post invitation on X (Twitter)':inviteChannel==='facebook'?'Share invitation on Facebook':'Share invitation on Telegram'}</div>}
       </div>
       <div style={{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap'}}>
-        <button type="button" onClick={inviteShop} style={primaryButton}>Invite shop owner {inviteChannel==='whatsapp'?'on WhatsApp':inviteChannel==='email'?'by Email':'via social apps'}</button>
+        <button type="button" onClick={inviteShop} style={primaryButton}>Invite shop owner {inviteChannel==='whatsapp'?'on WhatsApp':inviteChannel==='email'?'by Email':inviteChannel==='x'?'on X':inviteChannel==='instagram'?'on Instagram':inviteChannel==='facebook'?'on Facebook':'on Telegram'}</button>
         <span style={{fontSize:12,color:'#667085'}}>The owner reviews and sends the invitation; nothing is sent automatically.</span>
       </div>
       {notice?<p role="status" style={{margin:0,fontSize:13,color:'#475467'}}>{notice}</p>:null}
@@ -124,7 +142,7 @@ export default function MyShopsDiscovery() {
       {error?<p role="alert" style={{color:'#b42318'}}>{error}</p>:null}
       {!loading&&query.trim()&&!items.length&&!error?<div style={{marginTop:14,padding:14,border:'1px dashed #b7dfca',borderRadius:14,background:'#f7fcf8'}}>
         <strong>Shop not listed on DigiNanba yet?</strong>
-        <p style={{margin:'5px 0 0',fontSize:13,color:'#526b5e'}}>You can invite the owner directly using the WhatsApp number or email box above.</p>
+        <p style={{margin:'5px 0 0',fontSize:13,color:'#526b5e'}}>You can invite the owner directly using the WhatsApp number, email, X, Instagram, Facebook or Telegram options above.</p>
       </div>:null}
       <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(min(100%,280px),1fr))',gap:13,marginTop:14}}>
         {items.map(shop=><article key={shop.id} style={{border:'1px solid #e4e7ec',borderRadius:16,padding:17,background:'#fff',display:'grid',gap:8}}>
