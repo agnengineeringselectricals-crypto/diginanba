@@ -74,7 +74,7 @@ export default function MyShopsManager(){
    <button disabled={busy} style={button}>Save contact settings</button>
   </form>
   <form onSubmit={addProduct} style={{marginTop:16,padding:18,border:'1px solid #e4e7ec',borderRadius:16,display:'grid',gap:12}}>
-   <h2 style={{margin:0,fontSize:20}}>Add a Product</h2>
+   <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:12,flexWrap:'wrap'}}><h2 style={{margin:0,fontSize:20}}>Add a Product</h2><label style={{display:'inline-flex',alignItems:'center',gap:8,padding:'9px 13px',border:'1px solid #d0d5dd',borderRadius:999,fontSize:13,fontWeight:700,cursor:busy?'not-allowed':'pointer',background:'#fff',color:'#344054'}}>Choose file<input type="file" accept=".csv,text/csv" disabled={busy} onChange={e=>{const file=e.currentTarget.files?.[0];if(file)void importCsv(file);e.currentTarget.value='';}} style={{display:'none'}}/></label></div>
    <label style={{display:'grid',gap:5,fontSize:14}}>Product name<input required minLength={3} value={product} onChange={e=>setProduct(e.target.value)} placeholder="Enter product name" style={field}/></label>
    <label style={{display:'grid',gap:5,fontSize:14}}>Category<select value={category} onChange={e=>setCategory(e.target.value)} style={field}>{['Groceries & Daily Needs','Vegetables & Fruits','Medical Shops & Pharmacy','Food, Bakery & Sweets','Clothing & Footwear','Mobile & Electronics','Electrical & Hardware','Home & Kitchen','Building Materials','Vehicle Spares','Stationery & Books','Beauty & Personal Care','Agriculture & Garden','Pet Supplies','Other'].map(x=><option key={x}>{x}</option>)}</select></label>
    <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:10}}>
@@ -84,13 +84,6 @@ export default function MyShopsManager(){
    </div>
    <button disabled={busy} style={button}>Add product to shop</button>
   </form>
-  <section style={{marginTop:16,padding:18,border:'1px solid #e4e7ec',borderRadius:16,display:'grid',gap:10}}>
-   <h2 style={{margin:0,fontSize:20}}>Upload Product Database</h2>
-   <p style={{margin:0,color:'#667085',fontSize:13}}>Upload up to 500 products at once using a CSV exported from Excel or Google Sheets. Required columns: Product, Category and MRP. Maximum Discount is optional and defaults to 0.</p>
-   <a href={'data:text/csv;charset=utf-8,'+encodeURIComponent('Product,Category,MRP,Max Disc,Unit,Description\\nExample product,Groceries & Daily Needs,100,20,piece,Product description')} download="diginanba-product-upload-template.csv" style={{...button,textDecoration:'none',textAlign:'center',width:'fit-content'}}>Download CSV template</a>
-   <label style={{display:'grid',gap:6,fontSize:14,fontWeight:650}}>Choose product database (.csv)<input type="file" accept=".csv,text/csv" disabled={busy} onChange={e=>{const file=e.currentTarget.files?.[0];if(file)void importCsv(file);e.currentTarget.value='';}} style={{...field,padding:8}}/></label>
-   <span style={{fontSize:12,color:'#667085'}}>For Excel files, use Save As → CSV (Comma delimited) before uploading. Each row is checked for a valid MRP and Maximum Discount before it is sent.</span>
-  </section>
   <section style={{marginTop:18}}><h2 style={{fontSize:20}}>Your Products</h2>{current.listings.map(p=><div key={p.id} style={{padding:'12px 0',borderBottom:'1px solid #eaecf0'}}><strong>{p.title}</strong><div style={{fontSize:12,color:'#667085'}}>{p.category}{p.mrpAmount!=null?' · MRP '+(p.currency||'')+' '+p.mrpAmount+(p.maxDiscountAmount!=null?' · Max Disc '+(p.currency||'')+' '+p.maxDiscountAmount:'') : p.priceAmount!=null?' · '+(p.currency||'')+' '+p.priceAmount:''}{p.priceUnit?' / '+p.priceUnit:''}</div></div>)}</section>
   </>:null}
   {message?<p role="status" style={{color:'#475467'}}>{message}</p>:null}
