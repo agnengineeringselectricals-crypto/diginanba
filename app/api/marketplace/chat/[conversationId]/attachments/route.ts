@@ -9,7 +9,7 @@ export async function POST(req:Request,{params}:{params:Promise<{conversationId:
  const form=await req.formData().catch(()=>null);const file=form?.get('file');
  if(!(file instanceof File))return NextResponse.json({error:'Choose a file to upload.'},{status:400});
  if(!allowed.has(file.type))return NextResponse.json({error:'Supported files: JPG, PNG, WEBP, PDF, DOCX, TXT, MP4 and WEBM.'},{status:415});
- if(file.size<1||file.size>8*1024*1024)return NextResponse.json({error:'Each attachment must be 8 MB or smaller.'},{status:413});
+ if(file.size<1||file.size>4*1024*1024)return NextResponse.json({error:'Each attachment must be 4 MB or smaller.'},{status:413});
  const bytes=Buffer.from(await file.arrayBuffer());
  const client=await db.connect();
  try{
