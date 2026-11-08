@@ -10,7 +10,7 @@ export async function GET() {
   if (!userId) return NextResponse.json({ shops: [] });
   try {
     const result = await db.query(
-      `SELECT b.id,b.business_name,b.public_id,b.city,b.region,c.is_pinned,c.connected_at
+      `SELECT b.id,b.business_name,b.public_id,b.city,b.region,b.country_code,b.door_delivery_enabled,b.self_collection_enabled,c.id AS connection_id,c.is_pinned,c.connected_at
        FROM marketplace_customer_workspace_connections c
        JOIN marketplace_customer_accounts a ON a.id=c.workspace_account_id
        JOIN marketplace_businesses b ON b.id=a.workspace_ref
