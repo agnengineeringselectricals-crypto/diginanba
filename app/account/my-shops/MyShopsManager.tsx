@@ -1,5 +1,7 @@
 'use client';
 
+import Link from 'next/link';
+import { signOut } from 'next-auth/react';
 import { useEffect,useState,type CSSProperties,type FormEvent } from 'react';
 import ShopFulfilmentSettings from '@/app/components/ShopFulfilmentSettings';
 
@@ -40,7 +42,16 @@ export default function MyShopsManager(){
  async function saveContact(e:FormEvent<HTMLFormElement>){e.preventDefault();if(!current)return;setBusy(true);setMessage('');try{const r=await fetch('/api/marketplace/shops/mine',{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({businessId:current.id,phone,email})});const d=await r.json();if(!r.ok)throw new Error(d.error||'Could not save.');setMessage(d.message);await load();}catch(e){setMessage(e instanceof Error?e.message:'Could not save.');}finally{setBusy(false);}}
  async function addProduct(e:FormEvent<HTMLFormElement>){e.preventDefault();if(!current)return;setBusy(true);setMessage('');try{const r=await fetch('/api/marketplace/shops',{method:'PUT',headers:{'content-type':'application/json'},body:JSON.stringify({businessId:current.id,title:product,description:'',category,listingType:'physical_product',priceAmount:price?Number(price):undefined,currency:price?currency:undefined,priceUnit:unit})});const d=await r.json();if(!r.ok)throw new Error(d.error||'Could not add product.');setProduct('');setPrice('');setMessage(d.message);await load();}catch(e){setMessage(e instanceof Error?e.message:'Could not add product.');}finally{setBusy(false);}}
  if(!shops.length)return <main style={{maxWidth:850,margin:'0 auto',padding:32}}><h1>My Shop Owner Dashboard</h1><p>You have not registered a shop yet.</p><a href="/join/shop" style={{color:'#2454c6'}}>Register your shop →</a>{message?<p>{message}</p>:null}</main>;
- return <main style={{maxWidth:900,margin:'0 auto',padding:'32px 18px 70px',color:'#172033'}}>
+ return <main style={{maxWidth:1100,margin:'0 auto',padding:'0 18px 70px',color:'#172033'}}>
+  <header style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:16,flexWrap:'wrap',padding:'16px 0',borderBottom:'1px solid #eaecf0',marginBottom:24}}>
+   <Link href="/" style={{display:'flex',alignItems:'center',gap:9,textDecoration:'none',color:'#172033',fontSize:23,fontWeight:850,letterSpacing:-.5}}><span style={{display:'grid',placeItems:'center',width:36,height:36,borderRadius:11,background:'#176b4d',color:'#fff',fontSize:19}}>D</span><span>DigiNanba</span></Link>
+   <nav aria-label="Main navigation" style={{display:'flex',alignItems:'center',gap:16,flexWrap:'wrap',fontSize:14,fontWeight:650}}>
+    <Link href="/explore" style={{color:'#344054',textDecoration:'none'}}>Explore</Link>
+    <Link href="/account" style={{color:'#344054',textDecoration:'none'}}>My Account</Link>
+    <Link href="/account/messages" style={{color:'#344054',textDecoration:'none'}}>Messages</Link>
+    <button type="button" onClick={()=>signOut({callbackUrl:'/'})} style={{border:'1px solid #d0d5dd',borderRadius:999,padding:'8px 14px',background:'#fff',color:'#344054',fontWeight:700,cursor:'pointer'}}>Sign out</button>
+   </nav>
+  </header>
   <h1 style={{fontSize:32,margin:'0 0 8px'}}>My Shop Dashboard</h1><p style={{color:'#667085',marginTop:0}}>Manage your shop details and product catalogue.</p>
   <label style={{display:'grid',gap:6,fontWeight:650}}>Choose shop<select value={selected} onChange={e=>choose(e.target.value)} style={field}>{shops.map(s=><option key={s.id} value={s.id}>{s.business_name} · {s.public_id}</option>)}</select></label>
   {current?<><section style={{marginTop:18,padding:18,border:'1px solid #e4e7ec',borderRadius:16}}>
