@@ -72,7 +72,7 @@ export default function ShopRegistration({ invitationCode }: { invitationCode: s
         const addressParts=[street,area,detectedCity,detectedState,a.postcode,a.country].filter((v,i,arr)=>Boolean(v)&&arr.indexOf(v)===i);
         const detectedAddress=addressParts.join(', ')||String(data.display_name||'');
         if(detectedAddress) setAddress(detectedAddress);
-        setNotice('Current location found. State, city and address have been filled in. Please review them before registering.');
+        setNotice('');
       } catch {
         setNotice('Location pin saved, but the address could not be looked up. Please enter the state, city and address manually.');
       }
@@ -136,7 +136,6 @@ export default function ShopRegistration({ invitationCode }: { invitationCode: s
         <textarea required minLength={5} value={address} onChange={e=>setAddress(e.target.value)} placeholder="Door number, street, area and landmark" rows={3} style={{...field,resize:'vertical'}}/>
       </label>
       <button type="button" onClick={useLocation} style={secondaryButton}>📍 Use my current location</button>
-      {coords ? <small style={{color:'#027a48'}}>Location pin saved: {coords.lat}, {coords.lng}</small> : null}
       <div style={{borderTop:'1px solid #eaecf0',paddingTop:13,display:'grid',gap:12}}>
         <strong>Contact details (optional)</strong>
         <label style={{display:'grid',gap:6,fontSize:14}}>Phone number
