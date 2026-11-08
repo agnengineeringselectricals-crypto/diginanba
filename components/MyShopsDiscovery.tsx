@@ -19,6 +19,15 @@ export default function MyShopsDiscovery() {
   const [error,setError]=useState('');
 
   useEffect(()=>{
+    const localeRegion=navigator.language.match(/-([A-Z]{2})(?:-|$)/i)?.[1]?.toUpperCase();
+    const timezone=Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const localeDialCodes:Record<string,string>={IN:'+91',US:'+1',CA:'+1',GB:'+44',AU:'+61',NZ:'+64',AE:'+971',SG:'+65',MY:'+60',LK:'+94',BD:'+880',NP:'+977',SA:'+966',QA:'+974',OM:'+968',ZA:'+27',DE:'+49',FR:'+33',JP:'+81',KR:'+82',CN:'+86',IE:'+353',IT:'+39',ES:'+34',NL:'+31',BE:'+32',CH:'+41',AT:'+43',SE:'+46',NO:'+47',DK:'+45',FI:'+358',BR:'+55',MX:'+52',ID:'+62',PH:'+63',TH:'+66',VN:'+84',PK:'+92',KW:'+965',BH:'+973',TR:'+90'};
+    const zoneDialCodes:Record<string,string>={'Asia/Kolkata':'+91','Asia/Colombo':'+94','Asia/Dhaka':'+880','Asia/Kathmandu':'+977','Asia/Dubai':'+971','Asia/Singapore':'+65','Asia/Kuala_Lumpur':'+60','Asia/Riyadh':'+966','Asia/Qatar':'+974','Asia/Muscat':'+968','Europe/London':'+44','Australia/Sydney':'+61','Pacific/Auckland':'+64'};
+    const detected=localeRegion?localeDialCodes[localeRegion]:undefined;
+    setCountryDialCode(detected||zoneDialCodes[timezone]||'+91');
+  },[]);
+
+  useEffect(()=>{
     let cancelled=false;
     const timer=setTimeout(async()=>{
       setLoading(true);setError('');
@@ -110,7 +119,7 @@ export default function MyShopsDiscovery() {
         </select>
         {inviteChannel==='whatsapp'?<div style={{display:'grid',gridTemplateColumns:'minmax(105px,.7fr) minmax(110px,1.3fr)',gap:8}}>
           <select aria-label="Country calling code" value={countryDialCode} onChange={e=>setCountryDialCode(e.target.value)} style={field}>
-            <option value="+91">🇮🇳 +91</option><option value="+1">🇺🇸 +1</option><option value="+44">🇬🇧 +44</option><option value="+61">🇦🇺 +61</option><option value="+971">🇦🇪 +971</option><option value="+65">🇸🇬 +65</option><option value="+60">🇲🇾 +60</option><option value="+94">🇱🇰 +94</option><option value="+880">🇧🇩 +880</option><option value="+977">🇳🇵 +977</option><option value="+966">🇸🇦 +966</option><option value="+974">🇶🇦 +974</option><option value="+968">🇴🇲 +968</option><option value="+27">🇿🇦 +27</option><option value="+49">🇩🇪 +49</option><option value="+33">🇫🇷 +33</option><option value="+81">🇯🇵 +81</option><option value="+82">🇰🇷 +82</option><option value="+86">🇨🇳 +86</option><option value="+64">🇳🇿 +64</option>
+            <option value="+91">🇮🇳 +91</option><option value="+1">🇺🇸 +1</option><option value="+44">🇬🇧 +44</option><option value="+61">🇦🇺 +61</option><option value="+971">🇦🇪 +971</option><option value="+65">🇸🇬 +65</option><option value="+60">🇲🇾 +60</option><option value="+94">🇱🇰 +94</option><option value="+880">🇧🇩 +880</option><option value="+977">🇳🇵 +977</option><option value="+966">🇸🇦 +966</option><option value="+974">🇶🇦 +974</option><option value="+968">🇴🇲 +968</option><option value="+27">🇿🇦 +27</option><option value="+49">🇩🇪 +49</option><option value="+33">🇫🇷 +33</option><option value="+81">🇯🇵 +81</option><option value="+82">🇰🇷 +82</option><option value="+86">🇨🇳 +86</option><option value="+64">🇳🇿 +64</option><option value="+353">🇮🇪 +353</option><option value="+39">🇮🇹 +39</option><option value="+34">🇪🇸 +34</option><option value="+31">🇳🇱 +31</option><option value="+32">🇧🇪 +32</option><option value="+41">🇨🇭 +41</option><option value="+43">🇦🇹 +43</option><option value="+46">🇸🇪 +46</option><option value="+47">🇳🇴 +47</option><option value="+45">🇩🇰 +45</option><option value="+358">🇫🇮 +358</option><option value="+55">🇧🇷 +55</option><option value="+52">🇲🇽 +52</option><option value="+62">🇮🇩 +62</option><option value="+63">🇵🇭 +63</option><option value="+66">🇹🇭 +66</option><option value="+84">🇻🇳 +84</option><option value="+92">🇵🇰 +92</option><option value="+965">🇰🇼 +965</option><option value="+973">🇧🇭 +973</option><option value="+90">🇹🇷 +90</option>
           </select>
           <input aria-label="Shop owner's 10-digit mobile number" type="tel" inputMode="numeric" maxLength={10} value={inviteContact} onChange={e=>setInviteContact(e.target.value.replace(/\\D/g,'').slice(0,10))} placeholder="10-digit mobile number" style={field}/>
         </div>:inviteChannel==='email'?<input aria-label="Shop owner email address" type="email" value={inviteContact} onChange={e=>setInviteContact(e.target.value)} placeholder="Shop owner email address" style={field}/>:<div style={{...field,display:'flex',alignItems:'center',color:'#667085',fontSize:13}}>{inviteChannel==='instagram'?'Instagram share via your device share options':inviteChannel==='x'?'Post invitation on X (Twitter)':inviteChannel==='facebook'?'Share invitation on Facebook':'Share invitation on Telegram'}</div>}
