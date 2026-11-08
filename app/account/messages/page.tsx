@@ -1,0 +1,1 @@
+import {auth} from '@/lib/auth';import {redirect} from 'next/navigation';import MarketplaceChatInbox from '@/app/components/MarketplaceChatInbox';export default async function MessagesPage(){const s=await auth();if(!s?.user)redirect('/login?callbackUrl=%2Faccount%2Fmessages');return <MarketplaceChatInbox/>;}

@@ -1,0 +1,1 @@
+import {auth} from '@/lib/auth';import {redirect} from 'next/navigation';import MarketplaceOrderManager from '@/app/components/MarketplaceOrderManager';export default async function SellerOrdersPage(){const s=await auth();if(!s?.user)redirect('/login?callbackUrl=%2Fseller%2Forders');return <MarketplaceOrderManager/>;}

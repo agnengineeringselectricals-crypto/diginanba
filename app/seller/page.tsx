@@ -7,6 +7,8 @@ export default async function Seller() {
   if (!session?.user) redirect('/login?callbackUrl=%2Fseller');
 
   const tools = [
+    { icon: '💬', title: 'Customer messages', description: 'Chat with connected customers and receive photos, documents and custom shopping lists.', href: '/seller/messages', action: 'Open messages' },
+    { icon: '🧾', title: 'Shop order requests', description: 'Review item availability, prepare orders and automatically send itemized bills in chat.', href: '/seller/orders', action: 'Manage shop orders' },
     {
       icon: '🛠️',
       title: 'Creator Studio',
