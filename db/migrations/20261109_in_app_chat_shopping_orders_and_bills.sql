@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS marketplace_chat_attachments (
   uploaded_by UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   original_file_name TEXT NOT NULL CHECK(length(original_file_name) BETWEEN 1 AND 255),
   content_type TEXT NOT NULL,
-  size_bytes BIGINT NOT NULL CHECK(size_bytes BETWEEN 1 AND 8388608),
+  size_bytes BIGINT NOT NULL CHECK(size_bytes BETWEEN 1 AND 4194304),
   content_bytes BYTEA NOT NULL,
   purpose TEXT NOT NULL DEFAULT 'chat' CHECK(purpose IN ('chat','handwritten_list','bill','order_reference')),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -87,7 +87,6 @@ CREATE TABLE IF NOT EXISTS marketplace_shop_order_requests (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   CHECK(owner_user_id<>customer_user_id),
-  CHECK(fulfilment_method<>'delivery' OR requested_fulfilment_at IS NULL OR requested_fulfilment_at>now()-interval '1 day')
 );
 CREATE INDEX IF NOT EXISTS marketplace_shop_orders_customer_idx ON marketplace_shop_order_requests(customer_user_id,created_at DESC);
 CREATE INDEX IF NOT EXISTS marketplace_shop_orders_owner_idx ON marketplace_shop_order_requests(owner_user_id,status,created_at DESC);
