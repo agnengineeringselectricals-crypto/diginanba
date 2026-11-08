@@ -1,0 +1,1 @@
+import {auth} from '@/lib/auth';import {redirect} from 'next/navigation';import ConversationView from '@/app/components/MarketplaceConversation';export default async function ConversationPage({params}:{params:Promise<{conversationId:string}>}){const s=await auth();if(!s?.user)redirect('/login');const p=await params;return <ConversationView conversationId={p.conversationId}/>;}
