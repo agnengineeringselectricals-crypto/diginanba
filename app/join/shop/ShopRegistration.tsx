@@ -43,15 +43,40 @@ export default function ShopRegistration({ invitationCode }: { invitationCode: s
     setRegionCode(code);
     setRegionName(regionOptions.find(x=>x.code===code)?.name || '');
   }
-  function useLocation() {
+  async function useLocation() {
     if (!navigator.geolocation) { setNotice('Location is not available on this device. Please enter the address.'); return; }
-    setNotice('Getting your current location…');
-    navigator.geolocation.getCurrentPosition(position=>{
+    setNotice('Getting your current location and address…');
+    navigator.geolocation.getCurrentPosition(async position=>{
       const lat=Number(position.coords.latitude.toFixed(6)),lng=Number(position.coords.longitude.toFixed(6));
       setCoords({lat,lng});
-      setNotice('Location pin saved. Please confirm or enter the shop address below.');
-      window.open('https://www.google.com/maps/search/?api=1&query='+lat+','+lng,'_blank','noopener,noreferrer');
-    },()=>setNotice('Could not access location. Please allow location permission or enter the address.'),{enableHighAccuracy:true,timeout:12000});
+      try {
+        const response=await fetch('https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&zoom=18&lat='+encodeURIComponent(String(lat))+'&lon='+encodeURIComponent(String(lng)),{headers:{'Accept':'application/json'}});
+        if(!response.ok) throw new Error('Address lookup failed');
+        const data=await response.json();
+        const a=data.address||{};
+        const detectedCountry=String(a.country_code||'').toUpperCase();
+        const countryMap:Record<string,string>={IN:'IN',US:'US',GB:'GB',AU:'AU',CA:'CA'};
+        const nextCountry=countryMap[detectedCountry]||country;
+        if(countryMap[detectedCountry]) setCountry(nextCountry);
+        const detectedState=String(a.state||a.region||a.state_district||'').trim();
+        const availableRegions=regions[nextCountry]||[];
+        const matchedRegion=availableRegions.find(r=>r.name.toLowerCase()===detectedState.toLowerCase()||r.code.toLowerCase()===detectedState.toLowerCase());
+        if(detectedState){
+          setRegionName(detectedState);
+          setRegionCode(matchedRegion?.code||detectedState);
+        }
+        const detectedCity=String(a.city||a.town||a.village||a.municipality||a.county||a.city_district||'').trim();
+        if(detectedCity) setCity(detectedCity);
+        const street=[a.house_number,a.road||a.pedestrian||a.residential].filter(Boolean).join(' ');
+        const area=[a.neighbourhood||a.suburb||a.quarter,a.hamlet].filter(Boolean).join(', ');
+        const addressParts=[street,area,detectedCity,detectedState,a.postcode,a.country].filter((v,i,arr)=>Boolean(v)&&arr.indexOf(v)===i);
+        const detectedAddress=addressParts.join(', ')||String(data.display_name||'');
+        if(detectedAddress) setAddress(detectedAddress);
+        setNotice('Current location found. State, city and address have been filled in. Please review them before registering.');
+      } catch {
+        setNotice('Location pin saved, but the address could not be looked up. Please enter the state, city and address manually.');
+      }
+    },()=>setNotice('Could not access location. Please allow location permission or enter the address.'),{enableHighAccuracy:true,timeout:15000,maximumAge:0});
   }
   async function registerShop(e:FormEvent<HTMLFormElement>) {
     e.preventDefault();setBusy(true);setNotice('');
@@ -99,7 +124,7 @@ export default function ShopRegistration({ invitationCode }: { invitationCode: s
         </label>
         <label style={{display:'grid',gap:6,fontWeight:650,fontSize:14}}>State / region *
           <select required value={regionCode} onChange={e=>selectRegion(e.target.value)} style={field}>
-            <option value="">Select state / region</option>{regionOptions.map(r=><option key={r.code} value={r.code}>{r.name} ({r.code})</option>)}
+            <option value="">Select state / region</option>{regionOptions.map(r=><option key={r.code} value={r.code}>{r.name} ({r.code})</option>)}{regionCode&&!regionOptions.some(r=>r.code===regionCode)?<option value={regionCode}>{regionName||regionCode}</option>:null}
           </select>
         </label>
       </div>
