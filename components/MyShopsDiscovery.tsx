@@ -71,6 +71,12 @@ export default function MyShopsDiscovery() {
       </div>:<div style={{border:'1px dashed #d0d5dd',borderRadius:14,padding:17,color:'#667085',fontSize:14}}>Your regular shops will appear here. Search for a shop below and save it, or invite your regular shop owner to join DigiNanba.</div>}
     </section>
 
+    <section style={{margin:'0 0 20px',padding:'14px 16px',border:'1px solid #b7dfca',borderRadius:16,background:'#f1faf5',display:'flex',justifyContent:'space-between',alignItems:'center',gap:12,flexWrap:'wrap'}}>
+      <div><strong style={{display:'block',color:'#145c3f'}}>Your regular shop isn't listed?</strong><span style={{fontSize:13,color:'#526b5e'}}>Invite the shop owner to join DigiNanba. It only takes a moment.</span></div>
+      <button type="button" onClick={inviteShop} style={primaryButton}>Invite a Shop on WhatsApp</button>
+      {notice?<p role="status" style={{width:'100%',margin:'2px 0 0',fontSize:13,color:'#475467'}}>{notice}</p>:null}
+    </section>
+
     <section style={{padding:'clamp(18px,3vw,26px)',border:'1px solid #e4e7ec',borderRadius:20,background:'linear-gradient(135deg,#f7f9ff,#fff 70%)',boxShadow:'0 8px 24px rgba(16,24,40,.04)'}}>
       <h2 style={{fontSize:21,margin:'0 0 14px'}}>What are you looking for?</h2>
       <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(min(100%,220px),1fr))',gap:10}}>
@@ -102,16 +108,6 @@ export default function MyShopsDiscovery() {
           {shop.public_id?<a href={'/s/'+shop.public_id} style={{justifySelf:'start',marginTop:4,color:'#2454c6',fontWeight:700,fontSize:13,textDecoration:'none'}}>Visit shop →</a>:null}
         </article>)}
       </div>
-      {!loading&&!items.length&&!error?<div style={{marginTop:14,padding:20,border:'1px dashed #d0d5dd',borderRadius:16,background:'#f8fafc'}}>
-        <strong>Can't find your regular shop?</strong>
-        <p style={{margin:'6px 0 14px',color:'#667085',fontSize:14}}>You don't need to enter the shop's details. Just send the owner a DigiNanba invitation through WhatsApp.</p>
-        <button type="button" onClick={inviteShop} style={primaryButton}>Invite a Shop on WhatsApp</button>
-      </div>:null}
-      {items.length>0?<div style={{marginTop:18,padding:17,borderRadius:16,background:'#f8fafc',display:'flex',justifyContent:'space-between',alignItems:'center',gap:12,flexWrap:'wrap'}}>
-        <div><strong>Know a shop that isn't listed?</strong><div style={{fontSize:13,color:'#667085'}}>Invite its owner. They enter their own shop details.</div></div>
-        <button type="button" onClick={inviteShop} style={primaryButton}>Invite a Shop on WhatsApp</button>
-      </div>:null}
-      {notice?<p role="status" style={{fontSize:13,color:'#475467'}}>{notice}</p>:null}
     </section>
   </main>;
 }
