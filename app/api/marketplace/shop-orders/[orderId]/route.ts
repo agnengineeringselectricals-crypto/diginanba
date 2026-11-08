@@ -36,6 +36,10 @@ export async function PATCH(req:Request,{params}:{params:Promise<{orderId:string
   const sum=await client.query("SELECT COALESCE(SUM(line_total),0)::numeric AS subtotal FROM marketplace_shop_order_items WHERE order_request_id=$1",[orderId]);
   const subtotal=Number(sum.rows[0].subtotal||0),delivery=Number(o.delivery_fee||0),tax=Number(o.tax_amount||0),total=subtotal+delivery+tax;
   const status=input.status||o.status;
+  if(status==='ready'||status==='completed'){
+   const unresolved=await client.query("SELECT COUNT(*)::int AS count FROM marketplace_shop_order_items WHERE order_request_id=$1 AND (availability_status='pending' OR (availability_status='available' AND unit_price IS NULL))",[orderId]);
+   if(Number(unresolved.rows[0].count)>0){await client.query('ROLLBACK');return NextResponse.json({error:'Before completing this order, mark every item available/unavailable and enter a price for each available item.'},{status:400});}
+  }
   await client.query("UPDATE marketplace_shop_order_requests SET status=$2,owner_note=COALESCE($3,owner_note),confirmed_fulfilment_at=COALESCE($4,confirmed_fulfilment_at),subtotal=$5,total_amount=$6,updated_at=now() WHERE id=$1",[orderId,status,input.ownerNote||null,input.confirmedFulfilmentAt||null,subtotal,total]);
   if(input.ownerNote&&status==='clarification_needed')await client.query("INSERT INTO marketplace_chat_messages(conversation_id,sender_user_id,message_type,body,metadata) VALUES($1,$2,'order_update',$3,jsonb_build_object('orderRequestId',$4::text))",[o.conversation_id,userId,input.ownerNote,orderId]);
   if(input.status)await client.query("INSERT INTO marketplace_chat_messages(conversation_id,sender_user_id,message_type,body,metadata) VALUES($1,$2,'order_update',$3,jsonb_build_object('orderRequestId',$4::text,'status',$5::text))",[o.conversation_id,userId,'Order status updated: '+status.replace(/_/g,' ')+'.',orderId,status]);
