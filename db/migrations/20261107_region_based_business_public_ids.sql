@@ -3,6 +3,11 @@
 -- This migration only enforces that assigned public IDs and their region are immutable.
 BEGIN;
 
+-- Ensure the columns exist even when migrations are applied in filename order.
+ALTER TABLE marketplace_businesses
+  ADD COLUMN IF NOT EXISTS region_code CHAR(2),
+  ADD COLUMN IF NOT EXISTS public_id VARCHAR(8);
+
 DROP TRIGGER IF EXISTS marketplace_business_public_id_guard ON marketplace_businesses;
 DROP FUNCTION IF EXISTS diginanba_set_business_public_id();
 DROP FUNCTION IF EXISTS diginanba_next_business_public_id(TEXT);
