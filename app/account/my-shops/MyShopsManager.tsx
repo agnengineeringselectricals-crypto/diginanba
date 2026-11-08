@@ -74,7 +74,7 @@ export default function MyShopsManager(){
    <button disabled={busy} style={button}>Save contact settings</button>
   </form>
   <form onSubmit={addProduct} style={{marginTop:16,padding:18,border:'1px solid #e4e7ec',borderRadius:16,display:'grid',gap:12}}>
-   <h2 style={{margin:0,fontSize:20}}>Add a Product</h2><p style={{margin:0,color:"#667085",fontSize:13}}>Enter the tax-inclusive MRP and the maximum discount you are willing to allow. DigiNanba calculates the customer price automatically.</p>
+   <h2 style={{margin:0,fontSize:20}}>Add a Product</h2>
    <label style={{display:'grid',gap:5,fontSize:14}}>Product name<input required minLength={3} value={product} onChange={e=>setProduct(e.target.value)} placeholder="Enter product name" style={field}/></label>
    <label style={{display:'grid',gap:5,fontSize:14}}>Category<select value={category} onChange={e=>setCategory(e.target.value)} style={field}>{['Groceries & Daily Needs','Vegetables & Fruits','Medical Shops & Pharmacy','Food, Bakery & Sweets','Clothing & Footwear','Mobile & Electronics','Electrical & Hardware','Home & Kitchen','Building Materials','Vehicle Spares','Stationery & Books','Beauty & Personal Care','Agriculture & Garden','Pet Supplies','Other'].map(x=><option key={x}>{x}</option>)}</select></label>
    <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:10}}>
