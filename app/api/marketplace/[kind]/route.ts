@@ -179,7 +179,10 @@ export async function PUT(request:Request, context:{params:Promise<{kind:string}
     const currency=(v.currency|| (country==='IN'?'INR':country==='GB'?'GBP':country==='AU'?'AUD':country==='CA'?'CAD':'USD')).toUpperCase();
     const policyResult=await db.query("SELECT minimum_fee_amount,minimum_fee_percent,api_cost_per_order,database_cost_per_order,hosting_cost_per_order,target_profit_per_order,service_tax_rate,discount_capture_ratio FROM marketplace_nanba_fee_policies WHERE country_code=$1 AND currency=$2 ORDER BY enabled DESC,effective_from DESC LIMIT 1",[country,currency]);
     const policy=policyResult.rows[0]||{minimum_fee_amount:10,minimum_fee_percent:0,api_cost_per_order:0,database_cost_per_order:0,hosting_cost_per_order:0,target_profit_per_order:10,service_tax_rate:0,discount_capture_ratio:1};
-    const pricing=calculateShopProductPrice({mrp,maxDiscount,policy});
+    const demand=await db.query("SELECT COUNT(*)::int AS orders FROM marketplace_shop_order_items i JOIN marketplace_shop_order_requests o ON o.id=i.order_request_id WHERE i.listing_id IS NOT NULL AND o.business_id=$1 AND o.status IN ('confirmed','preparing','ready','completed') AND o.created_at>=now()-interval '30 days'",[v.businessId]);
+    const recentDemand=Number(demand.rows[0]?.orders||0);
+    const demandRatio=recentDemand>=20?0.35:recentDemand>=10?0.5:recentDemand>=5?0.7:1;
+    const pricing=calculateShopProductPrice({mrp,maxDiscount,policy:{...policy,discount_capture_ratio:Math.min(Number(policy.discount_capture_ratio??1),demandRatio)}});
     const publishImmediately=kind==='shops';
     const r=await db.query(`INSERT INTO marketplace_listings(business_id,listing_type,title,slug,description,category,price_amount,mrp_amount,max_discount_amount,nanba_fee_amount,nanba_fee_floor_amount,customer_price_amount,currency,price_unit,listing_status)
      VALUES($1,$2,$3,lower(regexp_replace(trim($3),'[^a-zA-Z0-9]+','-','g'))||'-'||substr(gen_random_uuid()::text,1,8),$4,$5,$6,$6,$7,$8,$9,$10,$11,$12,CASE WHEN $13 THEN 'published' ELSE 'draft' END)
