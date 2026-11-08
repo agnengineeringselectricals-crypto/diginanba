@@ -51,6 +51,7 @@ export default function MyShopsManager(){
     <Link href="/explore" style={{color:'#344054',textDecoration:'none'}}>Explore</Link>
     <Link href="/account" style={{color:'#344054',textDecoration:'none'}}>My Account</Link>
     <Link href="/account/messages" style={{color:'#344054',textDecoration:'none'}}>Messages</Link>
+    <Link href="/account/delivery" style={{color:'#344054',textDecoration:'none'}}>Delivery Partners</Link>
     <button type="button" onClick={()=>signOut({callbackUrl:'/'})} style={{border:'1px solid #d0d5dd',borderRadius:999,padding:'8px 14px',background:'#fff',color:'#344054',fontWeight:700,cursor:'pointer'}}>Sign out</button>
    </nav>
   </header>
