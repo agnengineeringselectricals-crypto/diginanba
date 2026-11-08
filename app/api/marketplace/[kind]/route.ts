@@ -106,7 +106,7 @@ export async function POST(request:Request, context:{params:Promise<{kind:string
    if(kind==='shops' && (!v.regionCode || !v.addressLine?.trim())) return NextResponse.json({error:'Shop address and its two-letter state or region code are required.'},{status:400});
    const r=kind==='shops'
     ? await db.query(`INSERT INTO marketplace_businesses(owner_user_id,business_name,business_type,description,phone,email,website_url,country_code,region_code,region,district,city,locality,postal_code,address_line,latitude,longitude,public_id,verification_status,listing_status)
-      VALUES($1,$2,'shop',$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,allocate_marketplace_public_id($8),'pending','published')
+      VALUES($1,$2,'shop',$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,allocate_marketplace_public_id($8::text),'pending','published')
       RETURNING id,public_id,business_name,business_type,verification_status,listing_status,average_rating,rating_count`,
       [user,v.businessName,v.description,v.phone||null,v.email||null,v.websiteUrl||null,v.countryCode,v.regionCode,v.region||null,v.district||null,v.city||null,v.locality||null,v.postalCode||null,v.addressLine,v.latitude??null,v.longitude??null])
     : await db.query(`INSERT INTO marketplace_businesses(owner_user_id,business_name,business_type,description,phone,email,website_url,country_code,region,district,city,locality,postal_code,address_line)
@@ -117,11 +117,28 @@ export async function POST(request:Request, context:{params:Promise<{kind:string
       WHERE invitation_code=$1 AND status IN ('sent','opened') AND expires_at>now()
       RETURNING id,inviter_user_id`,[v.invitationCode,r.rows[0].id]);
     if(invite.rowCount) {
-      await db.query(`INSERT INTO marketplace_regular_shops(user_id,business_id) VALUES($1,$2) ON CONFLICT DO NOTHING`,[invite.rows[0].inviter_user_id,r.rows[0].id]);
+      const inviterId=invite.rows[0].inviter_user_id;
+      await db.query(`INSERT INTO marketplace_regular_shops(user_id,business_id) VALUES($1,$2) ON CONFLICT DO NOTHING`,[inviterId,r.rows[0].id]);
       await db.query(`UPDATE marketplace_shop_requests SET status='registered' WHERE invitation_id=$1`,[invite.rows[0].id]);
+      // The registering shop owner accepts the invitation: create their CRM workspace
+      // and connect the inviting customer, without granting any marketing consent.
+      const account=await db.query(`INSERT INTO marketplace_customer_accounts(owner_user_id,workspace_key,category_key,display_name,workspace_ref)
+        VALUES($1,$2,'shops',$3,$4)
+        ON CONFLICT(owner_user_id,workspace_key) DO UPDATE SET display_name=EXCLUDED.display_name,updated_at=now()
+        RETURNING id`,[user,'shop:'+r.rows[0].id,r.rows[0].business_name,r.rows[0].id]);
+      await db.query(`INSERT INTO marketplace_customer_workspace_connections(workspace_account_id,owner_user_id,customer_user_id,initiated_by_user_id,initiated_by_role,status,connected_at)
+        VALUES($1,$2,$3,$3,'customer','connected',now())
+        ON CONFLICT(workspace_account_id,owner_user_id,customer_user_id)
+        DO UPDATE SET status='connected',connected_at=now(),disconnected_at=NULL,updated_at=now()`,[account.rows[0].id,user,inviterId]);
+      const customer=await db.query('SELECT display_name,email FROM users WHERE id=$1',[inviterId]);
+      const customerName=customer.rows[0]?.display_name||customer.rows[0]?.email||'DigiNanba customer';
+      await db.query(`INSERT INTO marketplace_customers(account_id,owner_user_id,full_name,source,source_reference,status)
+        SELECT $1,$2,$3,'referral',$4,'active'
+        WHERE NOT EXISTS(SELECT 1 FROM marketplace_customers WHERE account_id=$1 AND owner_user_id=$2 AND source_reference=$4)`,
+        [account.rows[0].id,user,customerName,invite.rows[0].id]);
     }
    }
-   return NextResponse.json({business:r.rows[0],message:kind==='shops'?'Your shop is registered and can start listing products now. Verification is separate and does not block basic listing.':'Profile saved as a draft. Complete verification before public listing.'},{status:201});
+   return NextResponse.json({business:r.rows[0],redirectTo:kind==='shops'?'/account/my-shops':undefined,customerConnected:Boolean(kind==='shops'&&v.invitationCode),message:kind==='shops'?'Your shop is registered and its regional Shop ID has been created. You can manage it from My Shops. Verification is separate.':'Profile saved as a draft. Complete verification before public listing.'},{status:201});
   }
   if(kind==='healthcare'){
    const p=healthcareSchema.safeParse(body);if(!p.success)return NextResponse.json({error:'Please check the provider details.',details:p.error.flatten()},{status:400});const v=p.data;
