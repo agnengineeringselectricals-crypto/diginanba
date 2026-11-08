@@ -292,3 +292,54 @@ CREATE TRIGGER marketplace_campaign_recipient_send_gate
   ON marketplace_campaign_recipients
   FOR EACH ROW
   EXECUTE FUNCTION enforce_marketplace_campaign_recipient_send_gate();
+
+
+-- Campaigns cannot enter an approved or dispatchable state without a recorded approval.
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'marketplace_offer_campaigns_approval_required_check'
+      AND conrelid = 'public.marketplace_offer_campaigns'::regclass
+  ) THEN
+    ALTER TABLE marketplace_offer_campaigns
+      ADD CONSTRAINT marketplace_offer_campaigns_approval_required_check
+      CHECK (
+        status NOT IN ('approved','scheduled','queued','sending')
+        OR (approved_at IS NOT NULL AND approved_by IS NOT NULL)
+      );
+  END IF;
+END;
+$$;
+
+-- Keep a consent audit row whenever the current permission changes to granted/revoked.
+CREATE OR REPLACE FUNCTION log_marketplace_customer_consent_change()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF NEW.consent_status IN ('granted','revoked')
+     AND (TG_OP = 'INSERT' OR OLD.consent_status IS DISTINCT FROM NEW.consent_status) THEN
+    IF NEW.consent_source IS NULL OR length(trim(NEW.consent_source)) = 0 THEN
+      RAISE EXCEPTION 'A consent source is required when granting or revoking consent';
+    END IF;
+
+    INSERT INTO marketplace_customer_consent_events(
+      customer_id, account_id, owner_user_id, channel, purpose,
+      action, consent_source, disclosure_version, evidence, occurred_at
+    ) VALUES (
+      NEW.customer_id, NEW.account_id, NEW.owner_user_id, NEW.channel, NEW.purpose,
+      NEW.consent_status, NEW.consent_source, NEW.disclosure_version, NEW.evidence, now()
+    );
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS marketplace_customer_consent_audit
+  ON marketplace_customer_channel_consents;
+CREATE TRIGGER marketplace_customer_consent_audit
+  AFTER INSERT OR UPDATE OF consent_status, consent_source, disclosure_version, evidence
+  ON marketplace_customer_channel_consents
+  FOR EACH ROW
+  EXECUTE FUNCTION log_marketplace_customer_consent_change();
