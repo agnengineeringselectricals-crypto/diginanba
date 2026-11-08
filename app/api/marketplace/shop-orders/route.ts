@@ -26,7 +26,7 @@ export async function POST(req:Request){
   const lines:string[]=[];
   for(const item of input.items){
    let listingId=null,name=item.itemName,price=null;
-   if(item.listingId){const lr=await client.query("SELECT id,title,price_amount FROM marketplace_listings WHERE id=$1 AND business_id=$2 AND listing_status='published'",[item.listingId,shop.business_id]);if(!lr.rowCount){await client.query('ROLLBACK');return NextResponse.json({error:'A selected catalogue item is no longer available. Refresh the shop catalogue.'},{status:409});}listingId=lr.rows[0].id;name=lr.rows[0].title;price=lr.rows[0].price_amount;}
+   if(item.listingId){const lr=await client.query("SELECT id,title,COALESCE(customer_price_amount,price_amount) AS price_amount FROM marketplace_listings WHERE id=$1 AND business_id=$2 AND listing_status='published'",[item.listingId,shop.business_id]);if(!lr.rowCount){await client.query('ROLLBACK');return NextResponse.json({error:'A selected catalogue item is no longer available. Refresh the shop catalogue.'},{status:409});}listingId=lr.rows[0].id;name=lr.rows[0].title;price=lr.rows[0].price_amount;}
    await client.query("INSERT INTO marketplace_shop_order_items(order_request_id,listing_id,item_name,quantity,unit,unit_price,line_total,availability_status,owner_note) VALUES($1,$2,$3,$4,$5,$6,CASE WHEN $6 IS NULL THEN NULL ELSE $4*$6 END,'pending',$7)",[or.rows[0].id,listingId,name,item.quantity,item.unit,price,item.note||null]);
    lines.push('- '+name+' × '+item.quantity+' '+item.unit);
   }
