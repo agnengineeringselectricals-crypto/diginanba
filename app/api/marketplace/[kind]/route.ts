@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
+import { calculateShopProductPrice } from '@/lib/marketplace-pricing';
 
 export const runtime = 'nodejs';
 type Kind = 'shops'|'services'|'professionals'|'healthcare'|'career';
@@ -16,7 +17,7 @@ const businessSchema = z.object({
 const listingSchema=z.object({
   businessId:z.string().uuid(), title:z.string().trim().min(3).max(180), description:z.string().trim().max(5000).default(''),
   category:z.string().trim().min(2).max(100), listingType:z.enum(['physical_product','service','professional_service','healthcare_service']),
-  priceAmount:z.number().nonnegative().max(100000000).optional(), currency:z.string().length(3).optional(), priceUnit:z.string().max(40).optional()
+  priceAmount:z.number().nonnegative().max(100000000).optional(), mrpAmount:z.number().positive().max(100000000).optional(), maxDiscountAmount:z.number().nonnegative().max(100000000).optional(), currency:z.string().length(3).optional(), priceUnit:z.string().max(40).optional()
 });
 const candidateSchema=z.object({
   fullName:z.string().trim().min(2).max(140), headline:z.string().max(180).optional(), summary:z.string().max(5000).optional(),
@@ -164,14 +165,29 @@ export async function PUT(request:Request, context:{params:Promise<{kind:string}
  const {kind}=await context.params;const user=await userId();if(!user)return NextResponse.json({error:'Please sign in.'},{status:401});const body=await request.json().catch(()=>null);
  try{
   if(kind==='shops'||kind==='services'||kind==='professionals'){
-   const p=listingSchema.safeParse(body);if(!p.success)return NextResponse.json({error:'Invalid listing details.'},{status:400});const v=p.data;
-   const publishImmediately=kind==='shops';
-   const r=await db.query(`INSERT INTO marketplace_listings(business_id,listing_type,title,slug,description,category,price_amount,currency,price_unit,listing_status)
-    SELECT b.id,$2,$3,lower(regexp_replace(trim($3),'[^a-zA-Z0-9]+','-','g'))||'-'||substr(gen_random_uuid()::text,1,8),$4,$5,$6,$7,$8,CASE WHEN $10 THEN 'published' ELSE 'draft' END
-    FROM marketplace_businesses b WHERE b.id=$1 AND b.owner_user_id=$9 AND b.listing_status<>'rejected'
-    RETURNING id,title,listing_status`,[v.businessId,v.listingType,v.title,v.description,v.category,v.priceAmount??null,v.currency??null,v.priceUnit??null,user,publishImmediately]);
-   if(!r.rowCount)return NextResponse.json({error:'Business profile not found or not owned by your account.'},{status:404});
-   return NextResponse.json({listing:r.rows[0],message:publishImmediately?'Product added to your shop.':'Listing saved as draft for review.'},{status:201});
+   const rows=Array.isArray(body?.items)?body.items:[body];
+   if(rows.length<1||rows.length>500)return NextResponse.json({error:'Import between 1 and 500 products at a time.'},{status:400});
+   const results=[];
+   for(let index=0;index<rows.length;index++){
+    const raw=rows[index];const p=listingSchema.safeParse(raw);if(!p.success)return NextResponse.json({error:'Product row '+(index+1)+' is invalid. Check product name, category, MRP and maximum discount.'},{status:400});
+    const v=p.data;const mrp=Number(v.mrpAmount??v.priceAmount??0);const maxDiscount=Number(v.maxDiscountAmount??0);
+    if(mrp<=0)return NextResponse.json({error:'Enter a valid MRP for product row '+(index+1)+'.'},{status:400});
+    if(maxDiscount>mrp)return NextResponse.json({error:'Maximum discount cannot exceed MRP (row '+(index+1)+').'},{status:400});
+    const owned=await db.query("SELECT id,country_code FROM marketplace_businesses WHERE id=$1 AND owner_user_id=$2 AND business_type='shop' AND listing_status<>'rejected'",[v.businessId,user]);
+    if(!owned.rowCount)return NextResponse.json({error:'Shop not found or not owned by your account.'},{status:404});
+    const country=String(owned.rows[0].country_code||'IN').trim().toUpperCase();
+    const currency=(v.currency|| (country==='IN'?'INR':country==='GB'?'GBP':country==='AU'?'AUD':country==='CA'?'CAD':'USD')).toUpperCase();
+    const policyResult=await db.query("SELECT minimum_fee_amount,minimum_fee_percent,api_cost_per_order,database_cost_per_order,hosting_cost_per_order,target_profit_per_order,service_tax_rate,discount_capture_ratio FROM marketplace_nanba_fee_policies WHERE country_code=$1 AND currency=$2 ORDER BY enabled DESC,effective_from DESC LIMIT 1",[country,currency]);
+    const policy=policyResult.rows[0]||{minimum_fee_amount:10,minimum_fee_percent:0,api_cost_per_order:0,database_cost_per_order:0,hosting_cost_per_order:0,target_profit_per_order:10,service_tax_rate:0,discount_capture_ratio:1};
+    const pricing=calculateShopProductPrice({mrp,maxDiscount,policy});
+    const publishImmediately=kind==='shops';
+    const r=await db.query(`INSERT INTO marketplace_listings(business_id,listing_type,title,slug,description,category,price_amount,mrp_amount,max_discount_amount,nanba_fee_amount,nanba_fee_floor_amount,customer_price_amount,currency,price_unit,listing_status)
+     VALUES($1,$2,$3,lower(regexp_replace(trim($3),'[^a-zA-Z0-9]+','-','g'))||'-'||substr(gen_random_uuid()::text,1,8),$4,$5,$6,$6,$7,$8,$9,$10,$11,$12,CASE WHEN $13 THEN 'published' ELSE 'draft' END)
+     RETURNING id,title,listing_status,mrp_amount,max_discount_amount,customer_price_amount,currency,price_unit`,
+     [v.businessId,v.listingType,v.title,v.description,v.category,mrp,maxDiscount,pricing.nanbaFee,pricing.feeFloor,pricing.customerPrice,currency,v.priceUnit||null,publishImmediately]);
+    results.push(r.rows[0]);
+   }
+   return NextResponse.json({listings:results,listing:results[0],message:results.length>1?results.length+' products imported.':'Product saved. Customer-facing price has been calculated.'},{status:201});
   }
   if(kind==='career'){
    const p=employerSchema.safeParse(body);if(!p.success)return NextResponse.json({error:'Invalid employer details.'},{status:400});const v=p.data;
