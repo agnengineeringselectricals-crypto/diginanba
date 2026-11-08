@@ -47,6 +47,9 @@ export async function PATCH(req:Request,{params}:{params:Promise<{orderId:string
    if(Number(unresolved.rows[0].count)===0||Number(unresolved.rows[0].unresolved)>0){await client.query('ROLLBACK');return NextResponse.json({error:'Before completing this order, mark every item available/unavailable and enter a price for each available item.'},{status:400});}
   }
   await client.query("UPDATE marketplace_shop_order_requests SET status=$2,owner_note=COALESCE($3,owner_note),confirmed_fulfilment_at=COALESCE($4,confirmed_fulfilment_at),subtotal=$5,total_amount=$6,updated_at=now() WHERE id=$1",[orderId,status,input.ownerNote||null,input.confirmedFulfilmentAt||null,subtotal,total]);
+  if(input.confirmedFulfilmentAt){
+   await client.query("INSERT INTO marketplace_chat_messages(conversation_id,sender_user_id,message_type,body,metadata) VALUES($1,$2,'order_update',$3,jsonb_build_object('orderRequestId',$4::text,'fulfilmentConfirmed',true))",[o.conversation_id,userId,'Your requested fulfilment time is confirmed for '+new Date(input.confirmedFulfilmentAt).toLocaleString()+'.',orderId]);
+  }
   if(input.ownerNote&&status==='clarification_needed')await client.query("INSERT INTO marketplace_chat_messages(conversation_id,sender_user_id,message_type,body,metadata) VALUES($1,$2,'order_update',$3,jsonb_build_object('orderRequestId',$4::text))",[o.conversation_id,userId,input.ownerNote,orderId]);
   if(input.status)await client.query("INSERT INTO marketplace_chat_messages(conversation_id,sender_user_id,message_type,body,metadata) VALUES($1,$2,'order_update',$3,jsonb_build_object('orderRequestId',$4::text,'status',$5::text))",[o.conversation_id,userId,'Order status updated: '+status.replace(/_/g,' ')+'.',orderId,status]);
   let billCreated=false;
