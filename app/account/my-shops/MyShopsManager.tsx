@@ -16,6 +16,7 @@ export default function MyShopsManager(){
  const [price,setPrice]=useState('');
  const [unit,setUnit]=useState('piece');
  const [message,setMessage]=useState('');
+ const [invitationLink,setInvitationLink]=useState('');
  const [busy,setBusy]=useState(false);
  async function load(){
   const r=await fetch('/api/marketplace/shops/mine');const d=await r.json();
@@ -27,6 +28,14 @@ export default function MyShopsManager(){
  const current=shops.find(s=>s.id===selected);
  const currency=current?.country_code==='IN'?'INR':current?.country_code==='GB'?'GBP':current?.country_code==='AU'?'AUD':current?.country_code==='CA'?'CAD':'USD';
  function choose(id:string){const s=shops.find(x=>x.id===id);setSelected(id);setPhone(s?.phone||'');setEmail(s?.email||'');}
+ async function createCustomerInvite(){
+  if(!current)return;setBusy(true);setMessage('');setInvitationLink('');
+  try{
+   const r=await fetch('/api/marketplace/invitations',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({direction:'owner_to_customer',businessId:current.id,channel:'link'})});
+   const d=await r.json();if(!r.ok)throw new Error(d.error||'Could not create invitation.');
+   const fullUrl=window.location.origin+d.invitationPath;setInvitationLink(fullUrl);setMessage('Invitation link created. Share it with your customer.');
+  }catch(e){setMessage(e instanceof Error?e.message:'Could not create invitation.');}finally{setBusy(false);}
+ }
  async function saveContact(e:FormEvent<HTMLFormElement>){e.preventDefault();if(!current)return;setBusy(true);setMessage('');try{const r=await fetch('/api/marketplace/shops/mine',{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({businessId:current.id,phone,email})});const d=await r.json();if(!r.ok)throw new Error(d.error||'Could not save.');setMessage(d.message);await load();}catch(e){setMessage(e instanceof Error?e.message:'Could not save.');}finally{setBusy(false);}}
  async function addProduct(e:FormEvent<HTMLFormElement>){e.preventDefault();if(!current)return;setBusy(true);setMessage('');try{const r=await fetch('/api/marketplace/shops',{method:'PUT',headers:{'content-type':'application/json'},body:JSON.stringify({businessId:current.id,title:product,description:'',category,listingType:'physical_product',priceAmount:price?Number(price):undefined,currency:price?currency:undefined,priceUnit:unit})});const d=await r.json();if(!r.ok)throw new Error(d.error||'Could not add product.');setProduct('');setPrice('');setMessage(d.message);await load();}catch(e){setMessage(e instanceof Error?e.message:'Could not add product.');}finally{setBusy(false);}}
  if(!shops.length)return <main style={{maxWidth:850,margin:'0 auto',padding:32}}><h1>My Shop Owner Dashboard</h1><p>You have not registered a shop yet.</p><a href="/join/shop" style={{color:'#2454c6'}}>Register your shop →</a>{message?<p>{message}</p>:null}</main>;
@@ -35,6 +44,12 @@ export default function MyShopsManager(){
   <label style={{display:'grid',gap:6,fontWeight:650}}>Choose shop<select value={selected} onChange={e=>choose(e.target.value)} style={field}>{shops.map(s=><option key={s.id} value={s.id}>{s.business_name} · {s.public_id}</option>)}</select></label>
   {current?<><section style={{marginTop:18,padding:18,border:'1px solid #e4e7ec',borderRadius:16}}>
    <div style={{display:'flex',justifyContent:'space-between',gap:12,flexWrap:'wrap'}}><div><h2 style={{margin:'0 0 5px'}}>{current.business_name}</h2><strong style={{fontSize:20,color:'#176b4d',letterSpacing:1.3}}>{current.public_id}</strong><div style={{fontSize:12,color:'#667085',marginTop:6}}>{current.verification_status==='verified'?'Verified':'New on DigiNanba · Not yet verified'}</div></div><div style={{fontSize:13,color:'#667085'}}>{current.listings.length} products listed</div></div>
+  </section>
+  <section style={{marginTop:16,padding:18,border:'1px solid #e4e7ec',borderRadius:16,display:'grid',gap:10}}>
+   <h2 style={{margin:0,fontSize:20}}>Invite Customers</h2>
+   <p style={{margin:0,color:'#667085',fontSize:13}}>Invite customers to join DigiNanba and connect with this shop. Once they accept, your CRM customer list will show them. Marketing messages still require separate customer consent.</p>
+   <button type="button" disabled={busy} onClick={createCustomerInvite} style={button}>{busy?'Creating…':'Create customer invitation link'}</button>
+   {invitationLink?<><div style={{padding:10,background:'#f8fafc',borderRadius:8,overflowWrap:'anywhere',fontSize:13}}>{invitationLink}</div><div style={{display:'flex',gap:8,flexWrap:'wrap'}}><button type="button" onClick={()=>navigator.clipboard.writeText(invitationLink)} style={button}>Copy link</button><a href={'https://wa.me/?text='+encodeURIComponent('You are invited to connect with '+current.business_name+' on DigiNanba: '+invitationLink)} target="_blank" rel="noreferrer" style={{...button,textDecoration:'none'}}>Share on WhatsApp</a><a href={'sms:?body='+encodeURIComponent('You are invited to connect with '+current.business_name+' on DigiNanba: '+invitationLink)} style={{...button,textDecoration:'none'}}>Share by SMS</a></div></>:null}
   </section>
   <form onSubmit={saveContact} style={{marginTop:16,padding:18,border:'1px solid #e4e7ec',borderRadius:16,display:'grid',gap:12}}>
    <h2 style={{margin:0,fontSize:20}}>Shop Owner Profile Settings</h2><p style={{margin:0,color:'#667085',fontSize:13}}>Phone and email are optional. You can add or update them whenever you wish.</p>
