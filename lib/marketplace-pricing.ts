@@ -1,6 +1,7 @@
 export type NanbaPricingPolicy = {
   minimum_fee_amount: string | number;
   minimum_fee_percent: string | number;
+  operating_cost_per_order: string | number;
   api_cost_per_order: string | number;
   database_cost_per_order: string | number;
   hosting_cost_per_order: string | number;
