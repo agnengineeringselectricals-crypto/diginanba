@@ -286,6 +286,21 @@ export default function HomePageClient({ initialProducts, initialMarket }: Props
         <ProductRequestWorkspace market={market} />
       </div>
 
+      <section className="ref-section" aria-labelledby="dn-local-market-title">
+        <div className="ref-container">
+          <div className="ref-section-head"><h2 id="dn-local-market-title">Your local shops &amp; services</h2></div>
+          <div className="dn-marketplace-pillars">
+            <Link href="/shops#regular-shops" className="dn-marketplace-pillar dn-pillar-shops"><span aria-hidden="true">🏪</span><strong>Regular Shops</strong><small>Quick access to shops you visit regularly</small></Link>
+            <Link href="/shops#favourite-shops" className="dn-marketplace-pillar dn-pillar-shops"><span aria-hidden="true">⭐</span><strong>Favourite Shops</strong><small>Open your pinned and favourite shops</small></Link>
+            <Link href="/shops" className="dn-marketplace-pillar dn-pillar-shops"><span aria-hidden="true">🛍️</span><strong>Discover All Shops</strong><small>Find nearby stores and local products</small></Link>
+            <Link href="/services" className="dn-marketplace-pillar dn-pillar-services"><span aria-hidden="true">🛠️</span><strong>Services</strong><small>Find electricians, plumbers, mechanics and more</small></Link>
+            <Link href="/professionals" className="dn-marketplace-pillar dn-pillar-professionals"><span aria-hidden="true">👷</span><strong>Professionals</strong><small>Connect with engineers and other experts</small></Link>
+            <Link href="/healthcare" className="dn-marketplace-pillar dn-pillar-healthcare"><span aria-hidden="true">🩺</span><strong>Healthcare</strong><small>Find doctors, clinics and healthcare providers</small></Link>
+            <Link href="/career" className="dn-marketplace-pillar dn-pillar-career"><span aria-hidden="true">💼</span><strong>Career</strong><small>Explore jobs and career opportunities</small></Link>
+          </div>
+        </div>
+      </section>
+
       <section id="marketplace-pillars" className="ref-section" aria-labelledby="dn-pillars-title">
         <div className="ref-container">
           <div className="ref-section-head"><h2 id="dn-pillars-title">My DigiNanba — everything you need, in one place</h2></div>

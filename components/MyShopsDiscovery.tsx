@@ -17,6 +17,7 @@ export default function MyShopsDiscovery() {
   const [selectedLocation,setSelectedLocation]=useState('');
   const [items,setItems]=useState<Shop[]>([]);
   const [regular,setRegular]=useState<Shop[]>([]);
+  const [favourites,setFavourites]=useState<Shop[]>([]);
   const [loading,setLoading]=useState(false);
   const [notice,setNotice]=useState('');
   const [inviteChannel,setInviteChannel]=useState<'whatsapp'|'email'|'x'|'instagram'|'facebook'|'telegram'>('whatsapp');
@@ -61,6 +62,12 @@ export default function MyShopsDiscovery() {
     },180);
     return()=>{cancelled=true;clearTimeout(timer);};
   },[city,selectedLocation]);
+
+  useEffect(()=>{
+    let cancelled=false;
+    fetch('/api/marketplace/connections').then(response=>response.json()).then((data:{shops?:Array<Shop & {is_pinned?:boolean}>})=>{if(!cancelled)setFavourites((data.shops||[]).filter(item=>item.is_pinned));}).catch(()=>undefined);
+    return()=>{cancelled=true;};
+  },[]);
 
   useEffect(()=>{
     let cancelled=false;
@@ -131,20 +138,21 @@ export default function MyShopsDiscovery() {
     <h1 style={{fontSize:'clamp(32px,5vw,46px)',lineHeight:1.1,margin:'0 0 10px'}}>My Shops</h1>
     <p style={{maxWidth:760,color:'#667085',lineHeight:1.6,margin:'0 0 24px'}}>Find the shops you regularly visit, discover nearby stores and connect with shop owners.</p>
 
-    <section style={{marginBottom:28}}>
+
+    <section id="favourite-shops" style={{marginBottom:28}}>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:10,marginBottom:12}}>
-        <h2 style={{fontSize:21,margin:0}}>My Regular Shops</h2>
-        <span style={{fontSize:12,color:'#667085'}}>Your saved shops</span>
+        <h2 style={{fontSize:21,margin:0}}>My Favourite Shops</h2>
+        <span style={{fontSize:12,color:'#667085'}}>Your pinned shops</span>
       </div>
-      {regular.length ? <div style={{display:'flex',gap:12,overflowX:'auto',paddingBottom:8}}>
-        {regular.map(shop=><a key={shop.id} href={shop.public_id?'/s/'+shop.public_id:'#'} style={{minWidth:190,maxWidth:220,textDecoration:'none',color:'#172033',border:'1px solid #e4e7ec',borderRadius:15,padding:14,background:'#fff'}}>
-          <div style={{fontSize:26,marginBottom:8}}>🏪</div><strong>{shop.business_name}</strong>
+      {favourites.length ? <div style={{display:'flex',gap:12,overflowX:'auto',paddingBottom:8}}>
+        {favourites.map(shop=><a key={shop.id} href={shop.public_id?'/s/'+shop.public_id:'#'} style={{minWidth:190,maxWidth:220,textDecoration:'none',color:'#172033',border:'1px solid #e4e7ec',borderRadius:15,padding:14,background:'#fff'}}>
+          <div style={{fontSize:26,marginBottom:8}}>⭐</div><strong>{shop.business_name}</strong>
           <div style={{fontSize:12,color:'#667085',marginTop:4}}>{[shop.locality,shop.city].filter(Boolean).join(' · ')}</div>
           <div style={{fontSize:12,color:'#475467',marginTop:7}}>{shop.public_id||'DigiNanba shop'}</div>
-          <div style={{fontSize:12,color:'#a66b12',marginTop:5}}>{shop.average_rating!=null?'★ '+Number(shop.average_rating).toFixed(1)+' ('+shop.rating_count+')':'New shop · No ratings yet'}</div>
         </a>)}
-      </div>:<div style={{border:'1px dashed #d0d5dd',borderRadius:14,padding:17,color:'#667085',fontSize:14}}>Your regular shops will appear here. Search for a shop below and save it, or invite your regular shop owner to join DigiNanba.</div>}
+      </div>:<div style={{border:'1px dashed #d0d5dd',borderRadius:14,padding:17,color:'#667085',fontSize:14}}>Your favourite shops will appear here when you pin a connected shop.</div>}
     </section>
+
 
     <section id="invite-shop-panel" style={{margin:'0 0 20px',padding:'16px',border:'1px solid #b7dfca',borderRadius:16,background:'linear-gradient(135deg,#f1faf5,#fff)',display:'grid',gap:11}}>
       <div><strong style={{display:'block',color:'#145c3f',fontSize:17}}>Can't find your regular shop? Invite them to DigiNanba.</strong><span style={{fontSize:13,color:'#526b5e'}}></span></div>
@@ -164,6 +172,21 @@ export default function MyShopsDiscovery() {
         
       </div>
       {notice?<p role="status" style={{margin:0,fontSize:13,color:'#475467'}}>{notice}</p>:null}
+    </section>
+
+    <section id="regular-shops" style={{marginBottom:28}}>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:10,marginBottom:12}}>
+        <h2 style={{fontSize:21,margin:0}}>My Regular Shops</h2>
+        <span style={{fontSize:12,color:'#667085'}}>Your saved shops</span>
+      </div>
+      {regular.length ? <div style={{display:'flex',gap:12,overflowX:'auto',paddingBottom:8}}>
+        {regular.map(shop=><a key={shop.id} href={shop.public_id?'/s/'+shop.public_id:'#'} style={{minWidth:190,maxWidth:220,textDecoration:'none',color:'#172033',border:'1px solid #e4e7ec',borderRadius:15,padding:14,background:'#fff'}}>
+          <div style={{fontSize:26,marginBottom:8}}>🏪</div><strong>{shop.business_name}</strong>
+          <div style={{fontSize:12,color:'#667085',marginTop:4}}>{[shop.locality,shop.city].filter(Boolean).join(' · ')}</div>
+          <div style={{fontSize:12,color:'#475467',marginTop:7}}>{shop.public_id||'DigiNanba shop'}</div>
+          <div style={{fontSize:12,color:'#a66b12',marginTop:5}}>{shop.average_rating!=null?'★ '+Number(shop.average_rating).toFixed(1)+' ('+shop.rating_count+')':'New shop · No ratings yet'}</div>
+        </a>)}
+      </div>:<div style={{border:'1px dashed #d0d5dd',borderRadius:14,padding:17,color:'#667085',fontSize:14}}>Your regular shops will appear here. Search for a shop below and save it, or invite your regular shop owner to join DigiNanba.</div>}
     </section>
 
     <section style={{padding:'clamp(18px,3vw,26px)',border:'1px solid #e4e7ec',borderRadius:20,background:'linear-gradient(135deg,#f7f9ff,#fff 70%)',boxShadow:'0 8px 24px rgba(16,24,40,.04)'}}>
