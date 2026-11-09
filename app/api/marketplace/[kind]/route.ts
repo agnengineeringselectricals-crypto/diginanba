@@ -107,7 +107,7 @@ export async function POST(request:Request, context:{params:Promise<{kind:string
    if(kind==='shops' && (!v.regionCode || !v.addressLine?.trim())) return NextResponse.json({error:'Shop address and its two-letter state or region code are required.'},{status:400});
    const r=kind==='shops'
     ? await db.query(`INSERT INTO marketplace_businesses(owner_user_id,business_name,business_type,description,phone,whatsapp_phone,gst_number,email,website_url,country_code,region_code,region,district,city,locality,postal_code,address_line,latitude,longitude,public_id,verification_status,listing_status)
-      VALUES($1,$2,'shop',$3,$4,$5,$6,$7,$8,$9,$10::char(2),$11,$12,$13,$14,$15,$16,$17,$18,allocate_marketplace_public_id($10::text),'pending','published')
+      VALUES($1,$2,'shop',$3,$4,$5,$6,$7,$8,$9,$10::char(2),$11,$12,$13,$14,$15,$16,$17,$18,allocate_marketplace_public_id($9::text),'pending','published')
       RETURNING id,public_id,business_name,business_type,verification_status,listing_status,average_rating,rating_count`,
       [user,v.businessName,v.description,v.phone||null,v.whatsappPhone||null,v.gstNumber?.replace(/[^A-Za-z0-9]/g,'').toUpperCase()||null,v.email||null,v.websiteUrl||null,v.countryCode,v.regionCode,v.region||null,v.district||null,v.city||null,v.locality||null,v.postalCode||null,v.addressLine,v.latitude??null,v.longitude??null])
     : await db.query(`INSERT INTO marketplace_businesses(owner_user_id,business_name,business_type,description,phone,email,website_url,country_code,region,district,city,locality,postal_code,address_line)
