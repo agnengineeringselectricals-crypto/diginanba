@@ -13,6 +13,8 @@ export default function MyShopsDiscovery() {
   const [locationSuggestions,setLocationSuggestions]=useState<{value:string;kind:string;city:string|null;district:string|null;region:string|null}[]>([]);
   const [productSuggestionsOpen,setProductSuggestionsOpen]=useState(false);
   const [locationSuggestionsOpen,setLocationSuggestionsOpen]=useState(false);
+  const [selectedProduct,setSelectedProduct]=useState('');
+  const [selectedLocation,setSelectedLocation]=useState('');
   const [items,setItems]=useState<Shop[]>([]);
   const [regular,setRegular]=useState<Shop[]>([]);
   const [loading,setLoading]=useState(false);
@@ -35,7 +37,7 @@ export default function MyShopsDiscovery() {
   useEffect(()=>{
     let cancelled=false;
     const term=query.trim();
-    if(term.length<2){setProductSuggestions([]);setProductSuggestionsOpen(false);return;}
+    if(term.length<2||term===selectedProduct){setProductSuggestions([]);setProductSuggestionsOpen(false);return;}
     const timer=setTimeout(async()=>{
       try{
         const response=await fetch('/api/marketplace/shops/suggestions?type=products&q='+encodeURIComponent(term));
@@ -44,12 +46,12 @@ export default function MyShopsDiscovery() {
       }catch{if(!cancelled)setProductSuggestions([]);}
     },180);
     return()=>{cancelled=true;clearTimeout(timer);};
-  },[query]);
+  },[query,selectedProduct]);
 
   useEffect(()=>{
     let cancelled=false;
     const term=city.trim();
-    if(term.length<2){setLocationSuggestions([]);setLocationSuggestionsOpen(false);return;}
+    if(term.length<2||term===selectedLocation){setLocationSuggestions([]);setLocationSuggestionsOpen(false);return;}
     const timer=setTimeout(async()=>{
       try{
         const response=await fetch('/api/marketplace/shops/suggestions?type=locations&q='+encodeURIComponent(term));
@@ -58,7 +60,7 @@ export default function MyShopsDiscovery() {
       }catch{if(!cancelled)setLocationSuggestions([]);}
     },180);
     return()=>{cancelled=true;clearTimeout(timer);};
-  },[city]);
+  },[city,selectedLocation]);
 
   useEffect(()=>{
     let cancelled=false;
@@ -168,17 +170,17 @@ export default function MyShopsDiscovery() {
       <h2 style={{fontSize:21,margin:'0 0 14px'}}>What are you looking for?</h2>
       <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(min(100%,220px),1fr))',gap:10,alignItems:'start'}}>
         <div style={{position:'relative'}}>
-          <input aria-label="Search by shop name, product, shop ID, phone, WhatsApp or GST number" value={query} onFocus={()=>{if(query.trim().length>=2)setProductSuggestionsOpen(true);}} onChange={e=>setQuery(e.target.value)} placeholder="Shop name, product, Shop ID, phone / WhatsApp or GST number" style={field}/>
+          <input aria-label="Search by shop name, product, shop ID, phone, WhatsApp or GST number" value={query} onFocus={()=>{if(query.trim().length>=2)setProductSuggestionsOpen(true);}} onChange={e=>{setSelectedProduct('');setQuery(e.target.value);}} placeholder="Shop name, product, Shop ID, phone / WhatsApp or GST number" style={field}/>
           {productSuggestionsOpen&&productSuggestions.length>0?<div role="listbox" aria-label="Matching products" style={suggestionPanel}>
-            {productSuggestions.map((item,index)=><button type="button" role="option" aria-selected="false" key={item.title+'-'+item.category+'-'+index} onClick={()=>{setQuery(item.title);setProductSuggestionsOpen(false);}} style={suggestionButton}>
+            {productSuggestions.map((item,index)=><button type="button" role="option" aria-selected="false" key={item.title+'-'+item.category+'-'+index} onClick={()=>{setSelectedProduct(item.title);setQuery(item.title);setProductSuggestions([]);setProductSuggestionsOpen(false);}} style={suggestionButton}>
               <span style={{fontWeight:700,color:'#172033'}}>{item.title}</span><span style={{fontSize:11,color:'#667085'}}>{item.category}</span>
             </button>)}
           </div>:null}
         </div>
         <div style={{position:'relative'}}>
-          <input aria-label="City, town, village, street or local area" value={city} onFocus={()=>{if(city.trim().length>=2)setLocationSuggestionsOpen(true);}} onChange={e=>setCity(e.target.value)} placeholder="City, town, village, street or local area" style={field}/>
+          <input aria-label="City, town, village, street or local area" value={city} onFocus={()=>{if(city.trim().length>=2)setLocationSuggestionsOpen(true);}} onChange={e=>{setSelectedLocation('');setCity(e.target.value);}} placeholder="City, town, village, street or local area" style={field}/>
           {locationSuggestionsOpen&&locationSuggestions.length>0?<div role="listbox" aria-label="Matching locations" style={suggestionPanel}>
-            {locationSuggestions.map((item,index)=><button type="button" role="option" aria-selected="false" key={item.kind+'-'+item.value+'-'+index} onClick={()=>{setCity(item.value);setLocationSuggestionsOpen(false);}} style={suggestionButton}>
+            {locationSuggestions.map((item,index)=><button type="button" role="option" aria-selected="false" key={item.kind+'-'+item.value+'-'+index} onClick={()=>{setSelectedLocation(item.value);setCity(item.value);setLocationSuggestions([]);setLocationSuggestionsOpen(false);}} style={suggestionButton}>
               <span style={{fontWeight:700,color:'#172033'}}>{item.value}</span><span style={{fontSize:11,color:'#667085'}}>{[item.kind,item.city,item.district,item.region].filter(Boolean).join(' · ')}</span>
             </button>)}
           </div>:null}

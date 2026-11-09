@@ -38,9 +38,12 @@ export async function GET(request: Request) {
            UNION ALL
            SELECT postal_code, 'Postal code', city, district, region FROM marketplace_businesses WHERE business_type='shop' AND listing_status='published'
          )
-         SELECT DISTINCT value, kind, city, district, region
-         FROM location_values
-         WHERE COALESCE(value,'') <> '' AND value ILIKE '%' || $1 || '%'
+         SELECT value, kind, city, district, region
+         FROM (
+           SELECT DISTINCT value, kind, city, district, region
+           FROM location_values
+           WHERE COALESCE(value,'') <> '' AND value ILIKE '%' || $1 || '%'
+         ) matches
          ORDER BY CASE WHEN value ILIKE $1 || '%' THEN 0 ELSE 1 END, value
          LIMIT 12`,
         [q]
