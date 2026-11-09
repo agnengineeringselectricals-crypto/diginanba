@@ -9,6 +9,10 @@ export default function MyShopsDiscovery() {
   const [query,setQuery]=useState('');
   const [city,setCity]=useState('');
   const [category,setCategory]=useState('');
+  const [productSuggestions,setProductSuggestions]=useState<{title:string;category:string}[]>([]);
+  const [locationSuggestions,setLocationSuggestions]=useState<{value:string;kind:string;city:string|null;district:string|null;region:string|null}[]>([]);
+  const [productSuggestionsOpen,setProductSuggestionsOpen]=useState(false);
+  const [locationSuggestionsOpen,setLocationSuggestionsOpen]=useState(false);
   const [items,setItems]=useState<Shop[]>([]);
   const [regular,setRegular]=useState<Shop[]>([]);
   const [loading,setLoading]=useState(false);
@@ -27,6 +31,34 @@ export default function MyShopsDiscovery() {
     const detectedByLocale=localeRegion?localeDialCodes[localeRegion]:undefined;
     setCountryDialCode(detectedByTimezone||detectedByLocale||'+91');
   },[]);
+
+  useEffect(()=>{
+    let cancelled=false;
+    const term=query.trim();
+    if(term.length<2){setProductSuggestions([]);setProductSuggestionsOpen(false);return;}
+    const timer=setTimeout(async()=>{
+      try{
+        const response=await fetch('/api/marketplace/shops/suggestions?type=products&q='+encodeURIComponent(term));
+        const data=await response.json();
+        if(!cancelled){setProductSuggestions(data.suggestions||[]);setProductSuggestionsOpen(true);}
+      }catch{if(!cancelled)setProductSuggestions([]);}
+    },180);
+    return()=>{cancelled=true;clearTimeout(timer);};
+  },[query]);
+
+  useEffect(()=>{
+    let cancelled=false;
+    const term=city.trim();
+    if(term.length<2){setLocationSuggestions([]);setLocationSuggestionsOpen(false);return;}
+    const timer=setTimeout(async()=>{
+      try{
+        const response=await fetch('/api/marketplace/shops/suggestions?type=locations&q='+encodeURIComponent(term));
+        const data=await response.json();
+        if(!cancelled){setLocationSuggestions(data.suggestions||[]);setLocationSuggestionsOpen(true);}
+      }catch{if(!cancelled)setLocationSuggestions([]);}
+    },180);
+    return()=>{cancelled=true;clearTimeout(timer);};
+  },[city]);
 
   useEffect(()=>{
     let cancelled=false;
@@ -134,9 +166,23 @@ export default function MyShopsDiscovery() {
 
     <section style={{padding:'clamp(18px,3vw,26px)',border:'1px solid #e4e7ec',borderRadius:20,background:'linear-gradient(135deg,#f7f9ff,#fff 70%)',boxShadow:'0 8px 24px rgba(16,24,40,.04)'}}>
       <h2 style={{fontSize:21,margin:'0 0 14px'}}>What are you looking for?</h2>
-      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(min(100%,220px),1fr))',gap:10}}>
-        <input aria-label="Search by shop name, product, shop ID, phone, WhatsApp or GST number" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Shop name, product, Shop ID, phone / WhatsApp or GST number" style={field}/>
-        <input aria-label="City or area" value={city} onChange={e=>setCity(e.target.value)} placeholder="City or area" style={field}/>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(min(100%,220px),1fr))',gap:10,alignItems:'start'}}>
+        <div style={{position:'relative'}}>
+          <input aria-label="Search by shop name, product, shop ID, phone, WhatsApp or GST number" value={query} onFocus={()=>{if(query.trim().length>=2)setProductSuggestionsOpen(true);}} onChange={e=>setQuery(e.target.value)} placeholder="Shop name, product, Shop ID, phone / WhatsApp or GST number" style={field}/>
+          {productSuggestionsOpen&&productSuggestions.length>0?<div role="listbox" aria-label="Matching products" style={suggestionPanel}>
+            {productSuggestions.map((item,index)=><button type="button" role="option" aria-selected="false" key={item.title+'-'+item.category+'-'+index} onClick={()=>{setQuery(item.title);setProductSuggestionsOpen(false);}} style={suggestionButton}>
+              <span style={{fontWeight:700,color:'#172033'}}>{item.title}</span><span style={{fontSize:11,color:'#667085'}}>{item.category}</span>
+            </button>)}
+          </div>:null}
+        </div>
+        <div style={{position:'relative'}}>
+          <input aria-label="City, town, village, street or local area" value={city} onFocus={()=>{if(city.trim().length>=2)setLocationSuggestionsOpen(true);}} onChange={e=>setCity(e.target.value)} placeholder="City, town, village, street or local area" style={field}/>
+          {locationSuggestionsOpen&&locationSuggestions.length>0?<div role="listbox" aria-label="Matching locations" style={suggestionPanel}>
+            {locationSuggestions.map((item,index)=><button type="button" role="option" aria-selected="false" key={item.kind+'-'+item.value+'-'+index} onClick={()=>{setCity(item.value);setLocationSuggestionsOpen(false);}} style={suggestionButton}>
+              <span style={{fontWeight:700,color:'#172033'}}>{item.value}</span><span style={{fontSize:11,color:'#667085'}}>{[item.kind,item.city,item.district,item.region].filter(Boolean).join(' · ')}</span>
+            </button>)}
+          </div>:null}
+        </div>
       </div>
       <div style={{display:'flex',flexWrap:'wrap',gap:8,marginTop:15}}>
         <button type="button" onClick={()=>setCategory('')} style={chip(!category)} >All shops</button>
@@ -172,5 +218,7 @@ export default function MyShopsDiscovery() {
 }
 
 const field:CSSProperties={width:'100%',boxSizing:'border-box',padding:'13px 14px',border:'1px solid #d0d5dd',borderRadius:12,background:'#fff',color:'#172033',font:'inherit'};
+const suggestionPanel:CSSProperties={position:'absolute',zIndex:30,top:'calc(100% + 5px)',left:0,right:0,maxHeight:260,overflowY:'auto',border:'1px solid #d0d5dd',borderRadius:12,background:'#fff',boxShadow:'0 12px 28px rgba(16,24,40,.14)'};
+const suggestionButton:CSSProperties={width:'100%',display:'flex',flexDirection:'column',alignItems:'flex-start',gap:3,padding:'11px 13px',border:0,borderBottom:'1px solid #f0f1f3',background:'#fff',textAlign:'left',cursor:'pointer',font:'inherit'};
 const primaryButton:React.CSSProperties={border:0,borderRadius:999,padding:'11px 17px',background:'#176b4d',color:'#fff',fontWeight:750,cursor:'pointer'};
 function chip(active:boolean):React.CSSProperties{return{border:'1px solid '+(active?'#263c91':'#d0d5dd'),borderRadius:999,padding:'8px 12px',background:active?'#263c91':'#fff',color:active?'#fff':'#344054',fontSize:12,cursor:'pointer'}}

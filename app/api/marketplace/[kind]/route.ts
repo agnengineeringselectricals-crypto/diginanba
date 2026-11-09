@@ -61,7 +61,7 @@ export async function GET(request:Request, context:{params:Promise<{kind:string}
     WHERE b.business_type=$1 AND b.listing_status='published' AND ($6 OR b.verification_status='verified')
     AND ($2='' OR b.business_name ILIKE '%'||$2||'%' OR b.description ILIKE '%'||$2||'%' OR l.title ILIKE '%'||$2||'%' OR l.category ILIKE '%'||$2||'%' OR replace(upper(COALESCE(b.public_id,'')),'-','')=$5 OR ($7<>'' AND (regexp_replace(COALESCE(b.phone,''),'[^0-9]','','g')=$7 OR regexp_replace(COALESCE(b.whatsapp_phone,''),'[^0-9]','','g')=$7)) OR ($8<>'' AND regexp_replace(upper(COALESCE(b.gst_number,'')),'[^A-Z0-9]','','g')=$8))
     AND ($3='' OR EXISTS (SELECT 1 FROM marketplace_listings lc WHERE lc.business_id=b.id AND lc.listing_status='published' AND (lc.category ILIKE '%'||$3||'%' OR lc.title ILIKE '%'||$3||'%')))
-    AND ($4='' OR COALESCE(b.city,'') ILIKE '%'||$4||'%' OR COALESCE(b.locality,'') ILIKE '%'||$4||'%' OR COALESCE(b.district,'') ILIKE '%'||$4||'%')
+    AND ($4='' OR COALESCE(b.city,'') ILIKE '%'||$4||'%' OR COALESCE(b.locality,'') ILIKE '%'||$4||'%' OR COALESCE(b.district,'') ILIKE '%'||$4||'%' OR COALESCE(b.region,'') ILIKE '%'||$4||'%' OR COALESCE(b.address_line,'') ILIKE '%'||$4||'%' OR COALESCE(b.postal_code,'') ILIKE '%'||$4||'%')
     GROUP BY b.id ORDER BY b.created_at DESC LIMIT 50`,[type,q,category,city,publicIdQuery,kind==='shops',identifierDigits,identifierText]);
    let regularShops: unknown[] = [];
    if(kind==='shops' && user) {
