@@ -5,7 +5,7 @@ import { signOut } from 'next-auth/react';
 import { useEffect,useState,type CSSProperties,type FormEvent } from 'react';
 import ShopFulfilmentSettings from '@/app/components/ShopFulfilmentSettings';
 
-type Shop={id:string;public_id:string;business_name:string;country_code:string;phone:string|null;email:string|null;city:string|null;region:string|null;verification_status:string;door_delivery_enabled:boolean;self_collection_enabled:boolean;listings:{id:string;title:string;category:string;priceAmount:number|null;mrpAmount:number|null;maxDiscountAmount:number|null;currency:string|null;priceUnit:string|null;availability:string}[]};
+type Shop={id:string;public_id:string;business_name:string;country_code:string;phone:string|null;whatsapp_phone:string|null;gst_number:string|null;email:string|null;city:string|null;region:string|null;verification_status:string;door_delivery_enabled:boolean;self_collection_enabled:boolean;listings:{id:string;title:string;category:string;priceAmount:number|null;mrpAmount:number|null;maxDiscountAmount:number|null;currency:string|null;priceUnit:string|null;availability:string}[]};
 const field:CSSProperties={width:'100%',boxSizing:'border-box',padding:'11px 12px',border:'1px solid #d0d5dd',borderRadius:10,font:'inherit',background:'#fff'};
 const button:CSSProperties={border:0,borderRadius:999,padding:'11px 16px',background:'#176b4d',color:'#fff',fontWeight:750,cursor:'pointer'};
 
@@ -13,6 +13,8 @@ export default function MyShopsManager(){
  const [shops,setShops]=useState<Shop[]>([]);
  const [selected,setSelected]=useState('');
  const [phone,setPhone]=useState('');
+ const [whatsappPhone,setWhatsappPhone]=useState('');
+ const [gstNumber,setGstNumber]=useState('');
  const [email,setEmail]=useState('');
  const [product,setProduct]=useState('');
  const [category,setCategory]=useState('Groceries & Daily Needs');
@@ -26,12 +28,12 @@ export default function MyShopsManager(){
   const r=await fetch('/api/marketplace/shops/mine');const d=await r.json();
   if(!r.ok)throw new Error(d.error||'Could not load shops.');
   setShops(d.shops||[]);
-  if(d.shops?.length){setSelected((old:string)=>old||d.shops[0].id);setPhone(d.shops[0].phone||'');setEmail(d.shops[0].email||'');}
+  if(d.shops?.length){setSelected((old:string)=>old||d.shops[0].id);setPhone(d.shops[0].phone||'');setWhatsappPhone(d.shops[0].whatsapp_phone||'');setGstNumber(d.shops[0].gst_number||'');setEmail(d.shops[0].email||'');}
  }
  useEffect(()=>{load().catch(e=>setMessage(e.message));},[]);
  const current=shops.find(s=>s.id===selected);
  const currency=current?.country_code==='IN'?'INR':current?.country_code==='GB'?'GBP':current?.country_code==='AU'?'AUD':current?.country_code==='CA'?'CAD':'USD';
- function choose(id:string){const s=shops.find(x=>x.id===id);setSelected(id);setPhone(s?.phone||'');setEmail(s?.email||'');}
+ function choose(id:string){const s=shops.find(x=>x.id===id);setSelected(id);setPhone(s?.phone||'');setWhatsappPhone(s?.whatsapp_phone||'');setGstNumber(s?.gst_number||'');setEmail(s?.email||'');}
  async function createCustomerInvite(){
   if(!current)return;setBusy(true);setMessage('');setInvitationLink('');
   try{
@@ -40,7 +42,7 @@ export default function MyShopsManager(){
    const fullUrl=window.location.origin+d.invitationPath;setInvitationLink(fullUrl);setMessage('Invitation link created. Share it with your customer.');
   }catch(e){setMessage(e instanceof Error?e.message:'Could not create invitation.');}finally{setBusy(false);}
  }
- async function saveContact(e:FormEvent<HTMLFormElement>){e.preventDefault();if(!current)return;setBusy(true);setMessage('');try{const r=await fetch('/api/marketplace/shops/mine',{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({businessId:current.id,phone,email})});const d=await r.json();if(!r.ok)throw new Error(d.error||'Could not save.');setMessage(d.message);await load();}catch(e){setMessage(e instanceof Error?e.message:'Could not save.');}finally{setBusy(false);}}
+ async function saveContact(e:FormEvent<HTMLFormElement>){e.preventDefault();if(!current)return;setBusy(true);setMessage('');try{const r=await fetch('/api/marketplace/shops/mine',{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({businessId:current.id,phone,whatsappPhone,gstNumber,email})});const d=await r.json();if(!r.ok)throw new Error(d.error||'Could not save.');setMessage(d.message);await load();}catch(e){setMessage(e instanceof Error?e.message:'Could not save.');}finally{setBusy(false);}}
  async function addProduct(e:FormEvent<HTMLFormElement>){e.preventDefault();if(!current)return;setBusy(true);setMessage('');try{const mrp=Number(price);const discount=Number(maxDiscount||0);if(!Number.isFinite(mrp)||mrp<=0||discount<0||discount>mrp)throw new Error('Enter a valid MRP and maximum discount.');const r=await fetch('/api/marketplace/shops',{method:'PUT',headers:{'content-type':'application/json'},body:JSON.stringify({businessId:current.id,title:product,description:'',category,listingType:'physical_product',mrpAmount:mrp,maxDiscountAmount:discount,currency,priceUnit:unit})});const d=await r.json();if(!r.ok)throw new Error(d.error||'Could not add product.');setProduct('');setPrice('');setMaxDiscount('0');setMessage(d.message);await load();}catch(e){setMessage(e instanceof Error?e.message:'Could not add product.');}finally{setBusy(false);}}
  async function importCsv(file:File){if(!current)return;setBusy(true);setMessage('');try{const text=await file.text();const rows=text.split(/\r?\n/).filter(x=>x.trim());if(rows.length<2)throw new Error('CSV must contain a header row and at least one product.');const parse=(line:string)=>{const out:string[]=[];let v='',quoted=false;for(let i=0;i<line.length;i++){const ch=line[i];if(ch==='"'&&line[i+1]==='"'&&quoted){v+='"';i++;}else if(ch==='"'){quoted=!quoted;}else if(ch===','&&!quoted){out.push(v.trim());v='';}else v+=ch;}out.push(v.trim());return out;};const headers=parse(rows[0]).map(x=>x.toLowerCase().replace(/\s+/g,'_'));const index=(...keys:string[])=>headers.findIndex(h=>keys.includes(h));const titleI=index('title','product','product_name','name'),catI=index('category'),mrpI=index('mrp','mrp_amount','price'),discI=index('max_disc','max_discount','max_discount_amount'),unitI=index('unit','price_unit'),descI=index('description');if(titleI<0||catI<0||mrpI<0)throw new Error('CSV needs Product/Title, Category and MRP columns.');const items=rows.slice(1).map(line=>{const a=parse(line);return {businessId:current.id,title:a[titleI]||'',category:a[catI]||'Other',description:descI>=0?a[descI]||'':'',listingType:'physical_product',mrpAmount:Number(a[mrpI]),maxDiscountAmount:discI>=0?Number(a[discI]||0):0,currency,priceUnit:unitI>=0?a[unitI]||'piece':'piece'};}).filter(x=>x.title);if(items.length===0||items.length>500)throw new Error('CSV must contain between 1 and 500 valid product rows.');if(items.some(x=>!Number.isFinite(x.mrpAmount)||x.mrpAmount<=0||!Number.isFinite(x.maxDiscountAmount)||x.maxDiscountAmount<0||x.maxDiscountAmount>x.mrpAmount))throw new Error('One or more rows have an invalid MRP or Max Disc. Correct the CSV and import again.');const r=await fetch('/api/marketplace/shops',{method:'PUT',headers:{'content-type':'application/json'},body:JSON.stringify({items})});const d=await r.json();if(!r.ok)throw new Error(d.error||'Import failed.');setMessage(d.message);await load();}catch(e){setMessage(e instanceof Error?e.message:'Could not import CSV.');}finally{setBusy(false);}}
  if(!shops.length)return <main style={{maxWidth:850,margin:'0 auto',padding:32}}><h1>My Shop Owner Dashboard</h1><p>You have not registered a shop yet.</p><a href="/join/shop" style={{color:'#2454c6'}}>Register your shop →</a>{message?<p>{message}</p>:null}</main>;
@@ -70,6 +72,8 @@ export default function MyShopsManager(){
   <form onSubmit={saveContact} style={{marginTop:16,padding:18,border:'1px solid #e4e7ec',borderRadius:16,display:'grid',gap:12}}>
    <h2 style={{margin:0,fontSize:20}}>Shop Owner Profile Settings</h2><p style={{margin:0,color:'#667085',fontSize:13}}>Phone and email are optional. You can add or update them whenever you wish.</p>
    <label style={{display:'grid',gap:5,fontSize:14}}>Phone number<input type="tel" value={phone} onChange={e=>setPhone(e.target.value)} style={field}/></label>
+   <label style={{display:'grid',gap:5,fontSize:14}}>WhatsApp number<input type="tel" value={whatsappPhone} onChange={e=>setWhatsappPhone(e.target.value)} style={field}/></label>
+   <label style={{display:'grid',gap:5,fontSize:14}}>GST / Tax registration number<input type="text" value={gstNumber} onChange={e=>setGstNumber(e.target.value.toUpperCase())} maxLength={40} style={field}/></label>
    <label style={{display:'grid',gap:5,fontSize:14}}>Email address<input type="email" value={email} onChange={e=>setEmail(e.target.value)} style={field}/></label>
    <button disabled={busy} style={button}>Save contact settings</button>
   </form>

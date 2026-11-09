@@ -26,6 +26,8 @@ export default function ShopRegistration({ invitationCode }: { invitationCode: s
   const [city,setCity]=useState('');
   const [address,setAddress]=useState('');
   const [phone,setPhone]=useState('');
+  const [whatsappPhone,setWhatsappPhone]=useState('');
+  const [gstNumber,setGstNumber]=useState('');
   const [email,setEmail]=useState('');
   const [coords,setCoords]=useState<{lat:number;lng:number}|null>(null);
   const [business,setBusiness]=useState<{id:string;public_id:string;business_name:string}|null>(null);
@@ -82,7 +84,7 @@ export default function ShopRegistration({ invitationCode }: { invitationCode: s
     e.preventDefault();setBusy(true);setNotice('');
     try {
       const response=await fetch('/api/marketplace/shops',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({
-        businessName:shopName,countryCode:country,regionCode,region:regionName,city,addressLine:address,phone:phone||undefined,email:email||undefined,invitationCode:invitationCode||undefined,
+        businessName:shopName,countryCode:country,regionCode,region:regionName,city,addressLine:address,phone:phone||undefined,whatsappPhone:whatsappPhone||undefined,gstNumber:gstNumber||undefined,email:email||undefined,invitationCode:invitationCode||undefined,
         latitude:coords?.lat,longitude:coords?.lng,description:''
       })});
       const data=await response.json();
@@ -140,6 +142,12 @@ export default function ShopRegistration({ invitationCode }: { invitationCode: s
         <strong>Contact details (optional)</strong>
         <label style={{display:'grid',gap:6,fontSize:14}}>Phone number
           <input type="tel" value={phone} onChange={e=>setPhone(e.target.value)} placeholder="You can add this later" style={field}/>
+        </label>
+        <label style={{display:'grid',gap:6,fontSize:14}}>WhatsApp number
+          <input type="tel" value={whatsappPhone} onChange={e=>setWhatsappPhone(e.target.value)} placeholder="If different from phone number" style={field}/>
+        </label>
+        <label style={{display:'grid',gap:6,fontSize:14}}>GST / Tax registration number
+          <input type="text" value={gstNumber} onChange={e=>setGstNumber(e.target.value.toUpperCase())} placeholder="Optional" maxLength={40} style={field}/>
         </label>
         <label style={{display:'grid',gap:6,fontSize:14}}>Email address
           <input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="You can add this later" style={field}/>
