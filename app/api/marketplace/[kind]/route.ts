@@ -9,7 +9,7 @@ type Kind = 'shops'|'services'|'professionals'|'healthcare'|'career';
 const kinds = new Set<Kind>(['shops','services','professionals','healthcare','career']);
 const businessSchema = z.object({
   businessName:z.string().trim().min(2).max(160), description:z.string().trim().max(4000).default(''),
-  phone:z.string().trim().max(40).optional(), email:z.union([z.string().email().max(254),z.literal('')]).optional(), websiteUrl:z.union([z.string().url().max(500),z.literal('')]).optional(),
+  phone:z.string().trim().max(40).optional(), whatsappPhone:z.string().trim().max(40).optional(), gstNumber:z.string().trim().max(40).optional(), email:z.union([z.string().email().max(254),z.literal('')]).optional(), websiteUrl:z.union([z.string().url().max(500),z.literal('')]).optional(),
   countryCode:z.string().length(2).default('IN'), regionCode:z.string().length(2).optional(), region:z.string().max(120).optional(), district:z.string().max(120).optional(),
   city:z.string().max(120).optional(), locality:z.string().max(120).optional(), postalCode:z.string().max(20).optional(),
   addressLine:z.string().max(500).optional(), latitude:z.number().min(-90).max(90).optional(), longitude:z.number().min(-180).max(180).optional(), invitationCode:z.string().max(64).optional()
@@ -51,7 +51,7 @@ async function userId(){const s=await auth();return s?.user?.id||null;}
 export async function GET(request:Request, context:{params:Promise<{kind:string}>}) {
  const {kind}=await context.params;if(!kinds.has(kind as Kind))return NextResponse.json({error:'Unknown marketplace area.'},{status:404});
  const user=await userId();const url=new URL(request.url);const q=(url.searchParams.get('q')||'').trim().slice(0,100);
- const category=(url.searchParams.get('category')||'').trim().slice(0,100);const city=(url.searchParams.get('city')||'').trim().slice(0,120);const publicIdQuery=q.toUpperCase().replace(/[^A-Z0-9]/g,'');
+ const category=(url.searchParams.get('category')||'').trim().slice(0,100);const city=(url.searchParams.get('city')||'').trim().slice(0,120);const publicIdQuery=q.toUpperCase().replace(/[^A-Z0-9]/g,'');const identifierDigits=q.replace(/\D/g,'');const identifierText=q.toUpperCase().replace(/[^A-Z0-9]/g,'');
  try {
   if(kind==='shops'||kind==='services'||kind==='professionals'){
    const type=kind==='shops'?'shop':kind==='services'?'service':'professional';
@@ -59,10 +59,10 @@ export async function GET(request:Request, context:{params:Promise<{kind:string}
     COALESCE(json_agg(json_build_object('id',l.id,'title',l.title,'description',l.description,'category',l.category,'listingType',l.listing_type,'priceAmount',COALESCE(l.customer_price_amount,l.price_amount),'currency',l.currency,'priceUnit',l.price_unit)) FILTER(WHERE l.id IS NOT NULL),'[]') AS listings
     FROM marketplace_businesses b LEFT JOIN marketplace_listings l ON l.business_id=b.id AND l.listing_status='published'
     WHERE b.business_type=$1 AND b.listing_status='published' AND ($6 OR b.verification_status='verified')
-    AND ($2='' OR b.business_name ILIKE '%'||$2||'%' OR b.description ILIKE '%'||$2||'%' OR l.title ILIKE '%'||$2||'%' OR l.category ILIKE '%'||$2||'%' OR replace(upper(COALESCE(b.public_id,'')),'-','')=$5)
+    AND ($2='' OR b.business_name ILIKE '%'||$2||'%' OR b.description ILIKE '%'||$2||'%' OR l.title ILIKE '%'||$2||'%' OR l.category ILIKE '%'||$2||'%' OR replace(upper(COALESCE(b.public_id,'')),'-','')=$5 OR ($7<>'' AND (regexp_replace(COALESCE(b.phone,''),'\D','','g')=$7 OR regexp_replace(COALESCE(b.whatsapp_phone,''),'\D','','g')=$7)) OR ($8<>'' AND regexp_replace(upper(COALESCE(b.gst_number,'')),'[^A-Z0-9]','','g')=$8))
     AND ($3='' OR EXISTS (SELECT 1 FROM marketplace_listings lc WHERE lc.business_id=b.id AND lc.listing_status='published' AND (lc.category ILIKE '%'||$3||'%' OR lc.title ILIKE '%'||$3||'%')))
     AND ($4='' OR COALESCE(b.city,'') ILIKE '%'||$4||'%' OR COALESCE(b.locality,'') ILIKE '%'||$4||'%' OR COALESCE(b.district,'') ILIKE '%'||$4||'%')
-    GROUP BY b.id ORDER BY b.created_at DESC LIMIT 50`,[type,q,category,city,publicIdQuery,kind==='shops']);
+    GROUP BY b.id ORDER BY b.created_at DESC LIMIT 50`,[type,q,category,city,publicIdQuery,kind==='shops',identifierDigits,identifierText]);
    let regularShops: unknown[] = [];
    if(kind==='shops' && user) {
     const saved=await db.query(`SELECT b.id,b.public_id,b.business_name,b.city,b.locality,b.average_rating,b.rating_count
@@ -106,10 +106,10 @@ export async function POST(request:Request, context:{params:Promise<{kind:string
    const type=kind==='shops'?'shop':kind==='services'?'service':'professional';const v=p.data;
    if(kind==='shops' && (!v.regionCode || !v.addressLine?.trim())) return NextResponse.json({error:'Shop address and its two-letter state or region code are required.'},{status:400});
    const r=kind==='shops'
-    ? await db.query(`INSERT INTO marketplace_businesses(owner_user_id,business_name,business_type,description,phone,email,website_url,country_code,region_code,region,district,city,locality,postal_code,address_line,latitude,longitude,public_id,verification_status,listing_status)
-      VALUES($1,$2,'shop',$3,$4,$5,$6,$7,$8::char(2),$9,$10,$11,$12,$13,$14,$15,$16,allocate_marketplace_public_id($8::text),'pending','published')
+    ? await db.query(`INSERT INTO marketplace_businesses(owner_user_id,business_name,business_type,description,phone,whatsapp_phone,gst_number,email,website_url,country_code,region_code,region,district,city,locality,postal_code,address_line,latitude,longitude,public_id,verification_status,listing_status)
+      VALUES($1,$2,'shop',$3,$4,$5,$6,$7,$8,$9,$10::char(2),$11,$12,$13,$14,$15,$16,$17,$18,allocate_marketplace_public_id($10::text),'pending','published')
       RETURNING id,public_id,business_name,business_type,verification_status,listing_status,average_rating,rating_count`,
-      [user,v.businessName,v.description,v.phone||null,v.email||null,v.websiteUrl||null,v.countryCode,v.regionCode,v.region||null,v.district||null,v.city||null,v.locality||null,v.postalCode||null,v.addressLine,v.latitude??null,v.longitude??null])
+      [user,v.businessName,v.description,v.phone||null,v.whatsappPhone||null,v.gstNumber?.replace(/[^A-Za-z0-9]/g,'').toUpperCase()||null,v.email||null,v.websiteUrl||null,v.countryCode,v.regionCode,v.region||null,v.district||null,v.city||null,v.locality||null,v.postalCode||null,v.addressLine,v.latitude??null,v.longitude??null])
     : await db.query(`INSERT INTO marketplace_businesses(owner_user_id,business_name,business_type,description,phone,email,website_url,country_code,region,district,city,locality,postal_code,address_line)
       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING id,business_name,business_type,verification_status,listing_status`,
       [user,v.businessName,type,v.description,v.phone||null,v.email||null,v.websiteUrl||null,v.countryCode,v.region||null,v.district||null,v.city||null,v.locality||null,v.postalCode||null,v.addressLine||null]);
