@@ -10,13 +10,13 @@ export default function MyShopsDiscovery() {
   const [city,setCity]=useState('');
   const [category,setCategory]=useState('');
   const [productSuggestions,setProductSuggestions]=useState<{title:string;category:string}[]>([]);
+  const [shopSuggestions,setShopSuggestions]=useState<{business_name:string;public_id:string|null;city:string|null;district:string|null;region:string|null}[]>([]);
   const [locationSuggestions,setLocationSuggestions]=useState<{value:string;kind:string;city:string|null;district:string|null;region:string|null}[]>([]);
   const [productSuggestionsOpen,setProductSuggestionsOpen]=useState(false);
   const [locationSuggestionsOpen,setLocationSuggestionsOpen]=useState(false);
   const [selectedProduct,setSelectedProduct]=useState('');
   const [selectedLocation,setSelectedLocation]=useState('');
   const [items,setItems]=useState<Shop[]>([]);
-  const [regular,setRegular]=useState<Shop[]>([]);
   const [favourites,setFavourites]=useState<Shop[]>([]);
   const [loading,setLoading]=useState(false);
   const [notice,setNotice]=useState('');
@@ -26,25 +26,33 @@ export default function MyShopsDiscovery() {
   const [error,setError]=useState('');
 
   useEffect(()=>{
+    let active=true;
     const localeRegion=navigator.language.match(/-([A-Z]{2})(?:-|$)/i)?.[1]?.toUpperCase();
     const timezone=Intl.DateTimeFormat().resolvedOptions().timeZone;
-    const localeDialCodes:Record<string,string>={IN:'+91',US:'+1',CA:'+1',GB:'+44',AU:'+61',NZ:'+64',AE:'+971',SG:'+65',MY:'+60',LK:'+94',BD:'+880',NP:'+977',SA:'+966',QA:'+974',OM:'+968',ZA:'+27',DE:'+49',FR:'+33',JP:'+81',KR:'+82',CN:'+86',IE:'+353',IT:'+39',ES:'+34',NL:'+31',BE:'+32',CH:'+41',AT:'+43',SE:'+46',NO:'+47',DK:'+45',FI:'+358',BR:'+55',MX:'+52',ID:'+62',PH:'+63',TH:'+66',VN:'+84',PK:'+92',KW:'+965',BH:'+973',TR:'+90'};
+    const dialCodes:Record<string,string>={IN:'+91',US:'+1',CA:'+1',GB:'+44',AU:'+61',NZ:'+64',AE:'+971',SG:'+65',MY:'+60',LK:'+94',BD:'+880',NP:'+977',SA:'+966',QA:'+974',OM:'+968',ZA:'+27',DE:'+49',FR:'+33',JP:'+81',KR:'+82',CN:'+86',IE:'+353',IT:'+39',ES:'+34',NL:'+31',BE:'+32',CH:'+41',AT:'+43',SE:'+46',NO:'+47',DK:'+45',FI:'+358',BR:'+55',MX:'+52',ID:'+62',PH:'+63',TH:'+66',VN:'+84',PK:'+92',KW:'+965',BH:'+973',TR:'+90'};
     const zoneDialCodes:Record<string,string>={'Asia/Kolkata':'+91','Asia/Colombo':'+94','Asia/Dhaka':'+880','Asia/Kathmandu':'+977','Asia/Dubai':'+971','Asia/Singapore':'+65','Asia/Kuala_Lumpur':'+60','Asia/Riyadh':'+966','Asia/Qatar':'+974','Asia/Muscat':'+968','Europe/London':'+44','Australia/Sydney':'+61','Pacific/Auckland':'+64'};
-    const detectedByTimezone=zoneDialCodes[timezone];
-    const detectedByLocale=localeRegion?localeDialCodes[localeRegion]:undefined;
-    setCountryDialCode(detectedByTimezone||detectedByLocale||'+91');
+    const fallback=zoneDialCodes[timezone]||(localeRegion?dialCodes[localeRegion]:undefined)||'+91';
+    fetch('/api/marketplace/geo').then(r=>r.ok?r.json():null).then(data=>{
+      if(!active)return;
+      const country=String(data?.countryCode||'').toUpperCase();
+      setCountryDialCode(dialCodes[country]||fallback);
+    }).catch(()=>{if(active)setCountryDialCode(fallback);});
+    return()=>{active=false;};
   },[]);
 
   useEffect(()=>{
     let cancelled=false;
     const term=query.trim();
-    if(term.length<2||term===selectedProduct){setProductSuggestions([]);setProductSuggestionsOpen(false);return;}
+    if(term.length<2||term===selectedProduct){setProductSuggestions([]);setShopSuggestions([]);setProductSuggestionsOpen(false);return;}
     const timer=setTimeout(async()=>{
       try{
-        const response=await fetch('/api/marketplace/shops/suggestions?type=products&q='+encodeURIComponent(term));
-        const data=await response.json();
-        if(!cancelled){setProductSuggestions(data.suggestions||[]);setProductSuggestionsOpen(true);}
-      }catch{if(!cancelled)setProductSuggestions([]);}
+        const [productsResponse,shopsResponse]=await Promise.all([
+          fetch('/api/marketplace/shops/suggestions?type=products&q='+encodeURIComponent(term)),
+          fetch('/api/marketplace/shops/suggestions?type=shops&q='+encodeURIComponent(term))
+        ]);
+        const [productsData,shopsData]=await Promise.all([productsResponse.json(),shopsResponse.json()]);
+        if(!cancelled){setProductSuggestions(productsData.suggestions||[]);setShopSuggestions(shopsData.suggestions||[]);setProductSuggestionsOpen(true);}
+      }catch{if(!cancelled){setProductSuggestions([]);setShopSuggestions([]);}}
     },180);
     return()=>{cancelled=true;clearTimeout(timer);};
   },[query,selectedProduct]);
@@ -81,7 +89,7 @@ export default function MyShopsDiscovery() {
         const response=await fetch('/api/marketplace/shops?'+params.toString());
         const data=await response.json();
         if(!response.ok)throw new Error(data.error||'Could not search shops.');
-        if(!cancelled){setItems(data.items||[]);setRegular(data.regularShops||[]);}
+        if(!cancelled){setItems(data.items||[]);}
       }catch(e){if(!cancelled){setItems([]);setError(e instanceof Error?e.message:'Could not search shops.');}}
       finally{if(!cancelled)setLoading(false);}
     },220);
@@ -174,28 +182,18 @@ export default function MyShopsDiscovery() {
       {notice?<p role="status" style={{margin:0,fontSize:13,color:'#475467'}}>{notice}</p>:null}
     </section>
 
-    <section id="regular-shops" style={{marginBottom:28}}>
-      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:10,marginBottom:12}}>
-        <h2 style={{fontSize:21,margin:0}}>My Regular Shops</h2>
-        <span style={{fontSize:12,color:'#667085'}}>Your saved shops</span>
-      </div>
-      {regular.length ? <div style={{display:'flex',gap:12,overflowX:'auto',paddingBottom:8}}>
-        {regular.map(shop=><a key={shop.id} href={shop.public_id?'/s/'+shop.public_id:'#'} style={{minWidth:190,maxWidth:220,textDecoration:'none',color:'#172033',border:'1px solid #e4e7ec',borderRadius:15,padding:14,background:'#fff'}}>
-          <div style={{fontSize:26,marginBottom:8}}>🏪</div><strong>{shop.business_name}</strong>
-          <div style={{fontSize:12,color:'#667085',marginTop:4}}>{[shop.locality,shop.city].filter(Boolean).join(' · ')}</div>
-          <div style={{fontSize:12,color:'#475467',marginTop:7}}>{shop.public_id||'DigiNanba shop'}</div>
-          <div style={{fontSize:12,color:'#a66b12',marginTop:5}}>{shop.average_rating!=null?'★ '+Number(shop.average_rating).toFixed(1)+' ('+shop.rating_count+')':'New shop · No ratings yet'}</div>
-        </a>)}
-      </div>:<div style={{border:'1px dashed #d0d5dd',borderRadius:14,padding:17,color:'#667085',fontSize:14}}>Your regular shops will appear here. Search for a shop below and save it, or invite your regular shop owner to join DigiNanba.</div>}
-    </section>
-
     <section style={{padding:'clamp(18px,3vw,26px)',border:'1px solid #e4e7ec',borderRadius:20,background:'linear-gradient(135deg,#f7f9ff,#fff 70%)',boxShadow:'0 8px 24px rgba(16,24,40,.04)'}}>
       <h2 style={{fontSize:21,margin:'0 0 14px'}}>What are you looking for?</h2>
       <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(min(100%,220px),1fr))',gap:10,alignItems:'start'}}>
         <div style={{position:'relative'}}>
           <input aria-label="Search by shop name, product, shop ID, phone, WhatsApp or GST number" value={query} onFocus={()=>{if(query.trim().length>=2)setProductSuggestionsOpen(true);}} onChange={e=>{setSelectedProduct('');setQuery(e.target.value);}} placeholder="Shop name, product, Shop ID, phone / WhatsApp or GST number" style={field}/>
-          {productSuggestionsOpen&&productSuggestions.length>0?<div role="listbox" aria-label="Matching products" style={suggestionPanel}>
-            {productSuggestions.map((item,index)=><button type="button" role="option" aria-selected="false" key={item.title+'-'+item.category+'-'+index} onClick={()=>{setSelectedProduct(item.title);setQuery(item.title);setProductSuggestions([]);setProductSuggestionsOpen(false);}} style={suggestionButton}>
+          {productSuggestionsOpen&&(shopSuggestions.length>0||productSuggestions.length>0)?<div role="listbox" aria-label="Matching shops and products" style={suggestionPanel}>
+            {shopSuggestions.length>0?<div style={{padding:'8px 12px',fontSize:11,fontWeight:800,color:'#5264b5',background:'#f7f8fc'}}>SHOPS</div>:null}
+            {shopSuggestions.map((item,index)=><button type="button" role="option" aria-selected="false" key={'shop-'+item.public_id+'-'+index} onClick={()=>{const value=item.business_name;setSelectedProduct(value);setQuery(value);setShopSuggestions([]);setProductSuggestions([]);setProductSuggestionsOpen(false);}} style={suggestionButton}>
+              <span style={{fontWeight:700,color:'#172033'}}>🏪 {item.business_name}</span><span style={{fontSize:11,color:'#667085'}}>{[item.public_id,item.city,item.district,item.region].filter(Boolean).join(' · ')}</span>
+            </button>)}
+            {productSuggestions.length>0?<div style={{padding:'8px 12px',fontSize:11,fontWeight:800,color:'#5264b5',background:'#f7f8fc'}}>PRODUCTS</div>:null}
+            {productSuggestions.map((item,index)=><button type="button" role="option" aria-selected="false" key={'product-'+item.title+'-'+item.category+'-'+index} onClick={()=>{setSelectedProduct(item.title);setQuery(item.title);setShopSuggestions([]);setProductSuggestions([]);setProductSuggestionsOpen(false);}} style={suggestionButton}>
               <span style={{fontWeight:700,color:'#172033'}}>{item.title}</span><span style={{fontSize:11,color:'#667085'}}>{item.category}</span>
             </button>)}
           </div>:null}
