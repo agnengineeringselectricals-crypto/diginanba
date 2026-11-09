@@ -23,8 +23,9 @@ export default function MyShopsDiscovery() {
     const timezone=Intl.DateTimeFormat().resolvedOptions().timeZone;
     const localeDialCodes:Record<string,string>={IN:'+91',US:'+1',CA:'+1',GB:'+44',AU:'+61',NZ:'+64',AE:'+971',SG:'+65',MY:'+60',LK:'+94',BD:'+880',NP:'+977',SA:'+966',QA:'+974',OM:'+968',ZA:'+27',DE:'+49',FR:'+33',JP:'+81',KR:'+82',CN:'+86',IE:'+353',IT:'+39',ES:'+34',NL:'+31',BE:'+32',CH:'+41',AT:'+43',SE:'+46',NO:'+47',DK:'+45',FI:'+358',BR:'+55',MX:'+52',ID:'+62',PH:'+63',TH:'+66',VN:'+84',PK:'+92',KW:'+965',BH:'+973',TR:'+90'};
     const zoneDialCodes:Record<string,string>={'Asia/Kolkata':'+91','Asia/Colombo':'+94','Asia/Dhaka':'+880','Asia/Kathmandu':'+977','Asia/Dubai':'+971','Asia/Singapore':'+65','Asia/Kuala_Lumpur':'+60','Asia/Riyadh':'+966','Asia/Qatar':'+974','Asia/Muscat':'+968','Europe/London':'+44','Australia/Sydney':'+61','Pacific/Auckland':'+64'};
-    const detected=localeRegion?localeDialCodes[localeRegion]:undefined;
-    setCountryDialCode(detected||zoneDialCodes[timezone]||'+91');
+    const detectedByTimezone=zoneDialCodes[timezone];
+    const detectedByLocale=localeRegion?localeDialCodes[localeRegion]:undefined;
+    setCountryDialCode(detectedByTimezone||detectedByLocale||'+91');
   },[]);
 
   useEffect(()=>{
@@ -112,7 +113,7 @@ export default function MyShopsDiscovery() {
     </section>
 
     <section id="invite-shop-panel" style={{margin:'0 0 20px',padding:'16px',border:'1px solid #b7dfca',borderRadius:16,background:'linear-gradient(135deg,#f1faf5,#fff)',display:'grid',gap:11}}>
-      <div><strong style={{display:'block',color:'#145c3f',fontSize:17}}>Can't find your regular shop? Invite them to DigiNanba.</strong><span style={{fontSize:13,color:'#526b5e'}}>Choose where to share the invitation. For WhatsApp, enter the owner's 10-digit mobile number and select the country code.</span></div>
+      <div><strong style={{display:'block',color:'#145c3f',fontSize:17}}>Can't find your regular shop? Invite them to DigiNanba.</strong><span style={{fontSize:13,color:'#526b5e'}}></span></div>
       <div style={{display:'grid',gridTemplateColumns:'minmax(130px,.7fr) minmax(190px,1.3fr)',gap:9}}>
         <select aria-label="Invitation method" value={inviteChannel} onChange={e=>setInviteChannel(e.target.value as 'whatsapp'|'email'|'x'|'instagram'|'facebook'|'telegram')} style={field}>
           <option value="whatsapp">WhatsApp</option><option value="email">Email</option><option value="x">X (Twitter)</option><option value="instagram">Instagram</option><option value="facebook">Facebook</option><option value="telegram">Telegram</option>
@@ -126,7 +127,7 @@ export default function MyShopsDiscovery() {
       </div>
       <div style={{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap'}}>
         <button type="button" onClick={inviteShop} style={primaryButton}>Invite shop owner {inviteChannel==='whatsapp'?'on WhatsApp':inviteChannel==='email'?'by Email':inviteChannel==='x'?'on X':inviteChannel==='instagram'?'on Instagram':inviteChannel==='facebook'?'on Facebook':'on Telegram'}</button>
-        <span style={{fontSize:12,color:'#667085'}}>The owner reviews and sends the invitation; nothing is sent automatically.</span>
+        
       </div>
       {notice?<p role="status" style={{margin:0,fontSize:13,color:'#475467'}}>{notice}</p>:null}
     </section>
@@ -134,7 +135,7 @@ export default function MyShopsDiscovery() {
     <section style={{padding:'clamp(18px,3vw,26px)',border:'1px solid #e4e7ec',borderRadius:20,background:'linear-gradient(135deg,#f7f9ff,#fff 70%)',boxShadow:'0 8px 24px rgba(16,24,40,.04)'}}>
       <h2 style={{fontSize:21,margin:'0 0 14px'}}>What are you looking for?</h2>
       <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(min(100%,220px),1fr))',gap:10}}>
-        <input aria-label="Search by shop name, product or shop ID" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Shop name, product or Shop ID (e.g. TN-7K9MQ)" style={field}/>
+        <input aria-label="Search by shop name, product, shop ID, phone, WhatsApp or GST number" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Shop name, product, Shop ID, phone / WhatsApp or GST number" style={field}/>
         <input aria-label="City or area" value={city} onChange={e=>setCity(e.target.value)} placeholder="City or area" style={field}/>
       </div>
       <div style={{display:'flex',flexWrap:'wrap',gap:8,marginTop:15}}>
