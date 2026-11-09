@@ -9,6 +9,20 @@ export async function GET(request: Request) {
   const q = (url.searchParams.get('q') || '').trim().slice(0, 100);
   if (q.length < 2) return NextResponse.json({ suggestions: [] });
   try {
+    if (type === 'shops') {
+      const result = await db.query(
+        `SELECT business_name, public_id, city, district, region
+         FROM marketplace_businesses
+         WHERE business_type='shop' AND listing_status='published'
+           AND (business_name ILIKE '%' || $1 || '%'
+             OR upper(COALESCE(public_id,'')) LIKE '%' || upper($1) || '%')
+         ORDER BY CASE WHEN business_name ILIKE $1 || '%' THEN 0 ELSE 1 END,
+                  business_name
+         LIMIT 10`,
+        [q]
+      );
+      return NextResponse.json({ suggestions: result.rows });
+    }
     if (type === 'products') {
       const result = await db.query(
         `SELECT l.title, l.category
@@ -40,9 +54,19 @@ export async function GET(request: Request) {
          )
          SELECT value, kind, city, district, region
          FROM (
-           SELECT DISTINCT value, kind, city, district, region
+           SELECT DISTINCT
+             CASE WHEN lower($1) IN ('trichy','tiruchy','tiruchi')
+                       AND lower(COALESCE(city,'')) LIKE '%tiruchirappalli%'
+                  THEN 'Tiruchirappalli' ELSE value END AS value,
+             CASE WHEN lower($1) IN ('trichy','tiruchy','tiruchi')
+                       AND lower(COALESCE(city,'')) LIKE '%tiruchirappalli%'
+                  THEN 'City / town · Trichy' ELSE kind END AS kind,
+             city, district, region
            FROM location_values
-           WHERE COALESCE(value,'') <> '' AND value ILIKE '%' || $1 || '%'
+           WHERE COALESCE(value,'') <> ''
+             AND (value ILIKE '%' || $1 || '%'
+               OR (lower($1) IN ('trichy','tiruchy','tiruchi')
+                   AND lower(COALESCE(city,'')) LIKE '%tiruchirappalli%'))
          ) matches
          ORDER BY CASE WHEN value ILIKE $1 || '%' THEN 0 ELSE 1 END, value
          LIMIT 12`,
