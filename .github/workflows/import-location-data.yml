@@ -1,0 +1,44 @@
+name: Import DigiNanba location data
+
+on:
+  workflow_dispatch:
+    inputs:
+      include_osm:
+        description: "Import detailed India places, neighbourhoods and named streets from the India OpenStreetMap extract (about 1.7 GB)"
+        required: true
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: diginanba-location-data-import
+  cancel-in-progress: false
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - name: Check out DigiNanba
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install importer dependencies
+        run: python -m pip install --upgrade pip "psycopg[binary]" osmium
+      - name: Import India gazetteer and optional OSM places and streets
+        env:
+          NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+        run: |
+          if [ -z "$NEON_DATABASE_URL" ]; then
+            echo "::error::Add NEON_DATABASE_URL as a GitHub Actions repository secret before running this workflow."
+            exit 1
+          fi
+          if [ "${{ inputs.include_osm }}" = "true" ]; then
+            python scripts/import_location_data.py --include-osm
+          else
+            python scripts/import_location_data.py
+          fi
