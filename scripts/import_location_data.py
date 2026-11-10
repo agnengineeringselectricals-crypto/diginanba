@@ -144,7 +144,7 @@ def load_geonames(conn, data_dir: Path):
             with archive.open(member) as raw:
                 for raw_line in raw:
                     fields = raw_line.decode("utf-8").rstrip("\n").split("\t")
-                    if len(fields) < 19 or fields[7] != "P":
+                    if len(fields) < 19 or fields[6] != "P":
                         continue
                     geoname_id, name, ascii_name, alternates = fields[:4]
                     lat, lon = fields[4], fields[5]
