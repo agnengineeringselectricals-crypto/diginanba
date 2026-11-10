@@ -207,6 +207,7 @@ export default function MyShopsDiscovery() {
           </div>:null}
         </div>
       </div>
+      <p style={{margin:'7px 0 0',fontSize:10,color:'#667085'}}>Location data attribution: <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer" style={{color:'inherit'}}>© OpenStreetMap contributors</a> · <a href="https://www.geonames.org/" target="_blank" rel="noreferrer" style={{color:'inherit'}}>GeoNames</a></p>
       <div style={{display:'flex',flexWrap:'wrap',gap:8,marginTop:15}}>
         <button type="button" onClick={()=>setCategory('')} style={chip(!category)} >All shops</button>
         {categories.map(x=><button type="button" key={x} onClick={()=>setCategory(category===x?'':x)} style={chip(category===x)}>{x}</button>)}
