@@ -127,43 +127,100 @@ export async function GET(request: Request) {
           district: null,
           region: item.region,
         }));
-      const result = await db.query(
-        `WITH location_values AS (
-           SELECT city AS value, 'City / town' AS kind, city, district, region FROM marketplace_businesses WHERE business_type='shop' AND listing_status='published'
-           UNION ALL
-           SELECT locality, 'Local area / village', city, district, region FROM marketplace_businesses WHERE business_type='shop' AND listing_status='published'
-           UNION ALL
-           SELECT district, 'District', city, district, region FROM marketplace_businesses WHERE business_type='shop' AND listing_status='published'
-           UNION ALL
-           SELECT address_line, 'Street / address', city, district, region FROM marketplace_businesses WHERE business_type='shop' AND listing_status='published'
-           UNION ALL
-           SELECT postal_code, 'Postal code', city, district, region FROM marketplace_businesses WHERE business_type='shop' AND listing_status='published'
-         )
-         SELECT value, kind, city, district, region
-         FROM (
-           SELECT DISTINCT
-             CASE WHEN lower($1) IN ('trichy','tiruchy','tiruchi')
-                       AND lower(COALESCE(city,'')) LIKE '%tiruchirappalli%'
-                  THEN 'Tiruchirappalli' ELSE value END AS value,
-             CASE WHEN lower($1) IN ('trichy','tiruchy','tiruchi')
-                       AND lower(COALESCE(city,'')) LIKE '%tiruchirappalli%'
-                  THEN 'City / town · Trichy' ELSE kind END AS kind,
-             city, district, region
-           FROM location_values
-           WHERE COALESCE(value,'') <> ''
-             AND (value ILIKE '%' || $1 || '%'
-               OR (lower($1) IN ('trichy','tiruchy','tiruchi')
-                   AND lower(COALESCE(city,'')) LIKE '%tiruchirappalli%'))
-         ) matches
-         ORDER BY CASE WHEN value ILIKE $1 || '%' THEN 0 ELSE 1 END, value
-         LIMIT 12`,
-        [q]
-      );
+      const [shopLocationResult, geographicResult] = await Promise.all([
+        db.query(
+          `WITH location_values AS (
+             SELECT city AS value, 'City / town' AS kind, city, district, region FROM marketplace_businesses WHERE business_type='shop' AND listing_status='published'
+             UNION ALL
+             SELECT locality, 'Local area / village', city, district, region FROM marketplace_businesses WHERE business_type='shop' AND listing_status='published'
+             UNION ALL
+             SELECT district, 'District', city, district, region FROM marketplace_businesses WHERE business_type='shop' AND listing_status='published'
+             UNION ALL
+             SELECT address_line, 'Street / address', city, district, region FROM marketplace_businesses WHERE business_type='shop' AND listing_status='published'
+             UNION ALL
+             SELECT postal_code, 'Postal code', city, district, region FROM marketplace_businesses WHERE business_type='shop' AND listing_status='published'
+           )
+           SELECT value, kind, city, district, region
+           FROM (
+             SELECT DISTINCT
+               CASE WHEN lower($1) IN ('trichy','tiruchy','tiruchi')
+                         AND lower(COALESCE(city,'')) LIKE '%tiruchirappalli%'
+                    THEN 'Tiruchirappalli' ELSE value END AS value,
+               CASE WHEN lower($1) IN ('trichy','tiruchy','tiruchi')
+                         AND lower(COALESCE(city,'')) LIKE '%tiruchirappalli%'
+                    THEN 'City / town · Trichy' ELSE kind END AS kind,
+               city, district, region
+             FROM location_values
+             WHERE COALESCE(value,'') <> ''
+               AND (value ILIKE '%' || $1 || '%'
+                 OR (lower($1) IN ('trichy','tiruchy','tiruchi')
+                     AND lower(COALESCE(city,'')) LIKE '%tiruchirappalli%'))
+           ) matches
+           ORDER BY CASE WHEN value ILIKE $1 || '%' THEN 0 ELSE 1 END, value
+           LIMIT 12`,
+          [q]
+        ),
+        db.query(
+          `WITH RECURSIVE matched AS (
+             SELECT id, parent_id, name, location_type, normalized_name, aliases,
+                    postal_code, latitude, longitude,
+                    CASE WHEN normalized_name = $1 THEN 0
+                         WHEN normalized_name LIKE $1 || '%' THEN 1
+                         WHEN EXISTS (SELECT 1 FROM unnest(aliases) a WHERE lower(a) = $1) THEN 2
+                         ELSE 3 END AS rank_order
+             FROM marketplace_locations
+             WHERE country_code = 'IN' AND is_active
+               AND (normalized_name ILIKE '%' || $1 || '%'
+                    OR EXISTS (SELECT 1 FROM unnest(aliases) a WHERE lower(a) LIKE '%' || $1 || '%')
+                    OR (length($1) >= 3 AND similarity(normalized_name, $1) >= 0.28))
+             ORDER BY rank_order, similarity(normalized_name, $1) DESC, name
+             LIMIT 20
+           ),
+           ancestry AS (
+             SELECT m.id AS match_id, l.id, l.parent_id, l.name, l.location_type, 0 AS depth
+             FROM matched m JOIN marketplace_locations l ON l.id = m.id
+             UNION ALL
+             SELECT a.match_id, p.id, p.parent_id, p.name, p.location_type, a.depth + 1
+             FROM ancestry a JOIN marketplace_locations p ON p.id = a.parent_id
+             WHERE a.depth < 8
+           ),
+           hierarchy AS (
+             SELECT match_id,
+               max(name) FILTER (WHERE location_type IN ('city','town')) AS city,
+               max(name) FILTER (WHERE location_type = 'district') AS district,
+               max(name) FILTER (WHERE location_type = 'state') AS region
+             FROM ancestry GROUP BY match_id
+           )
+           SELECT m.name AS value,
+                  CASE m.location_type
+                    WHEN 'state' THEN 'State'
+                    WHEN 'district' THEN 'District'
+                    WHEN 'city' THEN 'City'
+                    WHEN 'town' THEN 'Town'
+                    WHEN 'village' THEN 'Village'
+                    WHEN 'hamlet' THEN 'Hamlet'
+                    WHEN 'locality' THEN 'Locality'
+                    WHEN 'neighbourhood' THEN 'Neighbourhood'
+                    WHEN 'suburb' THEN 'Suburb'
+                    WHEN 'street' THEN 'Street'
+                    WHEN 'road' THEN 'Road'
+                    WHEN 'postal_code' THEN 'PIN code'
+                    ELSE 'Place' END AS kind,
+                  h.city, h.district, h.region, m.postal_code,
+                  m.latitude, m.longitude
+           FROM matched m LEFT JOIN hierarchy h ON h.match_id = m.id
+           ORDER BY m.rank_order, m.name
+           LIMIT 12`,
+          [canonicalQuery]
+        )
+      ]);
+      const result = { rows: [...geographicResult.rows, ...shopLocationResult.rows] };
       const merged = new Map<string, (typeof cityMatches)[number] | (typeof result.rows)[number]>();
-      for (const item of cityMatches) merged.set(item.value.toLocaleLowerCase('en-IN'), item);
+      for (const item of geographicResult.rows) merged.set(String(item.value).toLocaleLowerCase('en-IN') + '|' + String(item.kind), item);
+      for (const item of cityMatches) if (!merged.has(item.value.toLocaleLowerCase('en-IN') + '|' + item.kind)) merged.set(item.value.toLocaleLowerCase('en-IN') + '|' + item.kind, item);
       for (const item of result.rows) {
         const key = String(item.value || '').toLocaleLowerCase('en-IN');
-        if (key && !merged.has(key)) merged.set(key, item);
+        if (key && !Array.from(merged.values()).some((existing) => String(existing.value).toLocaleLowerCase('en-IN') === key && existing.kind === item.kind)) merged.set(key + '|' + item.kind, item);
       }
       return NextResponse.json({
         suggestions: Array.from(merged.values()).slice(0, 12),
