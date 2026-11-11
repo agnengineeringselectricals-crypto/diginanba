@@ -167,7 +167,8 @@ export async function GET(request: Request) {
                     CASE WHEN normalized_name = $1 THEN 0
                          WHEN normalized_name LIKE $1 || '%' THEN 1
                          WHEN EXISTS (SELECT 1 FROM unnest(aliases) a WHERE lower(a) = $1) THEN 2
-                         ELSE 3 END AS rank_order
+                         WHEN EXISTS (SELECT 1 FROM unnest(aliases) a WHERE lower(a) LIKE '%' || $1 || '%') THEN 3
+                         ELSE 4 END AS rank_order
              FROM marketplace_locations
              WHERE country_code = 'IN' AND is_active
                AND (normalized_name ILIKE '%' || $1 || '%'
