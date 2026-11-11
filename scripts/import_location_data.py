@@ -55,7 +55,7 @@ DO UPDATE SET
 def norm(value: str) -> str:
     value = unicodedata.normalize("NFKD", value or "")
     value = "".join(ch for ch in value if not unicodedata.combining(ch))
-    return re.sub(r"\\s+", " ", value.casefold()).strip()
+    return re.sub(r"\s+", " ", value.casefold()).strip()
 
 def gid(source: str, ref: str) -> uuid.UUID:
     return uuid.uuid5(NAMESPACE, f"{source}:{ref}")
@@ -73,7 +73,7 @@ def download(url: str, path: Path) -> Path:
             output.write(chunk)
             done += len(chunk)
             if total:
-                print(f"\\r  {done * 100 // total}% ({done:,}/{total:,} bytes)", end="", flush=True)
+                print(f"\r  {done * 100 // total}% ({done:,}/{total:,} bytes)", end="", flush=True)
     print("", flush=True)
     return path
 
@@ -120,7 +120,7 @@ def load_geonames(conn, data_dir: Path):
 
     with admin1_path.open(encoding="utf-8") as f:
         for line in f:
-            fields = line.rstrip("\\n").split("\\t")
+            fields = line.rstrip("\n").split("\t")
             if len(fields) < 4 or not fields[0].startswith("IN."):
                 continue
             code, name, ascii_name, geoname_id = fields[:4]
@@ -131,7 +131,7 @@ def load_geonames(conn, data_dir: Path):
 
     with admin2_path.open(encoding="utf-8") as f:
         for line in f:
-            fields = line.rstrip("\\n").split("\\t")
+            fields = line.rstrip("\n").split("\t")
             if len(fields) < 4 or not fields[0].startswith("IN."):
                 continue
             code, name, ascii_name, geoname_id = fields[:4]
@@ -148,7 +148,7 @@ def load_geonames(conn, data_dir: Path):
             member = next(n for n in archive.namelist() if n.endswith("IN.txt"))
             with archive.open(member) as raw:
                 for raw_line in raw:
-                    fields = raw_line.decode("utf-8").rstrip("\\n").split("\\t")
+                    fields = raw_line.decode("utf-8").rstrip("\n").split("\t")
                     if len(fields) < 19 or fields[6] != "P":
                         continue
                     geoname_id, name, ascii_name, alternates = fields[:4]
