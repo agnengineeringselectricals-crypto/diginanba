@@ -33,7 +33,7 @@ VALUES
  %s::double precision,%s::double precision,
  CASE WHEN %s::double precision IS NULL THEN NULL
       ELSE ST_SetSRID(ST_MakePoint(%s::double precision,%s::double precision),4326)::geography END,
- 'GeoNames','%s','CC BY 4.0',now())
+ 'GeoNames',%s::text,'CC BY 4.0',now())
 ON CONFLICT (source_name,source_ref)
 WHERE source_name IS NOT NULL AND source_ref IS NOT NULL
 DO UPDATE SET
