@@ -76,6 +76,8 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const type = url.searchParams.get('type');
   const q = (url.searchParams.get('q') || '').trim().slice(0, 100);
+  const requestedCountry = (url.searchParams.get('country') || 'IN').trim().toUpperCase();
+  const countryCode = /^[A-Z]{2}$/.test(requestedCountry) ? requestedCountry : 'IN';
   if (q.length < 2) return NextResponse.json({ suggestions: [] });
   try {
     if (type === 'shops') {
@@ -170,12 +172,12 @@ export async function GET(request: Request) {
                          WHEN EXISTS (SELECT 1 FROM unnest(aliases) a WHERE lower(a) LIKE '%' || $1 || '%') THEN 3
                          ELSE 4 END AS rank_order
              FROM marketplace_locations
-             WHERE country_code = 'IN' AND is_active
+             WHERE country_code = $2 AND is_active
                AND (normalized_name ILIKE '%' || $1 || '%'
                     OR EXISTS (SELECT 1 FROM unnest(aliases) a WHERE lower(a) LIKE '%' || $1 || '%')
                     OR (length($1) >= 3 AND similarity(normalized_name, $1) >= 0.28))
              ORDER BY rank_order, similarity(normalized_name, $1) DESC, name
-             LIMIT 20
+             LIMIT 200
            ),
            ancestry AS (
              SELECT m.id AS match_id, l.id, l.parent_id, l.name, l.location_type, 0 AS depth
@@ -210,9 +212,14 @@ export async function GET(request: Request) {
                   h.city, h.district, h.region, m.postal_code,
                   m.latitude, m.longitude
            FROM matched m LEFT JOIN hierarchy h ON h.match_id = m.id
-           ORDER BY m.rank_order, m.name
-           LIMIT 12`,
-          [canonicalQuery]
+           ORDER BY m.rank_order,
+                    CASE m.location_type
+                      WHEN 'neighbourhood' THEN 0 WHEN 'locality' THEN 1 WHEN 'suburb' THEN 2
+                      WHEN 'village' THEN 3 WHEN 'hamlet' THEN 4 WHEN 'town' THEN 5
+                      WHEN 'city' THEN 6 WHEN 'street' THEN 7 WHEN 'road' THEN 8 ELSE 9 END,
+                    h.city NULLS LAST, h.district NULLS LAST, m.name, m.id
+           LIMIT 20`,
+          [canonicalQuery, countryCode]
         )
       ]);
       const result = { rows: [...geographicResult.rows, ...shopLocationResult.rows] };
@@ -224,7 +231,7 @@ export async function GET(request: Request) {
         if (key && !Array.from(merged.values()).some((existing) => String(existing.value).toLocaleLowerCase('en-IN') === key && existing.kind === item.kind)) merged.set(key + '|' + item.kind, item);
       }
       return NextResponse.json({
-        suggestions: Array.from(merged.values()).slice(0, 12),
+        suggestions: Array.from(merged.values()).slice(0, 20),
       });
     }
     return NextResponse.json({ error: 'Unknown suggestion type.' }, { status: 400 });
