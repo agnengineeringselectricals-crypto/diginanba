@@ -176,7 +176,8 @@ export async function GET(request: Request) {
         db.query(
           `WITH RECURSIVE matched AS (
              SELECT id, parent_id, name, location_type, normalized_name, aliases,
-                    postal_code, latitude, longitude,
+                    postal_code, latitude, longitude, country_code,
+                    CASE WHEN country_code = $2 THEN 0 ELSE 1 END AS country_rank,
                     CASE WHEN normalized_name = $1 THEN 0
                          WHEN normalized_name LIKE $1 || '%' THEN 1
                          WHEN EXISTS (SELECT 1 FROM unnest(aliases) a WHERE lower(a) = $1) THEN 2
@@ -184,12 +185,11 @@ export async function GET(request: Request) {
                          ELSE 4 END AS rank_order
              FROM marketplace_locations
              WHERE is_active
-               AND (country_code = $2 OR $3 <> '')
                AND (normalized_name ILIKE '%' || $1 || '%'
                     OR EXISTS (SELECT 1 FROM unnest(aliases) a WHERE lower(a) LIKE '%' || $1 || '%')
                     OR (length($1) >= 3 AND similarity(normalized_name, $1) >= 0.28))
-             ORDER BY rank_order, similarity(normalized_name, $1) DESC, name
-             LIMIT 200
+             ORDER BY country_rank, rank_order, similarity(normalized_name, $1) DESC, name
+             LIMIT 500
            ),
            ancestry AS (
              SELECT m.id AS match_id, l.id, l.parent_id, l.name, l.location_type, 0 AS depth
@@ -209,7 +209,7 @@ export async function GET(request: Request) {
                max(name) FILTER (WHERE location_type = 'country' AND depth > 0) AS country
              FROM ancestry GROUP BY match_id
            )
-           SELECT m.name AS value,
+           SELECT m.name AS value, m.country_code,
                   CASE m.location_type
                     WHEN 'state' THEN 'State'
                     WHEN 'district' THEN 'District'
@@ -236,7 +236,7 @@ export async function GET(request: Request) {
                     )
                   ) THEN 0 ELSE 1 END AS context_rank
            FROM matched m LEFT JOIN hierarchy h ON h.match_id = m.id
-           ORDER BY context_rank, m.rank_order,
+           ORDER BY m.country_rank, context_rank, m.rank_order,
                     CASE m.location_type
                       WHEN 'neighbourhood' THEN 0 WHEN 'locality' THEN 1 WHEN 'suburb' THEN 2
                       WHEN 'village' THEN 3 WHEN 'hamlet' THEN 4 WHEN 'town' THEN 5
@@ -248,17 +248,24 @@ export async function GET(request: Request) {
       ]);
       const result = { rows: [...geographicResult.rows, ...shopLocationResult.rows] };
       const merged = new Map<string, (typeof cityMatches)[number] | (typeof result.rows)[number]>();
-      // Geographic rows are already ranked by contextual ancestry. Keep the
-      // first row for a duplicate name/type so a later unrelated "Sai Nagar"
-      // cannot overwrite the correctly ranked Puttaparthi result.
+      // Preserve distinct places that share a name. A locality's full ancestry
+      // is part of its identity; name + type alone incorrectly collapsed every
+      // "Sai Nagar" into a single suggestion.
+      const locationKey = (item: Record<string, unknown>) => [
+        item.value, item.kind, item.country, item.state, item.district,
+        item.city, item.town, item.village, item.country_code,
+      ].map((part) => String(part || '').trim().toLocaleLowerCase('en-IN')).join('|');
       for (const item of geographicResult.rows) {
-        const key = String(item.value).toLocaleLowerCase('en-IN') + '|' + String(item.kind);
+        const key = locationKey(item as Record<string, unknown>);
         if (!merged.has(key)) merged.set(key, item);
       }
-      for (const item of cityMatches) if (!merged.has(item.value.toLocaleLowerCase('en-IN') + '|' + item.kind)) merged.set(item.value.toLocaleLowerCase('en-IN') + '|' + item.kind, item);
-      for (const item of result.rows) {
-        const key = String(item.value || '').toLocaleLowerCase('en-IN');
-        if (key && !Array.from(merged.values()).some((existing) => String(existing.value).toLocaleLowerCase('en-IN') === key && existing.kind === item.kind)) merged.set(key + '|' + item.kind, item);
+      for (const item of cityMatches) {
+        const key = locationKey(item as Record<string, unknown>);
+        if (!merged.has(key)) merged.set(key, item);
+      }
+      for (const item of shopLocationResult.rows) {
+        const key = locationKey(item as Record<string, unknown>);
+        if (!merged.has(key)) merged.set(key, item);
       }
       return NextResponse.json({
         suggestions: Array.from(merged.values()).slice(0, 20),
