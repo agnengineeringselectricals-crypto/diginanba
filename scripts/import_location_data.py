@@ -2,10 +2,8 @@
 """Import India GeoNames gazetteer and OpenStreetMap place/street names into DigiNanba PostGIS.
 
 Run with:
-  pip install "psycopg[binary]" pyosmium
+  pip install "psycopg[binary]" osmium
   NEON_DATABASE_URL='postgresql://...' python scripts/import_location_data.py --include-osm
-
-The importer downloads source extracts itself, batches inserts, and upserts by source ID.
 """
 from __future__ import annotations
 
@@ -23,15 +21,19 @@ import psycopg
 
 NAMESPACE = uuid.UUID("fbf13e5a-9cb9-4c2e-83b7-25e9f4d07a91")
 BATCH_SIZE = 1500
+
+# Keep every placeholder explicitly typed. In particular, geography construction
+# uses one nullable longitude/latitude pair rather than untyped repeated NULL tests.
 INSERT_SQL = """
 INSERT INTO marketplace_locations
 (id,parent_id,country_code,location_type,name,normalized_name,aliases,postal_code,
  latitude,longitude,geom,source_name,source_ref,source_license,source_updated_at)
 VALUES
-(%s,%s,'IN',%s,%s,%s,%s,%s,%s,%s,
- CASE WHEN %s IS NULL OR %s IS NULL THEN NULL
-      ELSE ST_SetSRID(ST_MakePoint(%s,%s),4326)::geography END,
- %s,%s,%s,now())
+(%s::uuid,%s::uuid,'IN',%s::text,%s::text,%s::text,%s::text[],%s::text,
+ %s::double precision,%s::double precision,
+ CASE WHEN %s::double precision IS NULL OR %s::double precision IS NULL THEN NULL
+      ELSE ST_SetSRID(ST_MakePoint(%s::double precision,%s::double precision),4326)::geography END,
+ %s::text,%s::text,%s::text,now())
 ON CONFLICT (source_name,source_ref)
 WHERE source_name IS NOT NULL AND source_ref IS NOT NULL
 DO UPDATE SET
@@ -89,6 +91,7 @@ def db_row(location_id, parent_id, kind, name, aliases, postal, lat, lon,
     if not name or not name.strip():
         return None
     aliases = list(dict.fromkeys(a.strip() for a in aliases if a and a.strip() and a.strip() != name.strip()))[:20]
+    # SQL parameter order: lat/lon columns, lat/lon null tests, then lon/lat point.
     return (
         location_id, parent_id, kind, name.strip(), norm(name), aliases, postal or None,
         lat, lon, lat, lon, lon, lat, source, source_ref, license_name,
@@ -148,9 +151,6 @@ def load_geonames(conn, data_dir: Path):
                         continue
                     geoname_id, name, ascii_name, alternates = fields[:4]
                     lat, lon = fields[4], fields[5]
-                    feature_code, admin1, admin2 = fields[7], fields[8], fields[10]
-                    # Correct the field offsets to GeoNames schema:
-                    # 6=feature class, 7=feature code, 8=country, 10=admin1, 11=admin2.
                     feature_code = fields[7]
                     if feature_code not in {"PPL","PPLA","PPLA2","PPLA3","PPLA4","PPLA5","PPLC","PPLG","PPLQ","PPLR","PPLS","PPLX"}:
                         continue
@@ -177,7 +177,7 @@ def load_osm(conn, pbf_path: Path):
     try:
         import osmium
     except ImportError as exc:
-        raise SystemExit("Install pyosmium to import OpenStreetMap data: pip install pyosmium") from exc
+        raise SystemExit("Install pyosmium to import OpenStreetMap data: pip install osmium") from exc
 
     with conn.cursor() as cur:
         cur.execute("SELECT id, normalized_name, location_type FROM marketplace_locations WHERE country_code='IN' AND is_active")
