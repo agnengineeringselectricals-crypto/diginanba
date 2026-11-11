@@ -112,9 +112,17 @@ export async function GET(request: Request) {
     }
     if (type === 'locations') {
       const normalized = q.toLocaleLowerCase('en-IN').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-      const locationParts = normalized.split(',').map((part) => part.trim()).filter(Boolean);
-      const nameQuery = locationParts[0] || normalized;
-      const contextQuery = locationParts.slice(1).join(' ').trim();
+      const commaParts = normalized.split(',').map((part) => part.trim()).filter(Boolean);
+      // Accept both "area, town" and natural typing such as "area town".
+      // When there is no comma, use the final word as parent-place context
+      // and search the preceding words as the locality name.
+      const words = normalized.split(/\s+/).filter(Boolean);
+      const nameQuery = commaParts.length > 1
+        ? commaParts[0]
+        : words.length >= 3 ? words.slice(0, -1).join(' ') : normalized;
+      const contextQuery = commaParts.length > 1
+        ? commaParts.slice(1).join(' ')
+        : words.length >= 3 ? words[words.length - 1] : '';
       const aliases: Record<string, string> = {
         trichy: 'tiruchirappalli', tiruchy: 'tiruchirappalli', tiruchi: 'tiruchirappalli',
         madras: 'chennai', bangalore: 'bengaluru', bombay: 'mumbai', calcutta: 'kolkata',
