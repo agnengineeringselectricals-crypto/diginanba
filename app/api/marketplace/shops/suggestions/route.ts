@@ -248,7 +248,13 @@ export async function GET(request: Request) {
       ]);
       const result = { rows: [...geographicResult.rows, ...shopLocationResult.rows] };
       const merged = new Map<string, (typeof cityMatches)[number] | (typeof result.rows)[number]>();
-      for (const item of geographicResult.rows) merged.set(String(item.value).toLocaleLowerCase('en-IN') + '|' + String(item.kind), item);
+      // Geographic rows are already ranked by contextual ancestry. Keep the
+      // first row for a duplicate name/type so a later unrelated "Sai Nagar"
+      // cannot overwrite the correctly ranked Puttaparthi result.
+      for (const item of geographicResult.rows) {
+        const key = String(item.value).toLocaleLowerCase('en-IN') + '|' + String(item.kind);
+        if (!merged.has(key)) merged.set(key, item);
+      }
       for (const item of cityMatches) if (!merged.has(item.value.toLocaleLowerCase('en-IN') + '|' + item.kind)) merged.set(item.value.toLocaleLowerCase('en-IN') + '|' + item.kind, item);
       for (const item of result.rows) {
         const key = String(item.value || '').toLocaleLowerCase('en-IN');
