@@ -117,7 +117,7 @@ export async function GET(request: Request) {
         madras: 'chennai', bangalore: 'bengaluru', bombay: 'mumbai', calcutta: 'kolkata',
       };
       const canonicalQuery = aliases[normalized] || normalized;
-      const cityMatches = INDIAN_CITIES
+      const cityMatches = (countryCode === 'IN' ? INDIAN_CITIES : [])
         .filter((item) => item.value.toLocaleLowerCase('en-IN').includes(canonicalQuery)
           || item.value.toLocaleLowerCase('en-IN').startsWith(canonicalQuery))
         .slice(0, 8)
