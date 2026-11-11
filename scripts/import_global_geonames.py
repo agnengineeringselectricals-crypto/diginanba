@@ -66,6 +66,9 @@ def normalize_database_url(raw: str) -> str:
     match = re.search(r"(postgres(?:ql)?://[^\s'\"]+)", value)
     if match:
         value = match.group(1)
+    # Neon dashboard values are sometimes pasted without the URI scheme.
+    if "://" not in value and "@" in value and "/" in value and not re.search(r"\s", value):
+        value = "postgresql://" + value.lstrip("/")
     if value.startswith(("postgres://", "postgresql://")):
         parsed = urlsplit(value)
         if not parsed.hostname or not parsed.path:
