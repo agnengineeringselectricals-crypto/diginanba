@@ -193,12 +193,12 @@ export async function GET(request: Request) {
            ),
            hierarchy AS (
              SELECT match_id,
-               max(name) FILTER (WHERE location_type IN ('city','town','village','hamlet')) AS city,
-               max(name) FILTER (WHERE location_type = 'district') AS district,
-               COALESCE(
-                 max(name) FILTER (WHERE location_type = 'state'),
-                 max(name) FILTER (WHERE location_type = 'country')
-               ) AS region
+               max(name) FILTER (WHERE location_type = 'city' AND depth > 0) AS city,
+               max(name) FILTER (WHERE location_type = 'town' AND depth > 0) AS town,
+               max(name) FILTER (WHERE location_type IN ('village','hamlet') AND depth > 0) AS village,
+               max(name) FILTER (WHERE location_type = 'district' AND depth > 0) AS district,
+               max(name) FILTER (WHERE location_type = 'state' AND depth > 0) AS state,
+               max(name) FILTER (WHERE location_type = 'country' AND depth > 0) AS country
              FROM ancestry GROUP BY match_id
            )
            SELECT m.name AS value,
@@ -216,7 +216,8 @@ export async function GET(request: Request) {
                     WHEN 'road' THEN 'Road'
                     WHEN 'postal_code' THEN 'PIN code'
                     ELSE 'Place' END AS kind,
-                  h.city, h.district, h.region, m.postal_code,
+                  h.city, h.town, h.village, h.district, h.state,
+                  h.state AS region, h.country, m.postal_code,
                   m.latitude, m.longitude,
                   CASE WHEN $3 <> '' AND NOT EXISTS (
                     SELECT 1 FROM regexp_split_to_table($3, '\\s+') AS context_token
