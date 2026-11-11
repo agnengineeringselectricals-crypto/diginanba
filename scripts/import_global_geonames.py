@@ -101,7 +101,7 @@ def row(country, kind, name, aliases, geoname_id, parent=None, lat=None, lon=Non
     ref = f"geoname:{geoname_id}"
     return (
         stable_id(str(geoname_id)), parent, country, kind, name, normalize(name), aliases,
-        lat, lon, lat, lon, ref,
+        lat, lon, lat, lon, lat, ref,
     )
 
 def flush(conn, rows, label, total):
