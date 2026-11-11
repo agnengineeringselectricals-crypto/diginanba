@@ -1,0 +1,33 @@
+name: Import worldwide GeoNames locations
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "scripts/import_global_geonames.py"
+      - ".github/workflows/import-global-geonames.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: diginanba-global-geonames-import
+  cancel-in-progress: false
+
+jobs:
+  import:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Check out DigiNanba
+        uses: actions/checkout@v5
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install PostgreSQL driver
+        run: python -m pip install --upgrade pip "psycopg[binary]"
+      - name: Import worldwide GeoNames gazetteer
+        env:
+          NEON_DATABASE_URL: \${{ secrets.NEON_DATABASE_URL }}
+        run: python scripts/import_global_geonames.py
