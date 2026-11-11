@@ -109,7 +109,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ suggestions: result.rows });
     }
     if (type === 'locations') {
-      const normalized = q.toLocaleLowerCase('en-IN').normalize('NFD').replace(/[\\u0300-\\u036f]/g, '');
+      const normalized = q.toLocaleLowerCase('en-IN').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
       const aliases: Record<string, string> = {
         trichy: 'tiruchirappalli', tiruchy: 'tiruchirappalli', tiruchi: 'tiruchirappalli',
         madras: 'chennai', bangalore: 'bengaluru', bombay: 'mumbai', calcutta: 'kolkata',
