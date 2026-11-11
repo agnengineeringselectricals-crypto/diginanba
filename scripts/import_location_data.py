@@ -22,8 +22,9 @@ import psycopg
 NAMESPACE = uuid.UUID("fbf13e5a-9cb9-4c2e-83b7-25e9f4d07a91")
 BATCH_SIZE = 1500
 
-# Keep every placeholder explicitly typed. In particular, geography construction
-# uses one nullable longitude/latitude pair rather than untyped repeated NULL tests.
+# Cast every nullable coordinate parameter before checking or passing it to PostGIS.
+# In particular, explicitly cast the NULL-capable parameters so PostgreSQL can infer
+# their types for GeoNames state/district rows, which have no coordinates.
 INSERT_SQL = """
 INSERT INTO marketplace_locations
 (id,parent_id,country_code,location_type,name,normalized_name,aliases,postal_code,
@@ -54,7 +55,7 @@ DO UPDATE SET
 def norm(value: str) -> str:
     value = unicodedata.normalize("NFKD", value or "")
     value = "".join(ch for ch in value if not unicodedata.combining(ch))
-    return re.sub(r"\s+", " ", value.casefold()).strip()
+    return re.sub(r"\\s+", " ", value.casefold()).strip()
 
 def gid(source: str, ref: str) -> uuid.UUID:
     return uuid.uuid5(NAMESPACE, f"{source}:{ref}")
@@ -72,7 +73,7 @@ def download(url: str, path: Path) -> Path:
             output.write(chunk)
             done += len(chunk)
             if total:
-                print(f"\r  {done * 100 // total}% ({done:,}/{total:,} bytes)", end="", flush=True)
+                print(f"\\r  {done * 100 // total}% ({done:,}/{total:,} bytes)", end="", flush=True)
     print("", flush=True)
     return path
 
@@ -91,7 +92,8 @@ def db_row(location_id, parent_id, kind, name, aliases, postal, lat, lon,
     if not name or not name.strip():
         return None
     aliases = list(dict.fromkeys(a.strip() for a in aliases if a and a.strip() and a.strip() != name.strip()))[:20]
-    # SQL parameter order: lat/lon columns, lat/lon null tests, then lon/lat point.
+    # Parameter order mirrors INSERT_SQL: coordinates, geometry NULL tests,
+    # then geometry point longitude/latitude.
     return (
         location_id, parent_id, kind, name.strip(), norm(name), aliases, postal or None,
         lat, lon, lat, lon, lon, lat, source, source_ref, license_name,
@@ -118,7 +120,7 @@ def load_geonames(conn, data_dir: Path):
 
     with admin1_path.open(encoding="utf-8") as f:
         for line in f:
-            fields = line.rstrip("\n").split("\t")
+            fields = line.rstrip("\\n").split("\\t")
             if len(fields) < 4 or not fields[0].startswith("IN."):
                 continue
             code, name, ascii_name, geoname_id = fields[:4]
@@ -129,7 +131,7 @@ def load_geonames(conn, data_dir: Path):
 
     with admin2_path.open(encoding="utf-8") as f:
         for line in f:
-            fields = line.rstrip("\n").split("\t")
+            fields = line.rstrip("\\n").split("\\t")
             if len(fields) < 4 or not fields[0].startswith("IN."):
                 continue
             code, name, ascii_name, geoname_id = fields[:4]
@@ -146,7 +148,7 @@ def load_geonames(conn, data_dir: Path):
             member = next(n for n in archive.namelist() if n.endswith("IN.txt"))
             with archive.open(member) as raw:
                 for raw_line in raw:
-                    fields = raw_line.decode("utf-8").rstrip("\n").split("\t")
+                    fields = raw_line.decode("utf-8").rstrip("\\n").split("\\t")
                     if len(fields) < 19 or fields[6] != "P":
                         continue
                     geoname_id, name, ascii_name, alternates = fields[:4]
