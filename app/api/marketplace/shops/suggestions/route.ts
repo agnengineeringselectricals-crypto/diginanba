@@ -112,11 +112,14 @@ export async function GET(request: Request) {
     }
     if (type === 'locations') {
       const normalized = q.toLocaleLowerCase('en-IN').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      const locationParts = normalized.split(',').map((part) => part.trim()).filter(Boolean);
+      const nameQuery = locationParts[0] || normalized;
+      const contextQuery = locationParts.slice(1).join(' ').trim();
       const aliases: Record<string, string> = {
         trichy: 'tiruchirappalli', tiruchy: 'tiruchirappalli', tiruchi: 'tiruchirappalli',
         madras: 'chennai', bangalore: 'bengaluru', bombay: 'mumbai', calcutta: 'kolkata',
       };
-      const canonicalQuery = aliases[normalized] || normalized;
+      const canonicalQuery = aliases[nameQuery] || nameQuery;
       const cityMatches = (countryCode === 'IN' ? INDIAN_CITIES : [])
         .filter((item) => item.value.toLocaleLowerCase('en-IN').includes(canonicalQuery)
           || item.value.toLocaleLowerCase('en-IN').startsWith(canonicalQuery))
@@ -189,7 +192,7 @@ export async function GET(request: Request) {
            ),
            hierarchy AS (
              SELECT match_id,
-               max(name) FILTER (WHERE location_type IN ('city','town')) AS city,
+               max(name) FILTER (WHERE location_type IN ('city','town','village','hamlet')) AS city,
                max(name) FILTER (WHERE location_type = 'district') AS district,
                max(name) FILTER (WHERE location_type = 'state') AS region
              FROM ancestry GROUP BY match_id
@@ -210,16 +213,20 @@ export async function GET(request: Request) {
                     WHEN 'postal_code' THEN 'PIN code'
                     ELSE 'Place' END AS kind,
                   h.city, h.district, h.region, m.postal_code,
-                  m.latitude, m.longitude
+                  m.latitude, m.longitude,
+                  CASE WHEN $3 <> '' AND EXISTS (
+                    SELECT 1 FROM ancestry ctx
+                    WHERE ctx.match_id = m.id AND lower(ctx.name) LIKE '%' || $3 || '%'
+                  ) THEN 0 ELSE 1 END AS context_rank
            FROM matched m LEFT JOIN hierarchy h ON h.match_id = m.id
-           ORDER BY m.rank_order,
+           ORDER BY context_rank, m.rank_order,
                     CASE m.location_type
                       WHEN 'neighbourhood' THEN 0 WHEN 'locality' THEN 1 WHEN 'suburb' THEN 2
                       WHEN 'village' THEN 3 WHEN 'hamlet' THEN 4 WHEN 'town' THEN 5
                       WHEN 'city' THEN 6 WHEN 'street' THEN 7 WHEN 'road' THEN 8 ELSE 9 END,
                     h.city NULLS LAST, h.district NULLS LAST, m.name, m.id
            LIMIT 20`,
-          [canonicalQuery, countryCode]
+          [canonicalQuery, countryCode, contextQuery]
         )
       ]);
       const result = { rows: [...geographicResult.rows, ...shopLocationResult.rows] };
