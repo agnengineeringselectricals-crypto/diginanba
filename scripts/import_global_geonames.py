@@ -61,9 +61,9 @@ def stable_id(geoname_id: str) -> uuid.UUID:
 
 def normalize_database_url(raw: str) -> str:
     value = (raw or "").strip().lstrip("\\").strip()
-    value = re.sub(r"^(?:export\\s+)?(?:NEON_DATABASE_URL|DATABASE_URL)\\s*=\\s*", "", value)
+    value = re.sub(r"^(?:export\s+)?(?:NEON_DATABASE_URL|DATABASE_URL)\s*=\s*", "", value)
     value = value.strip().strip("'").strip('"').strip()
-    match = re.search(r"(postgres(?:ql)?://[^\\s'\"]+)", value)
+    match = re.search(r"(postgres(?:ql)?://[^\s'\"]+)", value)
     if match:
         value = match.group(1)
     if value.startswith(("postgres://", "postgresql://")):
