@@ -105,6 +105,7 @@ def main():
 
     country_ids = {}
     country_names = {}
+    country_geoname_ids = {}
     with countries_file.open(encoding="utf-8") as source:
         for line in source:
             if not line.strip() or line.startswith("#"):
@@ -115,19 +116,14 @@ def main():
             code, name, geoname_id = f[0].upper(), f[4], f[16]
             country_ids[code] = stable_id(geoname_id)
             country_names[code] = name
+            country_geoname_ids[code] = geoname_id
 
     admin1_ids = {}
     admin2_ids = {}
     with psycopg.connect(database_url, autocommit=False) as conn:
         rows = []
         for code, name in country_names.items():
-            geoname_id = str(next(
-                (line.rstrip("\n").split("\t")[16] for line in countries_file.open(encoding="utf-8")
-                 if line.strip() and not line.startswith("#") and line.split("\t")[0].upper() == code),
-                ""
-            ))
-            if geoname_id:
-                rows.append(row(code, "country", name, [], geoname_id))
+            rows.append(row(code, "country", name, [], country_geoname_ids[code]))
         flush(conn, rows, "Countries", 0)
 
         rows = []
