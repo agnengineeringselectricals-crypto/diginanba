@@ -8,6 +8,7 @@ const categories=['Groceries & Daily Needs','Vegetables & Fruits','Medical Shops
 export default function MyShopsDiscovery() {
   const [query,setQuery]=useState('');
   const [city,setCity]=useState('');
+  const [countryCode,setCountryCode]=useState('IN');
   const [category,setCategory]=useState('');
   const [productSuggestions,setProductSuggestions]=useState<{title:string;category:string}[]>([]);
   const [shopSuggestions,setShopSuggestions]=useState<{business_name:string;public_id:string|null;city:string|null;district:string|null;region:string|null}[]>([]);
@@ -34,7 +35,8 @@ export default function MyShopsDiscovery() {
     const fallback=zoneDialCodes[timezone]||(localeRegion?dialCodes[localeRegion]:undefined)||'+91';
     fetch('/api/marketplace/geo').then(r=>r.ok?r.json():null).then(data=>{
       if(!active)return;
-      const country=String(data?.countryCode||'').toUpperCase();
+      const country=String(data?.countryCode||localeRegion||'IN').toUpperCase();
+      if(/^[A-Z]{2}$/.test(country))setCountryCode(country);
       setCountryDialCode(dialCodes[country]||fallback);
     }).catch(()=>{if(active)setCountryDialCode(fallback);});
     return()=>{active=false;};
@@ -63,13 +65,13 @@ export default function MyShopsDiscovery() {
     if(term.length<2||term===selectedLocation){setLocationSuggestions([]);setLocationSuggestionsOpen(false);return;}
     const timer=setTimeout(async()=>{
       try{
-        const response=await fetch('/api/marketplace/shops/suggestions?type=locations&q='+encodeURIComponent(term));
+        const response=await fetch('/api/marketplace/shops/suggestions?type=locations&country='+encodeURIComponent(countryCode)+'&q='+encodeURIComponent(term));
         const data=await response.json();
         if(!cancelled){setLocationSuggestions(data.suggestions||[]);setLocationSuggestionsOpen(true);}
       }catch{if(!cancelled)setLocationSuggestions([]);}
     },180);
     return()=>{cancelled=true;clearTimeout(timer);};
-  },[city,selectedLocation]);
+  },[city,selectedLocation,countryCode]);
 
   useEffect(()=>{
     let cancelled=false;
