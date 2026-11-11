@@ -15,6 +15,7 @@ import unicodedata
 import urllib.request
 import uuid
 import zipfile
+from urllib.parse import quote, unquote, urlsplit, urlunsplit
 from pathlib import Path
 
 import psycopg
@@ -58,6 +59,26 @@ def normalize(value: str) -> str:
 def stable_id(geoname_id: str) -> uuid.UUID:
     return uuid.uuid5(NAMESPACE, f"geonames:{geoname_id}")
 
+def normalize_database_url(raw: str) -> str:
+    value = (raw or "").strip().lstrip("\\").strip()
+    value = re.sub(r"^(?:export\\s+)?(?:NEON_DATABASE_URL|DATABASE_URL)\\s*=\\s*", "", value)
+    value = value.strip().strip("'").strip('"').strip()
+    match = re.search(r"(postgres(?:ql)?://[^\\s'\"]+)", value)
+    if match:
+        value = match.group(1)
+    if value.startswith(("postgres://", "postgresql://")):
+        parsed = urlsplit(value)
+        if not parsed.hostname or not parsed.path:
+            raise SystemExit("NEON_DATABASE_URL is not a complete PostgreSQL URL (host/database missing).")
+        user = quote(unquote(parsed.username or ""), safe="")
+        password = quote(unquote(parsed.password or ""), safe="")
+        auth = user + (":" + password if parsed.password is not None else "")
+        netloc = (auth + "@" if auth else "") + parsed.hostname
+        if parsed.port:
+            netloc += ":" + str(parsed.port)
+        return urlunsplit((parsed.scheme, netloc, parsed.path, parsed.query, parsed.fragment))
+    return value
+
 def download(url: str, filename: str) -> Path:
     path = DATA_DIR / filename
     if path.exists() and path.stat().st_size:
@@ -95,9 +116,18 @@ def flush(conn, rows, label, total):
     return total
 
 def main():
-    database_url = os.environ.get("NEON_DATABASE_URL")
+    database_url = normalize_database_url(os.environ.get("NEON_DATABASE_URL", ""))
     if not database_url:
         raise SystemExit("NEON_DATABASE_URL is required.")
+    # Validate the secret before downloading the worldwide gazetteer.
+    try:
+        with psycopg.connect(database_url, connect_timeout=15) as check_conn:
+            with check_conn.cursor() as cur:
+                cur.execute("SELECT 1")
+                cur.fetchone()
+    except Exception as exc:
+        raise SystemExit("NEON_DATABASE_URL could not connect to Neon. Check that the GitHub secret contains the full PostgreSQL connection URI without surrounding shell text.") from exc
+
     countries_file = download("https://download.geonames.org/export/dump/countryInfo.txt", "countryInfo.txt")
     admin1_file = download("https://download.geonames.org/export/dump/admin1CodesASCII.txt", "admin1CodesASCII.txt")
     admin2_file = download("https://download.geonames.org/export/dump/admin2Codes.txt", "admin2Codes.txt")
