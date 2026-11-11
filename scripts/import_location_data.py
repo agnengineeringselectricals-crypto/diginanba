@@ -32,7 +32,7 @@ INSERT INTO marketplace_locations
 VALUES
 (%s::uuid,%s::uuid,'IN',%s::text,%s::text,%s::text,%s::text[],%s::text,
  %s::double precision,%s::double precision,
- CASE WHEN %s::double precision IS NULL OR %s::double precision IS NULL THEN NULL
+ CASE WHEN %s::double precision IS NULL THEN NULL
       ELSE ST_SetSRID(ST_MakePoint(%s::double precision,%s::double precision),4326)::geography END,
  %s::text,%s::text,%s::text,now())
 ON CONFLICT (source_name,source_ref)
@@ -92,11 +92,11 @@ def db_row(location_id, parent_id, kind, name, aliases, postal, lat, lon,
     if not name or not name.strip():
         return None
     aliases = list(dict.fromkeys(a.strip() for a in aliases if a and a.strip() and a.strip() != name.strip()))[:20]
-    # Parameter order mirrors INSERT_SQL: coordinates, geometry NULL tests,
-    # then geometry point longitude/latitude.
+    # Parameter order mirrors INSERT_SQL: latitude/longitude columns,
+    # a single NULL test, then geometry point longitude/latitude.
     return (
         location_id, parent_id, kind, name.strip(), norm(name), aliases, postal or None,
-        lat, lon, lat, lon, lon, lat, source, source_ref, license_name,
+        lat, lon, lat, lon, source, source_ref, license_name,
     )
 
 def insert_rows(conn, rows: Iterable[tuple], label: str):
