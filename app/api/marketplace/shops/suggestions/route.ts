@@ -175,7 +175,8 @@ export async function GET(request: Request) {
                          WHEN EXISTS (SELECT 1 FROM unnest(aliases) a WHERE lower(a) LIKE '%' || $1 || '%') THEN 3
                          ELSE 4 END AS rank_order
              FROM marketplace_locations
-             WHERE country_code = $2 AND is_active
+             WHERE is_active
+               AND (country_code = $2 OR $3 <> '')
                AND (normalized_name ILIKE '%' || $1 || '%'
                     OR EXISTS (SELECT 1 FROM unnest(aliases) a WHERE lower(a) LIKE '%' || $1 || '%')
                     OR (length($1) >= 3 AND similarity(normalized_name, $1) >= 0.28))
@@ -194,7 +195,10 @@ export async function GET(request: Request) {
              SELECT match_id,
                max(name) FILTER (WHERE location_type IN ('city','town','village','hamlet')) AS city,
                max(name) FILTER (WHERE location_type = 'district') AS district,
-               max(name) FILTER (WHERE location_type = 'state') AS region
+               COALESCE(
+                 max(name) FILTER (WHERE location_type = 'state'),
+                 max(name) FILTER (WHERE location_type = 'country')
+               ) AS region
              FROM ancestry GROUP BY match_id
            )
            SELECT m.name AS value,
@@ -214,9 +218,13 @@ export async function GET(request: Request) {
                     ELSE 'Place' END AS kind,
                   h.city, h.district, h.region, m.postal_code,
                   m.latitude, m.longitude,
-                  CASE WHEN $3 <> '' AND EXISTS (
-                    SELECT 1 FROM ancestry ctx
-                    WHERE ctx.match_id = m.id AND lower(ctx.name) LIKE '%' || $3 || '%'
+                  CASE WHEN $3 <> '' AND NOT EXISTS (
+                    SELECT 1 FROM regexp_split_to_table($3, '\\s+') AS context_token
+                    WHERE context_token <> '' AND NOT EXISTS (
+                      SELECT 1 FROM ancestry ctx
+                      WHERE ctx.match_id = m.id
+                        AND lower(ctx.name) LIKE '%' || context_token || '%'
+                    )
                   ) THEN 0 ELSE 1 END AS context_rank
            FROM matched m LEFT JOIN hierarchy h ON h.match_id = m.id
            ORDER BY context_rank, m.rank_order,
