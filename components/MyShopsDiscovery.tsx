@@ -201,7 +201,7 @@ export default function MyShopsDiscovery() {
           </div>:null}
         </div>
         <div style={{position:'relative'}}>
-          <input aria-label="City, town, village, street or local area" value={city} onFocus={()=>{if(city.trim().length>=2)setLocationSuggestionsOpen(true);}} onChange={e=>{setSelectedLocation('');setCity(e.target.value);}} placeholder="City, town, village, street or local area" style={field}/>
+          <input aria-label="City, town, village, street or local area" value={city} onFocus={()=>{if(city.trim().length>=2)setLocationSuggestionsOpen(true);}} onChange={e=>{setSelectedLocation('');setCity(e.target.value);}} placeholder="City, village or area (e.g. Sai Nagar, Puttaparthi)" style={field}/>
           {locationSuggestionsOpen&&locationSuggestions.length>0?<div role="listbox" aria-label="Matching locations" style={suggestionPanel}>
             {locationSuggestions.map((item,index)=><button type="button" role="option" aria-selected="false" key={item.kind+'-'+item.value+'-'+index} onClick={()=>{setSelectedLocation(item.value);setCity(item.value);setLocationSuggestions([]);setLocationSuggestionsOpen(false);}} style={suggestionButton}>
               <span style={{fontWeight:700,color:'#172033'}}>{item.value}</span><span style={{fontSize:11,color:'#667085'}}>{[item.kind,item.city,item.district,item.region].filter(Boolean).join(' · ')}</span>
