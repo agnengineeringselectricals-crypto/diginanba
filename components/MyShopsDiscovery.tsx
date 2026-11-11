@@ -12,7 +12,7 @@ export default function MyShopsDiscovery() {
   const [category,setCategory]=useState('');
   const [productSuggestions,setProductSuggestions]=useState<{title:string;category:string}[]>([]);
   const [shopSuggestions,setShopSuggestions]=useState<{business_name:string;public_id:string|null;city:string|null;district:string|null;region:string|null}[]>([]);
-  const [locationSuggestions,setLocationSuggestions]=useState<{value:string;kind:string;city:string|null;district:string|null;region:string|null}[]>([]);
+  const [locationSuggestions,setLocationSuggestions]=useState<{value:string;kind:string;city:string|null;town:string|null;village:string|null;district:string|null;state:string|null;country:string|null;region:string|null}[]>([]);
   const [productSuggestionsOpen,setProductSuggestionsOpen]=useState(false);
   const [locationSuggestionsOpen,setLocationSuggestionsOpen]=useState(false);
   const [selectedProduct,setSelectedProduct]=useState('');
@@ -204,7 +204,15 @@ export default function MyShopsDiscovery() {
           <input aria-label="City, town, village, street or local area" value={city} onFocus={()=>{if(city.trim().length>=2)setLocationSuggestionsOpen(true);}} onChange={e=>{setSelectedLocation('');setCity(e.target.value);}} placeholder="City, village or area (e.g. Sai Nagar, Puttaparthi)" style={field}/>
           {locationSuggestionsOpen&&locationSuggestions.length>0?<div role="listbox" aria-label="Matching locations" style={suggestionPanel}>
             {locationSuggestions.map((item,index)=><button type="button" role="option" aria-selected="false" key={item.kind+'-'+item.value+'-'+index} onClick={()=>{setSelectedLocation(item.value);setCity(item.value);setLocationSuggestions([]);setLocationSuggestionsOpen(false);}} style={suggestionButton}>
-              <span style={{fontWeight:700,color:'#172033'}}>{item.value}</span><span style={{fontSize:11,color:'#667085'}}>{[item.kind,item.city,item.district,item.region].filter(Boolean).join(' · ')}</span>
+              <span style={{fontWeight:700,color:'#172033'}}>{item.value}</span><span style={{fontSize:11,color:'#667085'}}>{[
+                item.kind,
+                item.city ? item.city+' (City)' : null,
+                item.town ? item.town+' (Town)' : null,
+                item.village ? item.village+' (Village)' : null,
+                item.district ? item.district+' (District)' : null,
+                item.state ? item.state+' (State)' : item.region ? item.region+' (State)' : null,
+                item.country ? item.country+' (Country)' : null
+              ].filter(Boolean).join(' · ')}</span>
             </button>)}
           </div>:null}
         </div>
