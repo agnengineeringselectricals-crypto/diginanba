@@ -61,16 +61,18 @@ export default function MyShopsDiscovery() {
 
   useEffect(()=>{
     let cancelled=false;
+    const controller=new AbortController();
     const term=city.trim();
     if(term.length<2||term===selectedLocation){setLocationSuggestions([]);setLocationSuggestionsOpen(false);return;}
     const timer=setTimeout(async()=>{
       try{
-        const response=await fetch('/api/marketplace/shops/suggestions?type=locations&country='+encodeURIComponent(countryCode)+'&q='+encodeURIComponent(term));
+        const response=await fetch('/api/marketplace/shops/suggestions?type=locations&country='+encodeURIComponent(countryCode)+'&q='+encodeURIComponent(term),{signal:controller.signal});
+        if(!response.ok)throw new Error('Location suggestions unavailable');
         const data=await response.json();
         if(!cancelled){setLocationSuggestions(data.suggestions||[]);setLocationSuggestionsOpen(true);}
-      }catch{if(!cancelled)setLocationSuggestions([]);}
-    },180);
-    return()=>{cancelled=true;clearTimeout(timer);};
+      }catch(e){if(!cancelled&&!(e instanceof Error&&e.name==='AbortError'))setLocationSuggestions([]);}
+    },300);
+    return()=>{cancelled=true;clearTimeout(timer);controller.abort();};
   },[city,selectedLocation,countryCode]);
 
   useEffect(()=>{
