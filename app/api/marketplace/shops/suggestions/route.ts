@@ -174,39 +174,35 @@ export async function GET(request: Request) {
           [q]
         ),
         db.query(
-          `WITH RECURSIVE matched AS (
-             SELECT id, parent_id, name, location_type, normalized_name, aliases,
-                    postal_code, latitude, longitude, country_code,
+          `WITH matched AS (
+             SELECT location_id AS id, name, location_type, normalized_name,
+                    normalized_aliases AS aliases, postal_code, latitude, longitude,
+                    country_code,
                     CASE WHEN country_code = $2 THEN 0 ELSE 1 END AS country_rank,
                     CASE WHEN normalized_name = $1 THEN 0
                          WHEN normalized_name LIKE $1 || '%' THEN 1
-                         WHEN EXISTS (SELECT 1 FROM unnest(aliases) a WHERE lower(a) = $1) THEN 2
-                         WHEN EXISTS (SELECT 1 FROM unnest(aliases) a WHERE lower(a) LIKE '%' || $1 || '%') THEN 3
+                         WHEN $1 = ANY(normalized_aliases) THEN 2
+                         WHEN EXISTS (
+                           SELECT 1 FROM unnest(normalized_aliases) a
+                           WHERE a LIKE '%' || $1 || '%'
+                         ) THEN 3
                          ELSE 4 END AS rank_order
-             FROM marketplace_locations
-             WHERE is_active
-               AND (normalized_name ILIKE '%' || $1 || '%'
-                    OR (length($1) >= 3 AND normalized_name % $1))
-             ORDER BY country_rank, rank_order, similarity(normalized_name, $1) DESC, name
+             FROM marketplace_location_search
+             WHERE (country_code = $2 OR length($1) >= 3)
+               AND (
+                 normalized_name % $1
+                 OR search_document % $1
+                 OR $1 = ANY(normalized_aliases)
+                 OR EXISTS (
+                   SELECT 1 FROM unnest(normalized_aliases) a
+                   WHERE a LIKE '%' || $1 || '%'
+                 )
+                 OR normalized_name ILIKE '%' || $1 || '%'
+               )
+             ORDER BY country_rank, rank_order,
+                      greatest(similarity(normalized_name, $1), similarity(search_document, $1)) DESC,
+                      name
              LIMIT 80
-           ),
-           ancestry AS (
-             SELECT m.id AS match_id, l.id, l.parent_id, l.name, l.location_type, 0 AS depth
-             FROM matched m JOIN marketplace_locations l ON l.id = m.id
-             UNION ALL
-             SELECT a.match_id, p.id, p.parent_id, p.name, p.location_type, a.depth + 1
-             FROM ancestry a JOIN marketplace_locations p ON p.id = a.parent_id
-             WHERE a.depth < 8
-           ),
-           hierarchy AS (
-             SELECT match_id,
-               max(name) FILTER (WHERE location_type = 'city' AND depth > 0) AS city,
-               max(name) FILTER (WHERE location_type = 'town' AND depth > 0) AS town,
-               max(name) FILTER (WHERE location_type IN ('village','hamlet') AND depth > 0) AS village,
-               max(name) FILTER (WHERE location_type = 'district' AND depth > 0) AS district,
-               max(name) FILTER (WHERE location_type = 'state' AND depth > 0) AS state,
-               max(name) FILTER (WHERE location_type = 'country' AND depth > 0) AS country
-             FROM ancestry GROUP BY match_id
            )
            SELECT m.id AS location_id, m.name AS value, m.country_code,
                   CASE m.location_type
@@ -223,25 +219,24 @@ export async function GET(request: Request) {
                     WHEN 'road' THEN 'Road'
                     WHEN 'postal_code' THEN 'PIN code'
                     ELSE 'Place' END AS kind,
-                  h.city, h.town, h.village, h.district, h.state,
-                  h.state AS region, h.country, m.postal_code,
+                  m.city, m.town, m.village, m.district, m.state,
+                  m.state AS region, m.country, m.postal_code,
                   m.latitude, m.longitude,
                   CASE WHEN $3 <> '' AND NOT EXISTS (
                     SELECT 1 FROM regexp_split_to_table($3, '\\s+') AS context_token
-                    WHERE context_token <> '' AND NOT EXISTS (
-                      SELECT 1 FROM ancestry ctx
-                      WHERE ctx.match_id = m.id
-                        AND lower(ctx.name) LIKE '%' || context_token || '%'
-                    )
+                    WHERE context_token <> '' AND
+                      lower(concat_ws(' ',m.city,m.town,m.village,m.district,m.state,m.country))
+                      NOT LIKE '%' || lower(context_token) || '%'
                   ) THEN 0 ELSE 1 END AS context_rank
-           FROM matched m LEFT JOIN hierarchy h ON h.match_id = m.id
+           FROM matched m
            ORDER BY m.country_rank, context_rank, m.rank_order,
                     CASE m.location_type
                       WHEN 'neighbourhood' THEN 0 WHEN 'locality' THEN 1 WHEN 'suburb' THEN 2
                       WHEN 'village' THEN 3 WHEN 'hamlet' THEN 4 WHEN 'town' THEN 5
                       WHEN 'city' THEN 6 WHEN 'street' THEN 7 WHEN 'road' THEN 8 ELSE 9 END,
-                    h.city NULLS LAST, h.district NULLS LAST, m.name, m.id
+                    m.city NULLS LAST, m.district NULLS LAST, m.name, m.id
            LIMIT 20`,
+
           [canonicalQuery, countryCode, contextQuery]
         )
       ]);
