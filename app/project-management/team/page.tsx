@@ -46,10 +46,12 @@ export default function ProjectTeamPage(){
         setLoading(true);setError('');setNotice('');
         try{
           const r=await fetch('/api/project-management/team/accept',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({organizationId:acceptId})});
-          const d=await r.json();if(!r.ok)throw new Error(r.status===401?'Sign in first, then reopen this invitation link.':d.error||'Could not accept invitation.');
-          if(!cancelled)setNotice(d.message||'Invitation accepted.');
+          const d=await r.json();
+          if(!r.ok){if(!cancelled)setError(r.status===401?'Sign in first, then reopen this invitation link.':d.error||'Could not accept invitation.');return;}
+          if(!cancelled){setNotice(d.message||'Invitation accepted.');window.location.assign('/project-management');}
         }catch(e){if(!cancelled)setError(e instanceof Error?e.message:'Could not accept invitation.');}
         finally{if(!cancelled)setLoading(false)}
+        return;
       }
       if(!cancelled)await load();
     }
