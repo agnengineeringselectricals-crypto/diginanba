@@ -76,7 +76,7 @@ function ProjectTeamContent(){
     {!acceptId&&<><section className="pt-panel"><div className="pt-title"><div><span className="pt-eyebrow">ORGANIZATION</span><h2>Choose workspace</h2></div></div>
       {orgs.length>0?<select value={orgId} onChange={e=>setOrgId(e.target.value)}>{orgs.map(o=><option key={o.id} value={o.id}>{o.name}</option>)}</select>:<p className="pt-muted">Only organization owners and admins can invite or manage members. If you are an invited engineer, open the invitation link sent to your email.</p>}
     </section>
-    {orgId&&<section className="pt-panel"><div className="pt-title"><div><span className="pt-eyebrow">ONBOARDING</span><h2>Invite an engineer or colleague</h2></div></div>
+    {orgId&&<><section className="pt-panel"><div className="pt-title"><div><span className="pt-eyebrow">ONBOARDING</span><h2>Invite an engineer or colleague</h2></div></div>
       <p className="pt-muted">The person must first register a DigiNanba account using the email address you enter. The invitation then connects that account to this organization without creating a duplicate login.</p>
       <form className="pt-form" onSubmit={invite}>
         <label>Email address<input type="email" required value={email} onChange={e=>setEmail(e.target.value)} placeholder="engineer@example.com"/></label>
