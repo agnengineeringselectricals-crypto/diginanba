@@ -132,9 +132,11 @@ export async function POST(request:Request) {
           FROM pm_supplier_quotes q JOIN pm_supplier_enquiries e ON e.id=q.enquiry_id AND e.organization_id=q.organization_id
           WHERE q.id=$1 AND q.organization_id=$2 FOR UPDATE OF q,e`,[v.data.quoteId,org])).rows[0];
         if(!quote) throw new Error('Supplier quotation not found.');
-        if(!['submitted','under_review','shortlisted'].includes(quote.status)) throw new Error('This quotation is not available for award.');
         const existing=await client.query('SELECT id,po_number FROM pm_purchase_orders WHERE organization_id=$1 AND supplier_quote_id=$2',[org,quote.id]);
         if(existing.rows[0]) { await client.query('COMMIT'); return NextResponse.json({purchaseOrder:existing.rows[0],alreadyCreated:true}); }
+        if(!['submitted','under_review','shortlisted'].includes(quote.status)) throw new Error('This quotation is not available for award.');
+        const supplierActive=await client.query(`SELECT id FROM pm_suppliers WHERE id=$1 AND organization_id=$2 AND status='active'`,[quote.supplier_id,org]);
+        if(!supplierActive.rows[0]) throw new Error('The supplier is inactive or blocked and cannot be awarded a purchase order.');
         const lines=Array.isArray(quote.line_items)?quote.line_items:[];
         if(!lines.length) throw new Error('The selected quotation has no priced line items.');
         const poNumber=(await client.query(`SELECT 'PO-'||lpad((COALESCE(MAX(NULLIF(regexp_replace(po_number,'[^0-9]','','g'), '')::bigint),0)+1)::text,5,'0') AS n FROM pm_purchase_orders WHERE organization_id=$1`,[org])).rows[0].n;
