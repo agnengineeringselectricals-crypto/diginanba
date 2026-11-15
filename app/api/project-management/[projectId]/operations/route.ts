@@ -265,6 +265,12 @@ export async function PATCH(request: Request, context: {params: Promise<{project
       await client.query(`UPDATE pm_purchase_order_items poi SET received_quantity=COALESCE((SELECT SUM(gi.accepted_quantity) FROM pm_goods_receipt_items gi JOIN pm_goods_receipts gr ON gr.id=gi.receipt_id AND gr.organization_id=gi.organization_id WHERE gi.organization_id=poi.organization_id AND gi.purchase_order_item_id=poi.id AND gr.status IN ('accepted','partially_accepted')),0) WHERE poi.organization_id=$1 AND poi.purchase_order_id=$2`,[org,poId]);
       await client.query(`UPDATE pm_purchase_orders po SET status=CASE WHEN NOT EXISTS(SELECT 1 FROM pm_purchase_order_items poi WHERE poi.organization_id=po.organization_id AND poi.purchase_order_id=po.id AND poi.received_quantity<poi.ordered_quantity) THEN 'received' WHEN EXISTS(SELECT 1 FROM pm_purchase_order_items poi WHERE poi.organization_id=po.organization_id AND poi.purchase_order_id=po.id AND poi.received_quantity>0) THEN 'partially_received' WHEN po.status IN ('received','partially_received') THEN 'approved' ELSE po.status END,updated_at=now() WHERE po.organization_id=$1 AND po.id=$2`,[org,poId]);
     }
+    if(module==='manpower' && kind==='allocation'){
+      const resourceId=(await client.query('SELECT resource_id FROM pm_resource_allocations WHERE id=$1 AND organization_id=$2',[id,org])).rows[0]?.resource_id;
+      if(resourceId){
+        await client.query(`UPDATE pm_resources r SET status=CASE WHEN EXISTS(SELECT 1 FROM pm_resource_allocations a WHERE a.organization_id=r.organization_id AND a.resource_id=r.id AND a.status='allocated') THEN 'allocated' WHEN r.status='allocated' THEN 'available' ELSE r.status END,updated_at=now() WHERE r.organization_id=$1 AND r.id=$2`,[org,resourceId]);
+      }
+    }
     await client.query(`INSERT INTO pm_audit_events(organization_id,actor_user_id,project_id,action,entity_type,entity_id,after_data) VALUES($1,$2,$3,$4,$5,$6,$7::jsonb)`,[org,session.user.id,projectId,'operations.'+module+'.status_changed',kind,id,JSON.stringify({status,decision:decision||null})]);
     await client.query('COMMIT');
     return NextResponse.json({record:result.rows[0]});
