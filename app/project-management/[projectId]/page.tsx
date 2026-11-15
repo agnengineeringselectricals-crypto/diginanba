@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 
 type Project = { id:string; organization_id:string; organization_name:string; project_code:string; name:string; description:string; client_name:string|null; currency_code:string; baseline_start_date:string|null; baseline_end_date:string|null; approved_budget:string|null; contract_value:string|null; status:string; progress_percent:number };
+type ProjectMember = {membership_id:string;display_name:string|null;email:string;role_name:string|null;access_level:string;project_role:string|null};
 type WorkPackage = {id:string;package_code:string|null;name:string;description:string;parent_package_id:string|null;sort_order:number};
 type Task = { id:string; task_code:string|null; title:string; description:string; unit:string|null; target_quantity:string|number|null; actual_quantity:string|number; planned_start_date:string|null; planned_end_date:string|null; actual_start_date:string|null; actual_end_date:string|null; forecast_end_date:string|null; priority:string; status:string; progress_percent:number; owner_name:string|null };
 const statuses=['not_started','in_progress','blocked','on_hold','completed','cancelled'];
@@ -15,6 +16,10 @@ export default function ProjectDetailPage({params}:{params:Promise<{projectId:st
   const [project,setProject]=useState<Project|null>(null);
   const [tasks,setTasks]=useState<Task[]>([]);
   const [packages,setPackages]=useState<WorkPackage[]>([]);
+  const [members,setMembers]=useState<ProjectMember[]>([]);
+  const [selectedOwnerId,setSelectedOwnerId]=useState('');
+  const [assignmentId,setAssignmentId]=useState('');
+  const [assignmentAccess,setAssignmentAccess]=useState('assigned');
   const [packageName,setPackageName]=useState('');
   const [packageDescription,setPackageDescription]=useState('');
   const [selectedPackageId,setSelectedPackageId]=useState('');
@@ -35,18 +40,20 @@ export default function ProjectDetailPage({params}:{params:Promise<{projectId:st
     if(!projectId)return;
     setLoading(true);setError('');
     try{
-      const [pr,tr,wr]=await Promise.all([
+      const [pr,tr,wr,mr]=await Promise.all([
         fetch('/api/project-management',{cache:'no-store'}),
         fetch('/api/project-management/'+projectId+'/tasks',{cache:'no-store'}),
-        fetch('/api/project-management/'+projectId+'/work-packages',{cache:'no-store'})
+        fetch('/api/project-management/'+projectId+'/work-packages',{cache:'no-store'}),
+        fetch('/api/project-management/'+projectId+'/members',{cache:'no-store'})
       ]);
-      const [pd,td,wd]=await Promise.all([pr.json(),tr.json(),wr.json()]);
+      const [pd,td,wd,md]=await Promise.all([pr.json(),tr.json(),wr.json(),mr.json()]);
       if(!pr.ok)throw new Error(pd.error||'Unable to load project.');
       if(!tr.ok)throw new Error(td.error||'Unable to load tasks.');
       if(!wr.ok)throw new Error(wd.error||'Unable to load work packages.');
+      if(!mr.ok)throw new Error(md.error||'Unable to load project members.');
       const found=(pd.projects||[]).find((p:Project)=>p.id===projectId);
       if(!found)throw new Error('Project not found or you do not have access.');
-      setProject(found);setTasks(td.tasks||[]);setPackages(wd.workPackages||[]);
+      setProject(found);setTasks(td.tasks||[]);setPackages(wd.workPackages||[]);setMembers(md.members||[]);
       setEdits(Object.fromEntries((td.tasks||[]).map((t:Task)=>[t.id,{actual:String(t.actual_quantity??0),target:String(t.target_quantity??''),status:t.status,progress:String(t.progress_percent??0),reason:'',action:''}])));
     }catch(e){setError(e instanceof Error?e.message:'Unable to load project.')}
     finally{setLoading(false)}
@@ -56,10 +63,15 @@ export default function ProjectDetailPage({params}:{params:Promise<{projectId:st
   async function addTask(e:FormEvent){
     e.preventDefault();setSaving(true);setError('');setNotice('');
     try{
-      const r=await fetch('/api/project-management/'+projectId+'/tasks',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({title,description,unit:unit||null,targetQuantity:target===''?null:Number(target),plannedStartDate:start||null,plannedEndDate:finish||null,priority,workPackageId:selectedPackageId||null})});
+      const r=await fetch('/api/project-management/'+projectId+'/tasks',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({title,description,unit:unit||null,targetQuantity:target===''?null:Number(target),plannedStartDate:start||null,plannedEndDate:finish||null,priority,workPackageId:selectedPackageId||null,ownerMembershipId:selectedOwnerId||null})});
       const d=await r.json();if(!r.ok)throw new Error(d.error||'Could not create task.');
       setNotice('Task added.');setTitle('');setDescription('');setUnit('');setTarget('');setStart('');setFinish('');await load();
     }catch(e){setError(e instanceof Error?e.message:'Could not create task.')}finally{setSaving(false)}
+  }
+  async function assignMember(e:FormEvent){
+    e.preventDefault();setSaving(true);setError('');setNotice('');
+    try{const r=await fetch('/api/project-management/'+projectId+'/members',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({membershipId:assignmentId,projectRole:'engineer',accessLevel:assignmentAccess})});const d=await r.json();if(!r.ok)throw new Error(d.error||'Could not assign member.');setNotice(d.message||'Member assigned.');setAssignmentId('');await load();}
+    catch(e){setError(e instanceof Error?e.message:'Could not assign member.')}finally{setSaving(false)}
   }
   async function addPackage(e:FormEvent){
     e.preventDefault();setSaving(true);setError('');setNotice('');
@@ -88,9 +100,11 @@ export default function ProjectDetailPage({params}:{params:Promise<{projectId:st
           <div className="pd-task-edit"><label>Status<select value={edits[t.id]?.status||t.status} onChange={e=>setEdits(s=>({...s,[t.id]:{...s[t.id],status:e.target.value}}))}>{statuses.map(s=><option key={s} value={s}>{s.replaceAll('_',' ')}</option>)}</select></label><label>Target {t.unit||'quantity'}<input type="number" min="0" step="any" value={edits[t.id]?.target??''} onChange={e=>setEdits(s=>({...s,[t.id]:{...s[t.id],target:e.target.value}}))}/></label><label>Actual {t.unit||'quantity'}<input type="number" min="0" step="any" value={edits[t.id]?.actual??'0'} onChange={e=>setEdits(s=>({...s,[t.id]:{...s[t.id],actual:e.target.value}}))}/></label><label>Progress %<input type="number" min="0" max="100" value={edits[t.id]?.progress??'0'} onChange={e=>setEdits(s=>({...s,[t.id]:{...s[t.id],progress:e.target.value}}))}/></label><label className="pd-wide">Reason for deviation<textarea rows={2} value={edits[t.id]?.reason??''} onChange={e=>setEdits(s=>({...s,[t.id]:{...s[t.id],reason:e.target.value}}))}/></label><label className="pd-wide">Corrective action<textarea rows={2} value={edits[t.id]?.action??''} onChange={e=>setEdits(s=>({...s,[t.id]:{...s[t.id],action:e.target.value}}))}/></label><button className="pd-save" disabled={saving} onClick={()=>void saveTask(t)}>Save update</button></div>
         </article>)}</div>}
       </section>
+      <section className="pd-panel"><div className="pd-title"><div><span className="pd-eyebrow">PROJECT TEAM</span><h2>Assign organization members</h2></div><span className="pd-count">{members.filter(m=>m.access_level!=='not_assigned').length} assigned</span></div><form className="pd-form" onSubmit={assignMember}><label>Organization member<select required value={assignmentId} onChange={e=>setAssignmentId(e.target.value)}><option value="">Choose engineer</option>{members.filter(m=>m.access_level==='not_assigned').map(m=><option key={m.membership_id} value={m.membership_id}>{m.display_name||m.email} · {m.role_name||'Team member'}</option>)}</select></label><label>Project access<select value={assignmentAccess} onChange={e=>setAssignmentAccess(e.target.value)}><option value="assigned">Assigned tasks only</option><option value="project_read">Project read-only</option><option value="project_admin">Project manager</option></select></label><div className="pd-actions"><button className="pd-save" disabled={saving||!assignmentId}>Assign to project</button></div></form><div className="pd-package-list">{members.filter(m=>m.access_level!=='not_assigned').map(m=><span key={m.membership_id} className="pd-package">{m.display_name||m.email} · {m.access_level.replaceAll('_',' ')}</span>)}</div></section>
       <section className="pd-panel"><div className="pd-title"><div><span className="pd-eyebrow">WORK BREAKDOWN STRUCTURE</span><h2>Create a work package</h2></div></div><form className="pd-form" onSubmit={addPackage}><label>Package name<input required minLength={2} maxLength={180} value={packageName} onChange={e=>setPackageName(e.target.value)} placeholder="e.g. Electrical installation"/></label><label>Description<input value={packageDescription} onChange={e=>setPackageDescription(e.target.value)} maxLength={5000}/></label><div className="pd-wide pd-actions"><button className="pd-save" disabled={saving||!packageName.trim()}>{saving?'Saving…':'Add work package'}</button></div></form></section>
       <section className="pd-panel"><div className="pd-title"><div><span className="pd-eyebrow">ADD WORK</span><h2>Create a task</h2></div></div><form className="pd-form" onSubmit={addTask}>
         <label className="pd-wide">Task / activity name<input required minLength={2} maxLength={240} value={title} onChange={e=>setTitle(e.target.value)} placeholder="e.g. Install main LT panel"/></label>
+        <label>Assign task to<select value={selectedOwnerId} onChange={e=>setSelectedOwnerId(e.target.value)}><option value="">Unassigned</option>{members.filter(m=>m.access_level!=='not_assigned').map(m=><option key={m.membership_id} value={m.membership_id}>{m.display_name||m.email}</option>)}</select></label>
         <label>Work package<select value={selectedPackageId} onChange={e=>setSelectedPackageId(e.target.value)}><option value="">Unassigned</option>{packages.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
         <label>Unit<input value={unit} onChange={e=>setUnit(e.target.value)} placeholder="Nos, m, kg, hours"/></label>
         <label>Target quantity<input type="number" min="0" step="any" value={target} onChange={e=>setTarget(e.target.value)}/></label>
