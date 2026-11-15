@@ -50,6 +50,10 @@ export async function GET() {
          JOIN organization_memberships m ON m.organization_id=o.id
          LEFT JOIN pm_tasks t ON t.project_id=p.id AND t.organization_id=p.organization_id
         WHERE m.user_id=$1 AND m.status='active' AND o.status='active'
+          AND (m.role IN ('owner','admin') OR EXISTS (
+            SELECT 1 FROM pm_project_members pmx JOIN pm_memberships mmx ON mmx.id=pmx.membership_id
+             WHERE pmx.project_id=p.id AND pmx.organization_id=p.organization_id AND pmx.status='active' AND mmx.user_id=$1 AND mmx.status='active'
+          ))
         GROUP BY p.id,o.name
         ORDER BY p.updated_at DESC
         LIMIT 200`,
@@ -77,7 +81,7 @@ export async function POST(request: Request) {
       `SELECT o.id,m.role
          FROM organization_accounts o
          JOIN organization_memberships m ON m.organization_id=o.id
-        WHERE o.id=$1 AND m.user_id=$2 AND m.status='active' AND o.status='active'
+        WHERE o.id=$1 AND m.user_id=$2 AND m.status='active' AND o.status='active' AND m.role IN ('owner','admin')
         FOR UPDATE OF o`,
       [input.organizationId, session.user.id],
     );
