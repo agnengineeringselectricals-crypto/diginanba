@@ -23,7 +23,12 @@ export async function GET(_request:Request,context:{params:Promise<{projectId:st
        LEFT JOIN pm_roles r ON r.id=pm.role_id AND r.organization_id=pm.organization_id
        LEFT JOIN pm_project_members pmx ON pmx.membership_id=pm.id AND pmx.project_id=$2 AND pmx.organization_id=pm.organization_id AND pmx.status='active'
        WHERE pm.organization_id=$1 AND pm.status='active'
-       ORDER BY COALESCE(u.display_name,u.email)`,[access.rows[0].organization_id,projectId]);
+         AND (
+           EXISTS(SELECT 1 FROM organization_memberships om WHERE om.organization_id=pm.organization_id AND om.user_id=$3 AND om.status='active' AND om.role IN ('owner','admin'))
+           OR EXISTS(SELECT 1 FROM pm_project_members adm JOIN pm_memberships admu ON admu.id=adm.membership_id WHERE adm.project_id=$2 AND adm.organization_id=pm.organization_id AND adm.status='active' AND adm.access_level='project_admin' AND admu.user_id=$3 AND admu.status='active')
+           OR EXISTS(SELECT 1 FROM pm_project_members mine WHERE mine.project_id=$2 AND mine.organization_id=pm.organization_id AND mine.membership_id=pm.id AND mine.status='active')
+         )
+       ORDER BY COALESCE(u.display_name,u.email)`,[access.rows[0].organization_id,projectId,session.user.id]);
     return NextResponse.json({members:members.rows});
   }catch(error){console.error('Project member lookup failed',error);return NextResponse.json({error:'Project members are temporarily unavailable.'},{status:503});}
 }
