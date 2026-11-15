@@ -106,6 +106,44 @@ export async function POST(request:Request) {
       await db.query(`UPDATE pm_supplier_enquiries SET status='issued',updated_at=now() WHERE id=$1 AND organization_id=$2`,[v.data.enquiryId,org]);
       return NextResponse.json({ok:true});
     }
+    if(body.action==='create_po_from_quote') {
+      const v=z.object({quoteId:uuid,issueDate:z.string().date().optional(),expectedDeliveryDate:z.string().date().optional()}).safeParse(body);
+      if(!v.success) return NextResponse.json({error:'Select a valid supplier quotation.'},{status:400});
+      const client=await db.connect();
+      try {
+        await client.query('BEGIN');
+        const quote=(await client.query(`SELECT q.*,e.project_id,e.status AS enquiry_status,e.enquiry_number
+          FROM pm_supplier_quotes q JOIN pm_supplier_enquiries e ON e.id=q.enquiry_id AND e.organization_id=q.organization_id
+          WHERE q.id=$1 AND q.organization_id=$2 FOR UPDATE OF q,e`,[v.data.quoteId,org])).rows[0];
+        if(!quote) throw new Error('Supplier quotation not found.');
+        if(!['submitted','under_review','shortlisted'].includes(quote.status)) throw new Error('This quotation is not available for award.');
+        const existing=await client.query('SELECT id,po_number FROM pm_purchase_orders WHERE organization_id=$1 AND supplier_quote_id=$2',[org,quote.id]);
+        if(existing.rows[0]) { await client.query('COMMIT'); return NextResponse.json({purchaseOrder:existing.rows[0],alreadyCreated:true}); }
+        const lines=Array.isArray(quote.line_items)?quote.line_items:[];
+        if(!lines.length) throw new Error('The selected quotation has no priced line items.');
+        const poNumber=(await client.query(`SELECT 'PO-'||lpad((COALESCE(MAX(NULLIF(regexp_replace(po_number,'[^0-9]','','g'), '')::bigint),0)+1)::text,5,'0') AS n FROM pm_purchase_orders WHERE organization_id=$1`,[org])).rows[0].n;
+        const po=(await client.query(`INSERT INTO pm_purchase_orders(organization_id,project_id,supplier_id,supplier_quote_id,po_number,issue_date,expected_delivery_date,currency_code,subtotal,tax_total,total_amount,status,terms,created_by)
+          VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'draft',jsonb_build_object('source','supplier_quote','quote_number',$12,'terms',$13),$14)
+          RETURNING id,po_number,total_amount,currency_code,status`,[org,quote.project_id,quote.supplier_id,quote.id,poNumber,v.data.issueDate||new Date().toISOString().slice(0,10),v.data.expectedDeliveryDate||null,quote.currency_code,quote.subtotal,quote.tax_total,quote.total_amount,quote.quote_number,quote.terms,session.user.id])).rows[0];
+        for(let i=0;i<lines.length;i++) {
+          const item=lines[i];
+          const qty=Number(item.quantity),rate=Number(item.unitRate),taxRate=Number(item.taxRate||0);
+          if(!item.description||!Number.isFinite(qty)||qty<=0||!Number.isFinite(rate)||rate<0||!Number.isFinite(taxRate)||taxRate<0||taxRate>100) throw new Error('A quotation line contains invalid quantity, price or tax.');
+          const base=qty*rate;
+          await client.query(`INSERT INTO pm_purchase_order_items(organization_id,purchase_order_id,line_number,description,specification,unit,ordered_quantity,unit_rate,tax_rate,line_total)
+            VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,[org,po.id,i+1,String(item.description).slice(0,240),String(item.specification||'').slice(0,1000),String(item.unit||'Nos').slice(0,40),qty,rate,taxRate,base*(1+taxRate/100)]);
+        }
+        await client.query(`UPDATE pm_supplier_quotes SET status=CASE WHEN id=$3 THEN 'accepted' ELSE 'rejected' END,updated_at=now() WHERE organization_id=$1 AND enquiry_id=$2 AND status IN ('submitted','under_review','shortlisted')`,[org,quote.enquiry_id,quote.id]);
+        await client.query(`UPDATE pm_supplier_enquiries SET status='closed',updated_at=now() WHERE organization_id=$1 AND id=$2`,[org,quote.enquiry_id]);
+        await client.query(`INSERT INTO pm_audit_events(organization_id,actor_user_id,project_id,action,entity_type,entity_id,after_data)
+          VALUES($1,$2,$3,'supplier_quote.awarded','purchase_order',$4,$5::jsonb)`,[org,session.user.id,quote.project_id,po.id,JSON.stringify({quote_id:quote.id,quote_number:quote.quote_number,supplier_id:quote.supplier_id})]);
+        await client.query('COMMIT');
+        return NextResponse.json({purchaseOrder:po},{status:201});
+      } catch(error) {
+        await client.query('ROLLBACK').catch(()=>undefined);
+        throw error;
+      } finally { client.release(); }
+    }
     if(body.action==='request_client_approval') {
       const v=z.object({projectId:uuid,clientId:uuid,documentId:uuid,title:clean(240)}).safeParse(body);
       if(!v.success) return NextResponse.json({error:'Select a project, client and document.'},{status:400});
