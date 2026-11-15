@@ -106,7 +106,7 @@ export async function POST(request:Request){
     if(from&&key){
       try{
         const base=(process.env.AUTH_URL||process.env.NEXTAUTH_URL||'https://www.diginanba.com').replace(/\/$/,'');
-        const response=await fetch('https://api.resend.com/emails',{method:'POST',headers:{Authorization:'Bearer '+key,'Content-Type':'application/json'},body:JSON.stringify({from,to:[email],subject:'You are invited to join '+access.rows[0].name+' on DigiNanba',text:'You have been invited to join '+access.rows[0].name+' as '+input.roleCode.replaceAll('_',' ')+'. Sign in to DigiNanba with this email address and open Project Management → Team to accept the invitation: '+base+'/project-management/team'})});
+        const response=await fetch('https://api.resend.com/emails',{method:'POST',headers:{Authorization:'Bearer '+key,'Content-Type':'application/json'},body:JSON.stringify({from,to:[email],subject:'You are invited to join '+access.rows[0].name+' on DigiNanba',text:'You have been invited to join '+access.rows[0].name+' as '+input.roleCode.replaceAll('_',' ')+'. Sign in to DigiNanba with this email address and open Project Management → Team to accept the invitation: '+base+'/project-management/team?accept='+encodeURIComponent(input.organizationId)})});
         emailSent=response.ok;
         if(!response.ok)console.error('Project Management invitation email was not accepted by provider',response.status);
       }catch(error){console.error('Project Management invitation email failed',error);}
