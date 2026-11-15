@@ -105,6 +105,29 @@ CREATE UNIQUE INDEX IF NOT EXISTS pm_purchase_orders_supplier_quote_uq
 ALTER TABLE pm_purchase_orders ADD CONSTRAINT pm_purchase_orders_supplier_quote_fk FOREIGN KEY (organization_id,supplier_quote_id) REFERENCES pm_supplier_quotes(organization_id,id) ON DELETE RESTRICT;
 
 
+CREATE TABLE IF NOT EXISTS pm_supplier_delivery_updates (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id uuid NOT NULL REFERENCES organization_accounts(id) ON DELETE CASCADE,
+  purchase_order_id uuid NOT NULL,
+  supplier_id uuid NOT NULL,
+  status text NOT NULL CHECK (status IN ('acknowledged','preparing','dispatched','in_transit','delivered','delayed','cancelled')),
+  carrier text NOT NULL DEFAULT '',
+  tracking_reference text NOT NULL DEFAULT '',
+  estimated_arrival date,
+  note text NOT NULL DEFAULT '',
+  attachments jsonb NOT NULL DEFAULT '[]'::jsonb,
+  created_by uuid NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT pm_supplier_delivery_po_fk FOREIGN KEY (organization_id,purchase_order_id)
+    REFERENCES pm_purchase_orders(organization_id,id) ON DELETE CASCADE,
+  CONSTRAINT pm_supplier_delivery_supplier_fk FOREIGN KEY (organization_id,supplier_id)
+    REFERENCES pm_suppliers(organization_id,id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS pm_supplier_delivery_po_idx
+  ON pm_supplier_delivery_updates(organization_id,purchase_order_id,created_at DESC);
+CREATE INDEX IF NOT EXISTS pm_supplier_delivery_supplier_idx
+  ON pm_supplier_delivery_updates(organization_id,supplier_id,created_at DESC);
+
 CREATE TABLE IF NOT EXISTS pm_portal_activity_events (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id uuid NOT NULL REFERENCES organization_accounts(id) ON DELETE CASCADE,
