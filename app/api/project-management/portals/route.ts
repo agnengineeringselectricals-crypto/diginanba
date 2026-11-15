@@ -101,7 +101,7 @@ export async function POST(request:Request) {
       if(!v.success) return NextResponse.json({error:'Select an approved material indent and enter an enquiry title.'},{status:400});
       const indent=(await db.query(`SELECT i.id,i.project_id,i.indent_number FROM pm_material_indents i WHERE i.id=$1 AND i.organization_id=$2 AND i.status IN ('approved','partially_ordered')`,[v.data.indentId,org])).rows[0];
       if(!indent) return NextResponse.json({error:'Only approved material indents can be issued to suppliers.'},{status:409});
-      const lines=(await db.query(`SELECT description,specification,unit,target_quantity AS quantity,COALESCE(estimated_rate,0) AS estimatedRate FROM pm_material_indent_items WHERE organization_id=$1 AND indent_id=$2 ORDER BY created_at,id`,[org,indent.id])).rows;
+      const lines=(await db.query(`SELECT description,specification,unit,target_quantity AS quantity FROM pm_material_indent_items WHERE organization_id=$1 AND indent_id=$2 ORDER BY created_at,id`,[org,indent.id])).rows;
       if(!lines.length) return NextResponse.json({error:'The selected indent has no material lines.'},{status:409});
       const number=`RFQ-${new Date().toISOString().slice(0,10).replaceAll('-','')}-${randomBytes(3).toString('hex').toUpperCase()}`;
       const r=await db.query(`INSERT INTO pm_supplier_enquiries(organization_id,project_id,source_indent_id,enquiry_number,title,description,line_items,submission_deadline,status,created_by) VALUES($1,$2,$3,$4,$5,$6,$7::jsonb,$8,'draft',$9) RETURNING id,enquiry_number,title,status`,[org,indent.project_id,indent.id,number,v.data.title,v.data.description||`Quotation requested against material indent ${indent.indent_number}`,JSON.stringify(lines),v.data.submissionDeadline||null,session.user.id]);
