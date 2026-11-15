@@ -111,3 +111,108 @@ export async function POST(request: Request, context: { params: Promise<{ projec
     return NextResponse.json({ error: 'Could not create the task. No changes were saved.' }, { status: 503 });
   } finally { client.release(); }
 }
+
+export async function PATCH(request: Request, context: { params: Promise<{ projectId: string }> }) {
+  const session = await auth();
+  if (!session?.user?.id) return NextResponse.json({ error: 'Sign in to update project tasks.' }, { status: 401 });
+  const { projectId } = await context.params;
+  if (!z.string().uuid().safeParse(projectId).success) return NextResponse.json({ error: 'Invalid project.' }, { status: 400 });
+  const schema = z.object({
+    taskId: z.string().uuid(),
+    status: z.enum(['not_started','in_progress','blocked','on_hold','completed','cancelled']).optional(),
+    actualQuantity: z.number().nonnegative().optional(),
+    targetQuantity: z.number().nonnegative().nullable().optional(),
+    progressPercent: z.number().min(0).max(100).optional(),
+    actualStartDate: z.string().date().nullable().optional(),
+    actualEndDate: z.string().date().nullable().optional(),
+    forecastEndDate: z.string().date().nullable().optional(),
+    deviationReason: z.string().trim().max(4000).optional(),
+    correctiveAction: z.string().trim().max(4000).optional(),
+    nextFollowUpAt: z.string().datetime().nullable().optional(),
+  }).refine(v => Object.keys(v).some(k => k !== 'taskId'), { message: 'Provide at least one field to update.' });
+  const parsed = schema.safeParse(await request.json().catch(() => null));
+  if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message || 'Check task update.' }, { status: 400 });
+  const input = parsed.data;
+  const client = await db.connect();
+  try {
+    await client.query('BEGIN');
+    const access = await client.query(
+      `SELECT p.organization_id FROM pm_projects p
+       JOIN organization_memberships m ON m.organization_id=p.organization_id
+       WHERE p.id=$1 AND m.user_id=$2 AND m.status='active' AND p.status <> 'archived'
+         AND (m.role IN ('owner','admin') OR EXISTS (
+           SELECT 1 FROM pm_project_members pmx JOIN pm_memberships mmx ON mmx.id=pmx.membership_id
+           WHERE pmx.project_id=p.id AND pmx.organization_id=p.organization_id AND pmx.status='active'
+             AND mmx.user_id=$2 AND mmx.status='active' AND pmx.access_level='project_admin'
+         ))
+       LIMIT 1 FOR UPDATE OF p`, [projectId, session.user.id]);
+    if (!access.rows[0]) { await client.query('ROLLBACK'); return NextResponse.json({ error: 'Project not found or access denied.' }, { status: 404 }); }
+    const orgId = access.rows[0].organization_id as string;
+    const before = await client.query(
+      'SELECT id,status,actual_quantity,target_quantity,progress_percent,actual_start_date,actual_end_date,forecast_end_date FROM pm_tasks WHERE id=$1 AND organization_id=$2 AND project_id=$3 FOR UPDATE',
+      [input.taskId, orgId, projectId]);
+    if (!before.rows[0]) { await client.query('ROLLBACK'); return NextResponse.json({ error: 'Task not found.' }, { status: 404 }); }
+    const old = before.rows[0];
+    const updated = await client.query(
+      `UPDATE pm_tasks SET
+        status=COALESCE($1,status),
+        actual_quantity=COALESCE($2,actual_quantity),
+        target_quantity=CASE WHEN $3 THEN $4 ELSE target_quantity END,
+        progress_percent=COALESCE($5,progress_percent),
+        actual_start_date=CASE WHEN $6 THEN $7::date ELSE actual_start_date END,
+        actual_end_date=CASE WHEN $8 THEN $9::date ELSE actual_end_date END,
+        forecast_end_date=CASE WHEN $10 THEN $11::date ELSE forecast_end_date END,
+        updated_at=now()
+       WHERE id=$12 AND organization_id=$13 AND project_id=$14
+       RETURNING id,title,status,actual_quantity,target_quantity,progress_percent,actual_start_date,actual_end_date,forecast_end_date`,
+      [input.status ?? null,input.actualQuantity ?? null,Object.prototype.hasOwnProperty.call(input,'targetQuantity'),input.targetQuantity ?? null,
+       input.progressPercent ?? null,Object.prototype.hasOwnProperty.call(input,'actualStartDate'),input.actualStartDate ?? null,
+       Object.prototype.hasOwnProperty.call(input,'actualEndDate'),input.actualEndDate ?? null,
+       Object.prototype.hasOwnProperty.call(input,'forecastEndDate'),input.forecastEndDate ?? null,
+       input.taskId,orgId,projectId]);
+    if (input.status && input.status !== old.status) {
+      await client.query(
+        'INSERT INTO pm_status_history(organization_id,entity_type,entity_id,previous_status,new_status,reason,changed_by) VALUES($1,\'task\',$2,$3,$4,$5,$6)',
+        [orgId,input.taskId,old.status,input.status,input.deviationReason || '',session.user.id]);
+    }
+    const metric = await client.query(
+      `SELECT id FROM pm_performance_metrics
+       WHERE organization_id=$1 AND project_id=$2 AND entity_type='task' AND entity_id=$3
+       ORDER BY created_at LIMIT 1 FOR UPDATE`, [orgId,projectId,input.taskId]);
+    if (metric.rows[0]) {
+      await client.query(
+        `UPDATE pm_performance_metrics SET
+          current_target=CASE WHEN $1 THEN $2 ELSE current_target END,
+          actual_value=COALESCE($3,actual_value),
+          current_status=COALESCE($4,current_status),
+          variance=CASE WHEN COALESCE($1,false) OR $3 IS NOT NULL THEN COALESCE(CASE WHEN $1 THEN $2 ELSE current_target END,0)-COALESCE($3,actual_value,0) ELSE variance END,
+          actual_start_date=COALESCE($5,actual_start_date),
+          actual_finish_date=COALESCE($6,actual_finish_date),
+          forecast_finish_date=COALESCE($7,forecast_finish_date),
+          deviation_reason=COALESCE($8,deviation_reason),
+          corrective_action=COALESCE($9,corrective_action),
+          next_follow_up_at=CASE WHEN $10 THEN $11::timestamptz ELSE next_follow_up_at END,
+          updated_by=$12,updated_at=now()
+         WHERE id=$13 AND organization_id=$14`,
+        [Object.prototype.hasOwnProperty.call(input,'targetQuantity'),input.targetQuantity ?? null,input.actualQuantity ?? null,input.status ?? null,
+         input.actualStartDate ?? null,input.actualEndDate ?? null,input.forecastEndDate ?? null,input.deviationReason ?? null,
+         input.correctiveAction ?? null,Object.prototype.hasOwnProperty.call(input,'nextFollowUpAt'),input.nextFollowUpAt ?? null,
+         session.user.id,metric.rows[0].id,orgId]);
+      await client.query(
+        `INSERT INTO pm_performance_measurements(organization_id,metric_id,target_value,actual_value,status,note,measured_by)
+         VALUES($1,$2,$3,$4,$5,$6,$7)`,
+        [orgId,metric.rows[0].id,updated.rows[0].target_quantity,updated.rows[0].actual_quantity,updated.rows[0].status,
+         input.deviationReason || '',session.user.id]);
+    }
+    await client.query(
+      `INSERT INTO pm_audit_events(organization_id,actor_user_id,project_id,action,entity_type,entity_id,before_data,after_data)
+       VALUES($1,$2,$3,'task.updated','task',$4,$5::jsonb,$6::jsonb)`,
+      [orgId,session.user.id,projectId,input.taskId,JSON.stringify(old),JSON.stringify(updated.rows[0])]);
+    await client.query('COMMIT');
+    return NextResponse.json({ task: updated.rows[0] });
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => undefined);
+    console.error('Project task update failed', error);
+    return NextResponse.json({ error: 'Could not update the task. No changes were saved.' }, { status: 503 });
+  } finally { client.release(); }
+}
