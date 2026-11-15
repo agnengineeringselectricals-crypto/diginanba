@@ -86,6 +86,18 @@ CREATE TABLE IF NOT EXISTS pm_supplier_quotes (
 CREATE INDEX IF NOT EXISTS pm_supplier_quotes_enquiry_compare_idx
   ON pm_supplier_quotes(organization_id,enquiry_id,total_amount,delivery_days);
 
+CREATE UNIQUE INDEX IF NOT EXISTS pm_supplier_quotes_org_id_uq ON pm_supplier_quotes(organization_id,id);
+ALTER TABLE pm_purchase_orders ADD COLUMN IF NOT EXISTS supplier_quote_id uuid;
+CREATE UNIQUE INDEX IF NOT EXISTS pm_purchase_orders_supplier_quote_uq
+  ON pm_purchase_orders(organization_id,supplier_quote_id) WHERE supplier_quote_id IS NOT NULL;
+DO $
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='pm_purchase_orders_supplier_quote_fk') THEN
+    ALTER TABLE pm_purchase_orders ADD CONSTRAINT pm_purchase_orders_supplier_quote_fk
+      FOREIGN KEY (organization_id,supplier_quote_id) REFERENCES pm_supplier_quotes(organization_id,id) ON DELETE RESTRICT;
+  END IF;
+END $;
+
 CREATE TABLE IF NOT EXISTS pm_portal_activity_events (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id uuid NOT NULL REFERENCES organization_accounts(id) ON DELETE CASCADE,
