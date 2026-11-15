@@ -41,6 +41,7 @@ CREATE TABLE IF NOT EXISTS pm_supplier_enquiries (
     REFERENCES pm_projects(organization_id,id) ON DELETE CASCADE,
   CONSTRAINT pm_supplier_enquiries_number_uq UNIQUE (organization_id,enquiry_number)
 );
+CREATE UNIQUE INDEX IF NOT EXISTS pm_supplier_enquiries_org_id_uq ON pm_supplier_enquiries(organization_id,id);
 CREATE INDEX IF NOT EXISTS pm_supplier_enquiries_project_idx
   ON pm_supplier_enquiries(organization_id,project_id,status,created_at DESC);
 
