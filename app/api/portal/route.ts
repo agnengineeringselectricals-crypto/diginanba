@@ -46,6 +46,8 @@ export async function GET() {
      db.query(`SELECT m.id,m.thread_id,m.body,m.created_at,u.display_name AS sender FROM pm_communication_messages m JOIN pm_communication_threads t ON t.id=m.thread_id AND t.organization_id=m.organization_id JOIN pm_communication_participants cp ON cp.thread_id=t.id AND cp.organization_id=t.organization_id LEFT JOIN users u ON u.id=m.sender_user_id WHERE m.organization_id=$1 AND t.project_id=ANY($2::uuid[]) AND t.thread_type='client' AND t.visibility='external_portal' AND cp.user_id=$3 ORDER BY m.created_at ASC LIMIT 500`,[member.organization_id,ids,session.user.id]),
     ]);
     milestones=m.rows;documents=d.rows;tasks=t.rows;inspections=q.rows;payments=p.rows;versions=v.rows;threads=th.rows;messages=msg.rows;
+    if(member.permissions?.documents===false){documents=[];versions=[];}
+    if(member.permissions?.communication===false){threads=[];messages=[];}
    }
    return NextResponse.json({partyType:'client',member:{contactName:member.contact_name,email:member.email},client:client.rows[0],projects:projects.rows,milestones,documents,tasks,approvals:approvals.rows,inspections,payments,versions,threads,messages});
   }
@@ -103,6 +105,7 @@ export async function POST(request:Request) {
    return NextResponse.json({ok:true});
   }
   if(body.action==='send_message') {
+   if(member.permissions?.communication===false) return NextResponse.json({error:'Your portal account does not have communication permission.'},{status:403});
    const v=z.object({projectId:uuid.optional(),enquiryId:uuid.optional(),subject:z.string().trim().min(3).max(200),body:z.string().trim().min(1).max(5000)}).safeParse(body);
    if(!v.success) return NextResponse.json({error:'Enter a subject and message.'},{status:400});
    let projectId:string|null=null;
