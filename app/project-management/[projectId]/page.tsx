@@ -44,7 +44,7 @@ export default function ProjectDetailPage({params}:{params:Promise<{projectId:st
   const [start,setStart]=useState('');
   const [finish,setFinish]=useState('');
   const [priority,setPriority]=useState('normal');
-  const [edits,setEdits]=useState<Record<string,{actual:string;target:string;status:string;progress:string;reason:string;action:string;title:string;description:string;unit:string;priority:string;plannedStart:string;plannedEnd:string;ownerId:string;packageId:string;parentId:string}>>({});
+  const [edits,setEdits]=useState<Record<string,{actual:string;target:string;status:string;progress:string;reason:string;action:string;title:string;description:string;unit:string;priority:string;plannedStart:string;plannedEnd:string;actualStart:string;actualEnd:string;forecastEnd:string;nextFollowUp:string;ownerId:string;packageId:string;parentId:string}>>({});
   useEffect(()=>{void params.then(p=>setProjectId(p.projectId))},[params]);
   const load=useCallback(async()=>{
     if(!projectId)return;
