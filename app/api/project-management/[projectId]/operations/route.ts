@@ -186,11 +186,7 @@ export async function POST(request: Request, context: {params: Promise<{projectI
         created=(await client.query(`INSERT INTO pm_financial_entries(organization_id,project_id,entry_number,entry_type,entry_date,description,account_code,currency_code,amount,tax_amount,status,created_by) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'draft',$11) RETURNING id,entry_number,entry_type,amount,status`,[org,projectId,number,p.data.entryType,p.data.entryDate,p.data.description,p.data.accountCode||null,p.data.currencyCode.toUpperCase(),p.data.amount,p.data.taxAmount??0,session.user.id])).rows[0];
       } else throw new Error('Unsupported finance action.');
     } else if(module==='documents') {
-      const p=z.object({title:text(240),documentType:text(80),documentNumber:z.string().max(80).optional(),revision:z.string().max(40).default('A'),storageKey:text(1000),mimeType:z.string().max(160).optional(),fileSizeBytes:z.number().int().nonnegative().optional(),changeSummary:z.string().max(2000).optional()}).safeParse(input);
-      if(!p.success)throw new Error(p.error.issues[0]?.message||'Check document details.');
-      const doc=(await client.query(`INSERT INTO pm_documents(organization_id,project_id,document_number,title,document_type,revision,storage_key,mime_type,file_size_bytes,status,uploaded_by) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,'draft',$10) RETURNING id,title,document_type,revision,status`,[org,projectId,p.data.documentNumber||null,p.data.title,p.data.documentType,p.data.revision,p.data.storageKey,p.data.mimeType||null,p.data.fileSizeBytes??null,session.user.id])).rows[0];
-      await client.query(`INSERT INTO pm_document_versions(organization_id,document_id,revision,storage_key,mime_type,file_size_bytes,change_summary,uploaded_by) VALUES($1,$2,$3,$4,$5,$6,$7,$8)`,[org,doc.id,p.data.revision,p.data.storageKey,p.data.mimeType||null,p.data.fileSizeBytes??null,p.data.changeSummary||'Initial version',session.user.id]);
-      created=doc;
+      throw new Error('Use the secure file-upload workflow to register or revise controlled documents.');
     }
     await client.query(`INSERT INTO pm_audit_events(organization_id,actor_user_id,project_id,action,entity_type,entity_id,after_data) VALUES($1,$2,$3,$4,$5,$6,$7::jsonb)`,[org,session.user.id,projectId,'operations.'+module+'.created',module,created.id,JSON.stringify(created)]);
     await client.query('COMMIT');
