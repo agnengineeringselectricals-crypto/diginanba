@@ -1,0 +1,38 @@
+name: Backfill location search projection
+
+on:
+  workflow_dispatch:
+    inputs:
+      batch_size:
+        description: Rows per database batch (500-20000)
+        required: false
+        default: "5000"
+  schedule:
+    - cron: "17 20 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: location-search-projection-backfill
+  cancel-in-progress: false
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Install PostgreSQL client
+        run: npm install --no-save pg
+      - name: Run restartable staging backfill
+        env:
+          NEON_DATABASE_URL: ${{ secrets.NEON_STAGING_DATABASE_URL }}
+        run: node scripts/backfill_location_search_projection.mjs "${{ inputs.batch_size || '5000' }}"
