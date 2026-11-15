@@ -147,7 +147,7 @@ CREATE TABLE IF NOT EXISTS pm_quality_nonconformities (
   UNIQUE (organization_id,id),
   UNIQUE (organization_id,nc_number),
   FOREIGN KEY (organization_id,project_id) REFERENCES pm_projects(organization_id,id) ON DELETE CASCADE,
-  FOREIGN KEY (organization_id,inspection_id) REFERENCES pm_quality_inspections(organization_id,id) ON DELETE SET NULL,
+  FOREIGN KEY (organization_id,inspection_id) REFERENCES pm_quality_inspections(organization_id,id) ON DELETE RESTRICT,
   FOREIGN KEY (organization_id,assigned_to_membership_id) REFERENCES pm_memberships(organization_id,id) ON DELETE RESTRICT
 );
 CREATE TABLE IF NOT EXISTS pm_quality_actions (
@@ -287,13 +287,14 @@ CREATE TABLE IF NOT EXISTS pm_notifications (
   entity_type text,
   entity_id uuid,
   read_at timestamptz,
-  created_at timestamptz NOT NULL DEFAULT now()
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (organization_id,id)
 );
 CREATE INDEX IF NOT EXISTS pm_notifications_inbox_idx ON pm_notifications(organization_id,user_id,created_at DESC) WHERE read_at IS NULL;
 CREATE TABLE IF NOT EXISTS pm_notification_deliveries (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id uuid NOT NULL REFERENCES organization_accounts(id) ON DELETE CASCADE,
-  notification_id uuid NOT NULL REFERENCES pm_notifications(id) ON DELETE CASCADE,
+  notification_id uuid NOT NULL,
   channel text NOT NULL CHECK (channel IN ('email','sms','whatsapp')),
   provider text,
   provider_message_id text,
@@ -301,7 +302,8 @@ CREATE TABLE IF NOT EXISTS pm_notification_deliveries (
   attempt_count integer NOT NULL DEFAULT 0 CHECK (attempt_count >= 0),
   last_error_code text,
   attempted_at timestamptz,
-  created_at timestamptz NOT NULL DEFAULT now()
+  created_at timestamptz NOT NULL DEFAULT now(),
+  FOREIGN KEY (organization_id,notification_id) REFERENCES pm_notifications(organization_id,id) ON DELETE CASCADE
 );
 
 -- Meter pricing catalogue for future usage billing; no invoice or payment is initiated.
