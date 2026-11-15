@@ -1,101 +1,96 @@
 'use client';
-
 import Link from 'next/link';
-import { Suspense } from 'react';
-import { useCallback,useEffect,useState,type FormEvent } from 'react';
-import { useSearchParams } from 'next/navigation';
+import {Suspense,useCallback,useEffect,useState,type FormEvent} from 'react';
+import {useSearchParams} from 'next/navigation';
 
 type Org={id:string;name:string;role:string};
-type Member={membership_id:string;status:string;employee_code:string|null;employment_type:string;joined_at:string|null;user_id:string;display_name:string|null;email:string;role_code:string|null;role_name:string|null;department_name:string|null;designation_name:string|null};
-type Department={id:string;name:string};
+type Member={membership_id:string;status:string;employee_code:string|null;employment_type:string;joined_at:string|null;user_id:string;display_name:string|null;email:string;role_id:string|null;role_code:string|null;role_name:string|null;department_id:string|null;department_name:string|null;designation_id:string|null;designation_name:string|null;reports_to_membership_id:string|null;reports_to_name:string|null};
+type Department={id:string;name:string;code:string|null;description:string;parent_department_id:string|null;status:string;employee_count:number};
+type Designation={id:string;name:string;description:string;level:number;status:string};
+type Role={id:string;code:string;name:string;description:string;is_system_role:boolean;status:string;member_count:number};
+type Permission={code:string;module_code:string;description:string};
+type PermissionGrant={code:string;scope:'organization'|'department'|'project'|'assigned'|'own';view:boolean;create:boolean;update:boolean;approve:boolean;delete:boolean};
+const blankGrant=(code:string):PermissionGrant=>({code,scope:'assigned',view:false,create:false,update:false,approve:false,delete:false});
 
-function ProjectTeamContent(){
-  const search=useSearchParams();
-  const acceptId=search.get('accept')||'';
-  const [orgs,setOrgs]=useState<Org[]>([]);
-  const [orgId,setOrgId]=useState('');
-  const [members,setMembers]=useState<Member[]>([]);
-  const [departments,setDepartments]=useState<Department[]>([]);
-  const [email,setEmail]=useState('');
-  const [role,setRole]=useState('engineer');
-  const [departmentId,setDepartmentId]=useState('');
-  const [loading,setLoading]=useState(true);
-  const [saving,setSaving]=useState(false);
-  const [error,setError]=useState('');
-  const [notice,setNotice]=useState('');
+function TeamContent(){
+ const search=useSearchParams(),acceptId=search.get('accept')||'';
+ const [orgs,setOrgs]=useState<Org[]>([]),[orgId,setOrgId]=useState('');
+ const [members,setMembers]=useState<Member[]>([]),[departments,setDepartments]=useState<Department[]>([]),[designations,setDesignations]=useState<Designation[]>([]),[roles,setRoles]=useState<Role[]>([]),[permissions,setPermissions]=useState<Permission[]>([]);
+ const [grants,setGrants]=useState<Record<string,PermissionGrant>>({});
+ const [email,setEmail]=useState(''),[inviteRole,setInviteRole]=useState(''),[inviteDepartment,setInviteDepartment]=useState('');
+ const [deptName,setDeptName]=useState(''),[deptCode,setDeptCode]=useState(''),[deptParent,setDeptParent]=useState(''),[designationName,setDesignationName]=useState(''),[designationLevel,setDesignationLevel]=useState('0');
+ const [roleName,setRoleName]=useState(''),[roleDescription,setRoleDescription]=useState('');
+ const [edits,setEdits]=useState<Record<string,Partial<Member>>>({});
+ const [loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');
 
-  const load=useCallback(async()=>{
-    setLoading(true);setError('');
-    try{
-      const r=await fetch('/api/project-management',{cache:'no-store'});const d=await r.json();
-      if(!r.ok)throw new Error(d.error||'Sign in to access your organization.');
-      const allowed=(d.organizations||[]).filter((o:Org)=>['owner','admin'].includes(o.role));
-      setOrgs(allowed);const selected=orgId&&allowed.some((o:Org)=>o.id===orgId)?orgId:allowed[0]?.id||'';setOrgId(selected);
-      if(selected){
-        const tr=await fetch('/api/project-management/team?organizationId='+selected,{cache:'no-store'});const td=await tr.json();
-        if(!tr.ok)throw new Error(td.error||'Unable to load team.');
-        setMembers(td.members||[]);setDepartments(td.departments||[]);
-      }else{setMembers([]);setDepartments([]);}
-    }catch(e){setError(e instanceof Error?e.message:'Unable to load team.')}
-    finally{setLoading(false)}
-  },[orgId]);
+ const load=useCallback(async()=>{
+  setLoading(true);setError('');
+  try{
+   const r=await fetch('/api/project-management',{cache:'no-store'}),d=await r.json();if(!r.ok)throw new Error(d.error||'Unable to load organizations.');
+   const allowed=(d.organizations||[]).filter((o:Org)=>['owner','admin'].includes(o.role));setOrgs(allowed);
+   const selected=orgId&&allowed.some((o:Org)=>o.id===orgId)?orgId:allowed[0]?.id||'';setOrgId(selected);
+   if(selected){
+    const [tr,ar]=await Promise.all([fetch('/api/project-management/team?organizationId='+selected,{cache:'no-store'}),fetch('/api/project-management/team/admin?organizationId='+selected,{cache:'no-store'})]);
+    const [td,ad]=await Promise.all([tr.json(),ar.json()]);if(!tr.ok)throw new Error(td.error||'Unable to load team.');if(!ar.ok)throw new Error(ad.error||'Unable to load organization structure.');
+    setMembers(td.members||[]);setDepartments(ad.departments||[]);setDesignations(ad.designations||[]);setRoles(td.roles||ad.roles||[]);setPermissions(ad.permissions||[]);
+    setGrants(prev=>{const next={...prev};for(const p of ad.permissions||[])if(!next[p.code])next[p.code]=blankGrant(p.code);return next;});
+    setInviteRole(prev=>prev&&((td.roles||ad.roles||[]).some((x:Role)=>x.id===prev))?prev:(td.roles||ad.roles||[])[0]?.id||'');
+   }else{setMembers([]);setDepartments([]);setDesignations([]);setRoles([]);setPermissions([]);}
+  }catch(e){setError(e instanceof Error?e.message:'Unable to load team workspace.');}
+  finally{setLoading(false);}
+ },[orgId]);
+ useEffect(()=>{let cancelled=false;async function run(){if(acceptId){setLoading(true);try{const r=await fetch('/api/project-management/team/accept',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({organizationId:acceptId})}),d=await r.json();if(!r.ok)throw new Error(r.status===401?'Sign in first, then reopen this invitation link.':d.error||'Could not accept invitation.');if(!cancelled){setNotice(d.message||'Invitation accepted.');window.location.assign('/project-management');}}catch(e){if(!cancelled)setError(e instanceof Error?e.message:'Could not accept invitation.');}finally{if(!cancelled)setLoading(false);}return;}if(!cancelled)await load();}void run();return()=>{cancelled=true};},[acceptId,load]);
 
-  useEffect(()=>{
-    let cancelled=false;
-    async function run(){
-      if(acceptId){
-        setLoading(true);setError('');setNotice('');
-        try{
-          const r=await fetch('/api/project-management/team/accept',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({organizationId:acceptId})});
-          const d=await r.json();
-          if(!r.ok){if(!cancelled)setError(r.status===401?'Sign in first, then reopen this invitation link.':d.error||'Could not accept invitation.');return;}
-          if(!cancelled){setNotice(d.message||'Invitation accepted.');window.location.assign('/project-management');}
-        }catch(e){if(!cancelled)setError(e instanceof Error?e.message:'Could not accept invitation.');}
-        finally{if(!cancelled)setLoading(false)}
-        return;
-      }
-      if(!cancelled)await load();
-    }
-    void run();return()=>{cancelled=true};
-  },[acceptId,load]);
+ async function send(path:string,method:string,body:any){const r=await fetch(path,{method,headers:{'content-type':'application/json'},body:JSON.stringify(body)});const d=await r.json();if(!r.ok)throw new Error(d.error||'Request failed.');return d;}
+ async function invite(e:FormEvent){e.preventDefault();setSaving(true);setError('');setNotice('');try{const d=await send('/api/project-management/team','POST',{organizationId:orgId,email,roleId:inviteRole,departmentId:inviteDepartment||null});setNotice(d.message);setEmail('');await load();}catch(e){setError(e instanceof Error?e.message:'Could not invite member.');}finally{setSaving(false);}}
+ async function createDepartment(e:FormEvent){e.preventDefault();setSaving(true);setError('');try{const d=await send('/api/project-management/team/admin','POST',{organizationId:orgId,type:'department',name:deptName,code:deptCode,description:'',parentId:deptParent||null});setNotice(d.message);setDeptName('');setDeptCode('');setDeptParent('');await load();}catch(e){setError(e instanceof Error?e.message:'Could not create department.');}finally{setSaving(false);}}
+ async function createDesignation(e:FormEvent){e.preventDefault();setSaving(true);setError('');try{const d=await send('/api/project-management/team/admin','POST',{organizationId:orgId,type:'designation',name:designationName,description:'',level:Number(designationLevel)});setNotice(d.message);setDesignationName('');await load();}catch(e){setError(e instanceof Error?e.message:'Could not create designation.');}finally{setSaving(false);}}
+ async function createRole(e:FormEvent){e.preventDefault();setSaving(true);setError('');try{const selected=permissions.map(p=>grants[p.code]||blankGrant(p.code)).filter(g=>g.view||g.create||g.update||g.approve||g.delete);const d=await send('/api/project-management/team/admin','POST',{organizationId:orgId,type:'role',name:roleName,description:roleDescription,permissions:selected});setNotice(d.message);setRoleName('');setRoleDescription('');setGrants(Object.fromEntries(permissions.map(p=>[p.code,blankGrant(p.code)])));await load();}catch(e){setError(e instanceof Error?e.message:'Could not create role.');}finally{setSaving(false);}}
+ async function saveMember(m:Member){const v=edits[m.membership_id]||{};setSaving(true);setError('');try{const d=await send('/api/project-management/team/admin','PATCH',{organizationId:orgId,type:'member',membershipId:m.membership_id,departmentId:v.department_id??m.department_id,designationId:v.designation_id??m.designation_id,reportsToMembershipId:v.reports_to_membership_id??m.reports_to_membership_id,roleId:v.role_id??m.role_id,employeeCode:v.employee_code??m.employee_code,employmentType:v.employment_type??m.employment_type,status:v.status??m.status});setNotice(d.message);setEdits(s=>{const n={...s};delete n[m.membership_id];return n;});await load();}catch(e){setError(e instanceof Error?e.message:'Could not update employee.');}finally{setSaving(false);}}
+ async function updateDepartment(d:Department,status:string){setSaving(true);try{await send('/api/project-management/team/admin','PATCH',{organizationId:orgId,type:'department',id:d.id,name:d.name,code:d.code,description:d.description,parentId:d.parent_department_id,status});setNotice('Department updated.');await load();}catch(e){setError(e instanceof Error?e.message:'Could not update department.');}finally{setSaving(false);}}
+ async function updateDesignation(d:Designation,status:string){setSaving(true);try{await send('/api/project-management/team/admin','PATCH',{organizationId:orgId,type:'designation',id:d.id,name:d.name,description:d.description,level:d.level,status});setNotice('Designation updated.');await load();}catch(e){setError(e instanceof Error?e.message:'Could not update designation.');}finally{setSaving(false);}}
 
-  async function invite(e:FormEvent){
-    e.preventDefault();setSaving(true);setError('');setNotice('');
-    try{
-      const r=await fetch('/api/project-management/team',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({organizationId:orgId,email,roleCode:role,departmentId:departmentId||null})});
-      const d=await r.json();if(!r.ok)throw new Error(d.error||'Could not invite team member.');
-      setNotice(d.message);setEmail('');await load();
-    }catch(e){setError(e instanceof Error?e.message:'Could not invite team member.')}
-    finally{setSaving(false)}
-  }
-
-  return <main className="pt-shell">
-    <header className="pt-head"><div><Link href="/project-management" className="pt-back">← Project Management</Link><h1>Team & access</h1><p>Invite your AGN colleagues and assign the right workspace role.</p></div><Link href="/organizations" className="pt-org">Organizations</Link></header>
-    {error&&<p className="pt-alert" role="alert">{error}{error.includes('Sign in first')&&<> <Link href={'/login?callbackUrl='+encodeURIComponent('/project-management/team?accept='+acceptId)}>Sign in</Link></>}</p>}
-    {notice&&<p className="pt-notice" role="status">{notice}</p>}
-    {!acceptId&&<><section className="pt-panel"><div className="pt-title"><div><span className="pt-eyebrow">ORGANIZATION</span><h2>Choose workspace</h2></div></div>
-      {orgs.length>0?<select value={orgId} onChange={e=>setOrgId(e.target.value)}>{orgs.map(o=><option key={o.id} value={o.id}>{o.name}</option>)}</select>:<p className="pt-muted">Only organization owners and admins can invite or manage members. If you are an invited engineer, open the invitation link sent to your email.</p>}
+ if(acceptId)return <main className="pt-shell"><p>{loading?'Processing invitation…':error||notice}</p>{error.includes('Sign in first')&&<Link href={'/login?callbackUrl='+encodeURIComponent('/project-management/team?accept='+acceptId)}>Sign in to accept</Link>}</main>;
+ return <main className="pt-shell">
+  <header className="pt-head"><div><Link href="/project-management" className="pt-back">← Project Management</Link><h1>People, departments & access</h1><p>Manage the organization structure, employee directory, invitations and role permissions.</p></div><Link href="/organizations" className="pt-org">Organizations</Link></header>
+  {error&&<p className="pt-alert" role="alert">{error}</p>}{notice&&<p className="pt-notice" role="status">{notice}</p>}
+  <section className="pt-panel"><div className="pt-title"><div><span className="pt-eyebrow">ORGANIZATION</span><h2>Choose workspace</h2></div></div>{orgs.length?<select value={orgId} onChange={e=>setOrgId(e.target.value)}>{orgs.map(o=><option key={o.id} value={o.id}>{o.name}</option>)}</select>:<p className="pt-muted">Create an organization workspace or sign in as an organization owner/admin to manage people.</p>}</section>
+  {orgId&&<>
+   <div className="pt-grid">
+    <section className="pt-panel"><div className="pt-title"><div><span className="pt-eyebrow">STRUCTURE</span><h2>Departments</h2></div><b>{departments.length}</b></div>
+     <form className="pt-form" onSubmit={createDepartment}><label>Department name<input required minLength={2} value={deptName} onChange={e=>setDeptName(e.target.value)} placeholder="Electrical / Finance / HR"/></label><label>Short code<input value={deptCode} onChange={e=>setDeptCode(e.target.value)} maxLength={30} placeholder="ELEC"/></label><label>Parent department<select value={deptParent} onChange={e=>setDeptParent(e.target.value)}><option value="">Top-level</option>{departments.filter(d=>d.status==='active').map(d=><option key={d.id} value={d.id}>{d.name}</option>)}</select></label><button disabled={saving}>Add department</button></form>
+     <div className="pt-list">{departments.map(d=><div className="pt-line" key={d.id}><span><b>{d.name}</b><small>{d.code||'No code'} · {d.employee_count} employees · {d.status}</small></span>{d.status==='active'?<button className="pt-light" disabled={saving} onClick={()=>void updateDepartment(d,'inactive')}>Deactivate</button>:<button className="pt-light" disabled={saving} onClick={()=>void updateDepartment(d,'active')}>Activate</button>}</div>)}</div>
     </section>
-    {orgId&&<><section className="pt-panel"><div className="pt-title"><div><span className="pt-eyebrow">ONBOARDING</span><h2>Invite an engineer or colleague</h2></div></div>
-      <p className="pt-muted">The person must first register a DigiNanba account using the email address you enter. The invitation then connects that account to this organization without creating a duplicate login.</p>
-      <form className="pt-form" onSubmit={invite}>
-        <label>Email address<input type="email" required value={email} onChange={e=>setEmail(e.target.value)} placeholder="engineer@example.com"/></label>
-        <label>Project Management role<select value={role} onChange={e=>setRole(e.target.value)}><option value="engineer">Engineer</option><option value="project_manager">Project Manager</option><option value="viewer">Read-only Viewer</option></select></label>
-        <label>Department<select value={departmentId} onChange={e=>setDepartmentId(e.target.value)}><option value="">Not assigned yet</option>{departments.map(d=><option key={d.id} value={d.id}>{d.name}</option>)}</select></label>
-        <div className="pt-actions"><button disabled={saving||!orgId}>{saving?'Sending invitation…':'Invite team member'}</button></div>
-      </form>
+    <section className="pt-panel"><div className="pt-title"><div><span className="pt-eyebrow">JOB ARCHITECTURE</span><h2>Designations</h2></div><b>{designations.length}</b></div>
+     <form className="pt-form" onSubmit={createDesignation}><label>Designation<input required minLength={2} value={designationName} onChange={e=>setDesignationName(e.target.value)} placeholder="Project Engineer"/></label><label>Seniority level<input type="number" min="0" max="100" value={designationLevel} onChange={e=>setDesignationLevel(e.target.value)}/></label><button disabled={saving}>Add designation</button></form>
+     <div className="pt-list">{designations.map(d=><div className="pt-line" key={d.id}><span><b>{d.name}</b><small>Level {d.level} · {d.status}</small></span>{d.status==='active'?<button className="pt-light" disabled={saving} onClick={()=>void updateDesignation(d,'inactive')}>Deactivate</button>:<button className="pt-light" disabled={saving} onClick={()=>void updateDesignation(d,'active')}>Activate</button>}</div>)}</div>
     </section>
-    <section className="pt-panel"><div className="pt-title"><div><span className="pt-eyebrow">PEOPLE</span><h2>Organization team</h2></div><span className="pt-count">{members.length} members</span></div>
-      {loading?<p className="pt-muted">Loading team…</p>:members.length===0?<p className="pt-muted">No Project Management members yet. Invite your first engineer to begin.</p>:<div className="pt-table"><div className="pt-row pt-th"><span>Person</span><span>Role</span><span>Department</span><span>Status</span></div>{members.map(m=><div className="pt-row" key={m.membership_id}><span><b>{m.display_name||m.email}</b><small>{m.email}</small></span><span>{m.role_name||m.role_code||'Not assigned'}</span><span>{m.department_name||'—'}</span><span><i className={'pt-pill pt-'+m.status}>{m.status}</i></span></div>)}</div>}
-    </section></>}
-    </>}
-    <footer className="pt-foot">Organization access is separate from project assignment. A team member only sees projects they are allowed to access.</footer>
-    <style jsx>{`
-      .pt-shell{max-width:1100px;margin:auto;padding:26px 5% 60px;color:#182235}.pt-head{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #e7eaf0;padding-bottom:20px}.pt-back{font-size:12px;color:#6558df;text-decoration:none}.pt-head h1{font-size:30px;margin:8px 0 4px}.pt-head p,.pt-muted{font-size:13px;color:#758096}.pt-org{color:#6558df;font-size:12px;text-decoration:none}.pt-panel{background:white;border:1px solid #e7eaf0;border-radius:15px;padding:20px;margin:17px 0}.pt-title{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}.pt-title h2{font-size:20px;margin:5px 0}.pt-eyebrow{font-size:10px;letter-spacing:.13em;font-weight:850;color:#6558df}.pt-panel select,.pt-form input,.pt-form select{border:1px solid #dfe3ec;border-radius:9px;padding:11px;background:white;color:#182235;font:inherit;min-width:0}.pt-form{display:grid;grid-template-columns:2fr 1fr 1fr;gap:13px}.pt-form label{display:grid;gap:6px;font-size:12px;font-weight:750;color:#596477}.pt-actions{display:flex;align-items:end}.pt-actions button{background:#5b46f6;color:white;border:0;border-radius:9px;padding:12px 16px;font-weight:800;cursor:pointer}.pt-actions button:disabled{opacity:.5}.pt-alert,.pt-notice{padding:12px 14px;border-radius:9px;font-size:13px}.pt-alert{background:#fff1f2;color:#be123c}.pt-notice{background:#ecfdf3;color:#047857}.pt-count{background:#f1efff;color:#5144c7;padding:6px 9px;border-radius:99px;font-size:11px;font-weight:800}.pt-table{display:grid}.pt-row{display:grid;grid-template-columns:2fr 1fr 1fr 100px;gap:12px;padding:12px 6px;border-top:1px solid #edf0f5;align-items:center;font-size:12px}.pt-row small{display:block;color:#7b8496;margin-top:4px}.pt-th{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:#8a93a4;font-weight:800;border-top:0}.pt-pill{font-style:normal;font-size:10px;padding:5px 8px;border-radius:99px;background:#f2f4f7;color:#626d80}.pt-active{background:#e9f9ef;color:#087b49}.pt-invited{background:#fff7e6;color:#9a6500}.pt-foot{text-align:center;color:#919aaa;font-size:11px;padding-top:20px}@media(max-width:760px){.pt-form{grid-template-columns:1fr 1fr}.pt-actions{grid-column:1/-1}.pt-row{grid-template-columns:1.5fr 1fr 90px}.pt-row span:nth-child(3){display:none}}@media(max-width:520px){.pt-shell{padding:18px 4% 40px}.pt-head h1{font-size:26px}.pt-form{grid-template-columns:1fr}.pt-actions{grid-column:auto}.pt-row{grid-template-columns:1fr 90px}.pt-row span:nth-child(2){display:none}}
-    `}</style>
-  </main>;
+   </div>
+   <section className="pt-panel"><div className="pt-title"><div><span className="pt-eyebrow">ONBOARDING</span><h2>Invite an employee or colleague</h2></div></div><p className="pt-muted">The invitee must have a DigiNanba account with this email address. They accept the invitation after signing in; no duplicate account is created.</p>
+    <form className="pt-form" onSubmit={invite}><label>Email address<input type="email" required value={email} onChange={e=>setEmail(e.target.value)} placeholder="employee@example.com"/></label><label>Organization role<select required value={inviteRole} onChange={e=>setInviteRole(e.target.value)}><option value="">Choose role</option>{roles.filter(r=>r.status==='active').map(r=><option key={r.id} value={r.id}>{r.name}</option>)}</select></label><label>Department<select value={inviteDepartment} onChange={e=>setInviteDepartment(e.target.value)}><option value="">Not assigned</option>{departments.filter(d=>d.status==='active').map(d=><option key={d.id} value={d.id}>{d.name}</option>)}</select></label><button disabled={saving||!inviteRole}>{saving?'Sending…':'Send invitation'}</button></form>
+   </section>
+   <section className="pt-panel"><div className="pt-title"><div><span className="pt-eyebrow">EMPLOYEE DIRECTORY</span><h2>Employees & members</h2></div><b>{members.length} records</b></div>
+    {loading?<p className="pt-muted">Loading employees…</p>:!members.length?<p className="pt-muted">No members yet. Invite your first employee.</p>:<div className="pt-table"><div className="pt-row pt-th"><span>Employee</span><span>Department / designation</span><span>Role / reporting</span><span>Status / save</span></div>
+     {members.map(m=>{const v=edits[m.membership_id]||{};return <div className="pt-employee" key={m.membership_id}>
+      <div><b>{m.display_name||m.email}</b><small>{m.email}</small><label>Employee ID<input value={v.employee_code??m.employee_code??''} onChange={e=>setEdits(s=>({...s,[m.membership_id]:{...s[m.membership_id],employee_code:e.target.value}}))} placeholder="Employee code"/></label><label>Employment<select value={v.employment_type??m.employment_type} onChange={e=>setEdits(s=>({...s,[m.membership_id]:{...s[m.membership_id],employment_type:e.target.value}}))}>{['employee','contractor','consultant','intern','temporary'].map(x=><option key={x} value={x}>{x}</option>)}</select></label></div>
+      <div><label>Department<select value={v.department_id??m.department_id??''} onChange={e=>setEdits(s=>({...s,[m.membership_id]:{...s[m.membership_id],department_id:e.target.value||null}}))}><option value="">Unassigned</option>{departments.filter(d=>d.status==='active').map(d=><option key={d.id} value={d.id}>{d.name}</option>)}</select></label><label>Designation<select value={v.designation_id??m.designation_id??''} onChange={e=>setEdits(s=>({...s,[m.membership_id]:{...s[m.membership_id],designation_id:e.target.value||null}}))}><option value="">Unassigned</option>{designations.filter(d=>d.status==='active').map(d=><option key={d.id} value={d.id}>{d.name}</option>)}</select></label></div>
+      <div><label>Access role<select value={v.role_id??m.role_id??''} onChange={e=>setEdits(s=>({...s,[m.membership_id]:{...s[m.membership_id],role_id:e.target.value||null}}))}><option value="">No role</option>{roles.filter(r=>r.status==='active').map(r=><option key={r.id} value={r.id}>{r.name}</option>)}</select></label><label>Reports to<select value={v.reports_to_membership_id??m.reports_to_membership_id??''} onChange={e=>setEdits(s=>({...s,[m.membership_id]:{...s[m.membership_id],reports_to_membership_id:e.target.value||null}}))}><option value="">No reporting manager</option>{members.filter(x=>x.membership_id!==m.membership_id&&x.status==='active').map(x=><option key={x.membership_id} value={x.membership_id}>{x.display_name||x.email}</option>)}</select></label></div>
+      <div><label>Membership status<select value={v.status??m.status} onChange={e=>setEdits(s=>({...s,[m.membership_id]:{...s[m.membership_id],status:e.target.value}}))}>{['active','suspended','inactive','removed'].map(x=><option key={x} value={x}>{x}</option>)}</select></label><button disabled={saving||!Object.keys(v).length} onClick={()=>void saveMember(m)}>Save employee</button></div>
+     </div>})}
+    </div>}
+   </section>
+   <section className="pt-panel"><div className="pt-title"><div><span className="pt-eyebrow">ACCESS CONTROL</span><h2>Roles & permissions</h2></div><b>{roles.length} roles</b></div>
+    <div className="pt-role-list">{roles.map(r=><div className="pt-line" key={r.id}><span><b>{r.name}</b><small>{r.is_system_role?'Built-in role':'Custom role'} · {r.member_count} active members · {r.code}</small></span><span className="pt-muted">{r.status}</span></div>)}</div>
+    <h3>Create a custom role</h3><p className="pt-muted">Choose the exact actions and data scope this role can access. Built-in system roles remain protected.</p>
+    <form onSubmit={createRole} className="pt-role-form"><label>Role name<input required minLength={2} value={roleName} onChange={e=>setRoleName(e.target.value)} placeholder="Site Supervisor"/></label><label>Description<input value={roleDescription} onChange={e=>setRoleDescription(e.target.value)} maxLength={1000}/></label>
+     <div className="pt-permissions"><div className="pt-perm-row pt-th"><span>Permission</span><span>Scope</span><span>View</span><span>Create</span><span>Update</span><span>Approve</span><span>Delete</span></div>{permissions.map(p=>{const g=grants[p.code]||blankGrant(p.code);return <div className="pt-perm-row" key={p.code}><span><b>{p.code}</b><small>{p.description}</small></span><select value={g.scope} onChange={e=>setGrants(s=>({...s,[p.code]:{...g,scope:e.target.value as PermissionGrant['scope']}}))}>{['organization','department','project','assigned','own'].map(x=><option key={x}>{x}</option>)}</select>{(['view','create','update','approve','delete'] as const).map(k=><input aria-label={p.code+' '+k} key={k} type="checkbox" checked={g[k]} onChange={e=>setGrants(s=>({...s,[p.code]:{...g,[k]:e.target.checked}}))}/>)}</div>})}</div>
+     <button disabled={saving||!roleName.trim()}>Create role with permissions</button>
+    </form>
+   </section>
+  </>}
+  <footer className="pt-foot">Organization membership controls access to the organization. Project membership remains a separate assignment. Changes are recorded in the audit trail.</footer>
+  <style jsx>{`
+  .pt-shell{max-width:1240px;margin:auto;padding:26px 4% 60px;color:#182235}.pt-head{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #e7eaf0;padding-bottom:20px}.pt-back,.pt-org{font-size:12px;color:#6558df;text-decoration:none}.pt-head h1{font-size:30px;margin:8px 0 4px}.pt-head p,.pt-muted{font-size:13px;color:#758096}.pt-panel{background:white;border:1px solid #e7eaf0;border-radius:15px;padding:20px;margin:17px 0;min-width:0}.pt-title{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}.pt-title h2{font-size:20px;margin:5px 0}.pt-eyebrow{font-size:10px;letter-spacing:.13em;font-weight:850;color:#6558df}.pt-panel select,.pt-form input,.pt-form select,.pt-employee input,.pt-employee select,.pt-role-form input,.pt-perm-row select{border:1px solid #dfe3ec;border-radius:8px;padding:9px;background:white;color:#182235;font:inherit;min-width:0;width:100%}.pt-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.pt-form{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;align-items:end}.pt-form label,.pt-employee label,.pt-role-form label{display:grid;gap:5px;font-size:11px;font-weight:750;color:#596477}.pt-form button,.pt-employee button,.pt-role-form>button{background:#5b46f6;color:white;border:0;border-radius:8px;padding:11px 14px;font-weight:800;cursor:pointer;min-height:40px}.pt-form button:disabled,.pt-employee button:disabled,.pt-role-form button:disabled{opacity:.5}.pt-list,.pt-role-list{margin-top:12px}.pt-line{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:11px 0;border-top:1px solid #edf0f5;font-size:12px}.pt-line small,.pt-employee small,.pt-perm-row small{display:block;color:#7b8496;margin-top:4px;font-size:10px}.pt-light{border:1px solid #dfe3ec;background:white;border-radius:7px;padding:7px 10px;font-size:11px}.pt-table{overflow:auto}.pt-row{display:grid;grid-template-columns:repeat(4,minmax(140px,1fr));gap:12px;padding:10px 0;border-top:1px solid #edf0f5;font-size:10px}.pt-th{font-weight:800;color:#8a93a4;border:0}.pt-employee{display:grid;grid-template-columns:1.25fr 1fr 1fr .8fr;gap:12px;padding:14px 0;border-top:1px solid #edf0f5;min-width:800px}.pt-employee>div{display:flex;flex-direction:column;gap:8px}.pt-employee label{font-size:10px}.pt-role-form{display:grid;grid-template-columns:1fr 1fr;gap:12px}.pt-permissions{grid-column:1/-1;overflow:auto}.pt-perm-row{display:grid;grid-template-columns:minmax(220px,2fr) 130px repeat(5,55px);gap:8px;align-items:center;padding:9px 4px;border-top:1px solid #edf0f5;font-size:10px}.pt-perm-row input{justify-self:center;width:16px;height:16px}.pt-alert,.pt-notice{padding:12px 14px;border-radius:9px;font-size:13px}.pt-alert{background:#fff1f2;color:#be123c}.pt-notice{background:#ecfdf3;color:#047857}.pt-foot{text-align:center;color:#919aaa;font-size:11px;padding-top:20px}@media(max-width:850px){.pt-grid{grid-template-columns:1fr}.pt-form{grid-template-columns:1fr 1fr}.pt-employee{grid-template-columns:repeat(4,190px)}.pt-role-form{grid-template-columns:1fr}.pt-permissions{grid-column:auto}}@media(max-width:520px){.pt-shell{padding:18px 4% 40px}.pt-head h1{font-size:25px}.pt-form{grid-template-columns:1fr}.pt-panel{padding:14px}.pt-role-form{grid-template-columns:1fr}}`}</style>
+ </main>;
 }
-
-export default function ProjectTeamPage(){
-  return <Suspense fallback={<main style={{padding:32}}>Loading team workspace…</main>}><ProjectTeamContent /></Suspense>;
-}
+export default function ProjectTeamPage(){return <Suspense fallback={<main style={{padding:32}}>Loading team workspace…</main>}><TeamContent/></Suspense>;}
