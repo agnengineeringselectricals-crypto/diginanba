@@ -2,20 +2,21 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
+import { randomUUID } from 'node:crypto';
 
 export const runtime='nodejs';
 const uuid=z.string().uuid();
 const permissionSchema=z.object({code:z.string().min(3).max(100),scope:z.enum(['organization','department','project','assigned','own']).default('assigned'),view:z.boolean().default(false),create:z.boolean().default(false),update:z.boolean().default(false),approve:z.boolean().default(false),delete:z.boolean().default(false)});
 const createSchema=z.discriminatedUnion('type',[
- z.object({type:z.literal('department'),name:z.string().trim().min(2).max(120),code:z.string().trim().max(30).optional().default(''),description:z.string().max(1000).optional().default(''),parentId:uuid.nullable().optional()}),
- z.object({type:z.literal('designation'),name:z.string().trim().min(2).max(120),description:z.string().max(1000).optional().default(''),level:z.number().int().min(0).max(100).default(0)}),
- z.object({type:z.literal('role'),name:z.string().trim().min(2).max(100),description:z.string().max(1000).optional().default(''),permissions:z.array(permissionSchema).max(100).default([])})
+ z.object({organizationId:uuid,type:z.literal('department'),name:z.string().trim().min(2).max(120),code:z.string().trim().max(30).optional().default(''),description:z.string().max(1000).optional().default(''),parentId:uuid.nullable().optional()}),
+ z.object({organizationId:uuid,type:z.literal('designation'),name:z.string().trim().min(2).max(120),description:z.string().max(1000).optional().default(''),level:z.number().int().min(0).max(100).default(0)}),
+ z.object({organizationId:uuid,type:z.literal('role'),name:z.string().trim().min(2).max(100),description:z.string().max(1000).optional().default(''),permissions:z.array(permissionSchema).max(100).default([])})
 ]);
 const patchSchema=z.discriminatedUnion('type',[
- z.object({type:z.literal('member'),membershipId:uuid,departmentId:uuid.nullable(),designationId:uuid.nullable(),reportsToMembershipId:uuid.nullable(),roleId:uuid.nullable(),employeeCode:z.string().trim().max(40).nullable(),employmentType:z.enum(['employee','contractor','consultant','intern','temporary']).default('employee'),status:z.enum(['active','suspended','inactive','removed'])}),
- z.object({type:z.literal('department'),id:uuid,name:z.string().trim().min(2).max(120),code:z.string().trim().max(30).nullable(),description:z.string().max(1000),parentId:uuid.nullable(),status:z.enum(['active','inactive','archived'])}),
- z.object({type:z.literal('designation'),id:uuid,name:z.string().trim().min(2).max(120),description:z.string().max(1000),level:z.number().int().min(0).max(100),status:z.enum(['active','inactive'])}),
- z.object({type:z.literal('role'),id:uuid,name:z.string().trim().min(2).max(100),description:z.string().max(1000),status:z.enum(['active','inactive']),permissions:z.array(permissionSchema).max(100)})
+ z.object({organizationId:uuid,type:z.literal('member'),membershipId:uuid,departmentId:uuid.nullable(),designationId:uuid.nullable(),reportsToMembershipId:uuid.nullable(),roleId:uuid.nullable(),employeeCode:z.string().trim().max(40).nullable(),employmentType:z.enum(['employee','contractor','consultant','intern','temporary']).default('employee'),status:z.enum(['active','suspended','inactive','removed'])}),
+ z.object({organizationId:uuid,type:z.literal('department'),id:uuid,name:z.string().trim().min(2).max(120),code:z.string().trim().max(30).nullable(),description:z.string().max(1000),parentId:uuid.nullable(),status:z.enum(['active','inactive','archived'])}),
+ z.object({organizationId:uuid,type:z.literal('designation'),id:uuid,name:z.string().trim().min(2).max(120),description:z.string().max(1000),level:z.number().int().min(0).max(100),status:z.enum(['active','inactive'])}),
+ z.object({organizationId:uuid,type:z.literal('role'),id:uuid,name:z.string().trim().min(2).max(100),description:z.string().max(1000),status:z.enum(['active','inactive']),permissions:z.array(permissionSchema).max(100)})
 ]);
 
 async function organizationAdmin(userId:string,organizationId:string,client:any){
@@ -59,9 +60,7 @@ export async function GET(request:Request){
 export async function POST(request:Request){
  const session=await auth();if(!session?.user?.id)return NextResponse.json({error:'Sign in first.'},{status:401});
  const parsed=createSchema.safeParse(await request.json().catch(()=>null));if(!parsed.success)return NextResponse.json({error:parsed.error.issues[0]?.message||'Check the details.'},{status:400});
- const orgId=String((await request.clone().json().catch(()=>({}))).organizationId||'');
- if(!uuid.safeParse(orgId).success)return NextResponse.json({error:'Organization is required.'},{status:400});
- const input=parsed.data,client=await db.connect();
+ const input=parsed.data,orgId=input.organizationId,client=await db.connect();
  try{
   await client.query('BEGIN');if(!await organizationAdmin(session.user.id,orgId,client)){await client.query('ROLLBACK');return NextResponse.json({error:'Access denied.'},{status:403});}
   let created:any;
@@ -72,7 +71,7 @@ export async function POST(request:Request){
   }else if(input.type==='designation'){
    created=await client.query(`INSERT INTO pm_designations(organization_id,name,description,level) VALUES($1,$2,$3,$4) RETURNING id,name`,[orgId,input.name,input.description,input.level]);
   }else{
-   const code='custom_'+crypto.randomUUID().replaceAll('-','').slice(0,16);
+   const code='custom_'+randomUUID().replaceAll('-','').slice(0,16);
    created=await client.query(`INSERT INTO pm_roles(organization_id,code,name,description,is_system_role) VALUES($1,$2,$3,$4,false) RETURNING id,name,code`,[orgId,code,input.name,input.description]);
    await savePermissions(client,orgId,created.rows[0].id,input.permissions);
   }
@@ -86,8 +85,7 @@ export async function POST(request:Request){
 export async function PATCH(request:Request){
  const session=await auth();if(!session?.user?.id)return NextResponse.json({error:'Sign in first.'},{status:401});
  const parsed=patchSchema.safeParse(await request.json().catch(()=>null));if(!parsed.success)return NextResponse.json({error:parsed.error.issues[0]?.message||'Check the update.'},{status:400});
- const raw=await request.clone().json().catch(()=>({}));const orgId=String(raw.organizationId||'');if(!uuid.safeParse(orgId).success)return NextResponse.json({error:'Organization is required.'},{status:400});
- const input=parsed.data,client=await db.connect();
+ const input=parsed.data,orgId=input.organizationId,client=await db.connect();
  try{
   await client.query('BEGIN');if(!await organizationAdmin(session.user.id,orgId,client)){await client.query('ROLLBACK');return NextResponse.json({error:'Access denied.'},{status:403});}
   if(input.type==='member'){
