@@ -132,6 +132,15 @@ export async function PATCH(request: Request, context: { params: Promise<{ proje
   if (!z.string().uuid().safeParse(projectId).success) return NextResponse.json({ error: 'Invalid project.' }, { status: 400 });
   const schema = z.object({
     taskId: z.string().uuid(),
+    title: z.string().trim().min(2).max(240).optional(),
+    description: z.string().trim().max(10000).optional(),
+    unit: z.string().trim().max(40).nullable().optional(),
+    priority: z.enum(['low','normal','high','critical']).optional(),
+    workPackageId: z.string().uuid().nullable().optional(),
+    parentTaskId: z.string().uuid().nullable().optional(),
+    ownerMembershipId: z.string().uuid().nullable().optional(),
+    plannedStartDate: z.string().date().nullable().optional(),
+    plannedEndDate: z.string().date().nullable().optional(),
     status: z.enum(['not_started','in_progress','blocked','on_hold','completed','cancelled']).optional(),
     actualQuantity: z.number().nonnegative().optional(),
     targetQuantity: z.number().nonnegative().nullable().optional(),
@@ -142,7 +151,8 @@ export async function PATCH(request: Request, context: { params: Promise<{ proje
     deviationReason: z.string().trim().max(4000).optional(),
     correctiveAction: z.string().trim().max(4000).optional(),
     nextFollowUpAt: z.string().datetime().nullable().optional(),
-  }).refine(v => Object.keys(v).some(k => k !== 'taskId'), { message: 'Provide at least one field to update.' });
+  }).refine(v => Object.keys(v).some(k => k !== 'taskId'), { message: 'Provide at least one field to update.' })
+    .refine(v => !v.plannedStartDate || !v.plannedEndDate || v.plannedEndDate >= v.plannedStartDate, { message: 'Planned finish must be on or after planned start.' });
   const parsed = schema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message || 'Check task update.' }, { status: 400 });
   const input = parsed.data;
@@ -168,7 +178,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ proje
     if (!access.rows[0]) { await client.query('ROLLBACK'); return NextResponse.json({ error: 'Project not found or access denied.' }, { status: 404 }); }
     const orgId = access.rows[0].organization_id as string;
     const before = await client.query(
-      'SELECT id,status,actual_quantity,target_quantity,progress_percent,actual_start_date,actual_end_date,forecast_end_date,owner_membership_id FROM pm_tasks WHERE id=$1 AND organization_id=$2 AND project_id=$3 FOR UPDATE',
+      'SELECT id,title,description,unit,priority,work_package_id,parent_task_id,planned_start_date,planned_end_date,status,actual_quantity,target_quantity,progress_percent,actual_start_date,actual_end_date,forecast_end_date,owner_membership_id FROM pm_tasks WHERE id=$1 AND organization_id=$2 AND project_id=$3 FOR UPDATE',
       [input.taskId, orgId, projectId]);
     if (!before.rows[0]) { await client.query('ROLLBACK'); return NextResponse.json({ error: 'Task not found.' }, { status: 404 }); }
     const old = before.rows[0];
@@ -185,6 +195,30 @@ export async function PATCH(request: Request, context: { params: Promise<{ proje
     )) {
       await client.query('ROLLBACK');
       return NextResponse.json({ error: 'Only a project manager can change task targets and schedule dates.' }, { status: 403 });
+    }
+    const editsTaskDetails = ['title','description','unit','priority','workPackageId','parentTaskId','ownerMembershipId','plannedStartDate','plannedEndDate'].some(k => Object.prototype.hasOwnProperty.call(input,k));
+    if (editsTaskDetails && !access.rows[0].can_manage) {
+      await client.query('ROLLBACK');
+      return NextResponse.json({ error: 'Only a project manager can edit task details, assignments and planned dates.' }, { status: 403 });
+    }
+    if (input.workPackageId) {
+      const valid = await client.query('SELECT 1 FROM pm_work_packages WHERE id=$1 AND organization_id=$2 AND project_id=$3', [input.workPackageId,orgId,projectId]);
+      if (!valid.rows[0]) { await client.query('ROLLBACK'); return NextResponse.json({ error: 'Work package does not belong to this project.' }, { status: 400 }); }
+    }
+    if (input.parentTaskId) {
+      if (input.parentTaskId === input.taskId) { await client.query('ROLLBACK'); return NextResponse.json({ error: 'A task cannot be its own parent.' }, { status: 400 }); }
+      const valid = await client.query('SELECT 1 FROM pm_tasks WHERE id=$1 AND organization_id=$2 AND project_id=$3', [input.parentTaskId,orgId,projectId]);
+      if (!valid.rows[0]) { await client.query('ROLLBACK'); return NextResponse.json({ error: 'Parent task does not belong to this project.' }, { status: 400 }); }
+      const cycle = await client.query(`WITH RECURSIVE descendants(id) AS (
+        SELECT id FROM pm_tasks WHERE parent_task_id=$1 AND organization_id=$2 AND project_id=$3
+        UNION ALL SELECT t.id FROM pm_tasks t JOIN descendants d ON t.parent_task_id=d.id
+        WHERE t.organization_id=$2 AND t.project_id=$3
+      ) SELECT 1 FROM descendants WHERE id=$4 LIMIT 1`,[input.taskId,orgId,projectId,input.parentTaskId]);
+      if (cycle.rows[0]) { await client.query('ROLLBACK'); return NextResponse.json({ error: 'This parent selection would create a work-breakdown cycle.' }, { status: 409 }); }
+    }
+    if (input.ownerMembershipId) {
+      const valid = await client.query("SELECT 1 FROM pm_memberships WHERE id=$1 AND organization_id=$2 AND status='active'", [input.ownerMembershipId,orgId]);
+      if (!valid.rows[0]) { await client.query('ROLLBACK'); return NextResponse.json({ error: 'Task owner is not an active organization member.' }, { status: 400 }); }
     }
     if (input.status === 'in_progress' || input.status === 'completed') {
       const unmet = await client.query(
@@ -208,7 +242,16 @@ export async function PATCH(request: Request, context: { params: Promise<{ proje
     }
     const updated = await client.query(
       `UPDATE pm_tasks SET
-        status=COALESCE($1,status),
+        title=COALESCE($1,title),
+        description=COALESCE($2,description),
+        unit=CASE WHEN $3 THEN $4 ELSE unit END,
+        priority=COALESCE($5,priority),
+        work_package_id=CASE WHEN $6 THEN $7 ELSE work_package_id END,
+        parent_task_id=CASE WHEN $8 THEN $9 ELSE parent_task_id END,
+        owner_membership_id=CASE WHEN $10 THEN $11 ELSE owner_membership_id END,
+        planned_start_date=CASE WHEN $12 THEN $13::date ELSE planned_start_date END,
+        planned_end_date=CASE WHEN $14 THEN $15::date ELSE planned_end_date END,
+        status=COALESCE($16,status),
         actual_quantity=COALESCE($2,actual_quantity),
         target_quantity=CASE WHEN $3 THEN $4 ELSE target_quantity END,
         progress_percent=COALESCE($5,progress_percent),
@@ -218,7 +261,11 @@ export async function PATCH(request: Request, context: { params: Promise<{ proje
         updated_at=now()
        WHERE id=$12 AND organization_id=$13 AND project_id=$14
        RETURNING id,title,status,actual_quantity,target_quantity,progress_percent,actual_start_date,actual_end_date,forecast_end_date`,
-      [input.status ?? null,input.actualQuantity ?? null,Object.prototype.hasOwnProperty.call(input,'targetQuantity'),input.targetQuantity ?? null,
+      [input.title ?? null,input.description ?? null,Object.prototype.hasOwnProperty.call(input,'unit'),input.unit ?? null,input.priority ?? null,
+       Object.prototype.hasOwnProperty.call(input,'workPackageId'),input.workPackageId ?? null,Object.prototype.hasOwnProperty.call(input,'parentTaskId'),input.parentTaskId ?? null,
+       Object.prototype.hasOwnProperty.call(input,'ownerMembershipId'),input.ownerMembershipId ?? null,
+       Object.prototype.hasOwnProperty.call(input,'plannedStartDate'),input.plannedStartDate ?? null,Object.prototype.hasOwnProperty.call(input,'plannedEndDate'),input.plannedEndDate ?? null,
+       input.status ?? null,input.actualQuantity ?? null,Object.prototype.hasOwnProperty.call(input,'targetQuantity'),input.targetQuantity ?? null,
        input.progressPercent ?? null,Object.prototype.hasOwnProperty.call(input,'actualStartDate'),input.actualStartDate ?? null,
        Object.prototype.hasOwnProperty.call(input,'actualEndDate'),input.actualEndDate ?? null,
        Object.prototype.hasOwnProperty.call(input,'forecastEndDate'),input.forecastEndDate ?? null,
