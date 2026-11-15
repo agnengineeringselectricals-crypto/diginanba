@@ -51,7 +51,7 @@ export async function GET() {
    }
    return NextResponse.json({partyType:'client',member:{contactName:member.contact_name,email:member.email},client:client.rows[0],projects:projects.rows,milestones,documents,tasks,approvals:approvals.rows,inspections,payments,versions,threads,messages});
   }
-  const [supplier,enquiries,quotes]=await Promise.all([
+  const [supplier,enquiries,quotes,purchaseOrders,deliveryUpdates]=await Promise.all([
    db.query('SELECT legal_name,supplier_code,category,specializations,website_url,contact_name,tax_registration_number,status FROM pm_suppliers WHERE id=$1 AND organization_id=$2',[member.party_id,member.organization_id]),
    db.query(`SELECT e.id,e.enquiry_number,e.title,e.description,e.line_items,e.required_delivery_date,e.submission_deadline,e.status,p.project_code,p.name AS project_name,i.response_status,i.response_note
      FROM pm_supplier_enquiry_invites i JOIN pm_supplier_enquiries e ON e.id=i.enquiry_id AND e.organization_id=i.organization_id
@@ -59,6 +59,8 @@ export async function GET() {
      WHERE i.organization_id=$1 AND i.supplier_id=$2 AND e.status='issued' AND i.response_status IN ('invited','viewed','quoted') ORDER BY e.created_at DESC`,[member.organization_id,member.party_id]),
    db.query(`SELECT id,enquiry_id,quote_number,currency_code,subtotal,tax_total,total_amount,delivery_days,valid_until,line_items,terms,status,submitted_at
      FROM pm_supplier_quotes WHERE organization_id=$1 AND supplier_id=$2 ORDER BY submitted_at DESC`,[member.organization_id,member.party_id]),
+   db.query(`SELECT p.id,p.po_number,p.project_id,p.issue_date,p.expected_delivery_date,p.currency_code,p.total_amount,p.status,pr.project_code,pr.name AS project_name FROM pm_purchase_orders p JOIN pm_projects pr ON pr.id=p.project_id AND pr.organization_id=p.organization_id WHERE p.organization_id=$1 AND p.supplier_id=$2 AND p.status IN ('approved','sent','partially_received','received','closed') ORDER BY p.created_at DESC LIMIT 100`,[member.organization_id,member.party_id]),
+   db.query(`SELECT d.id,d.purchase_order_id,d.status,d.carrier,d.tracking_reference,d.estimated_arrival,d.note,d.created_at,po.po_number FROM pm_supplier_delivery_updates d JOIN pm_purchase_orders po ON po.id=d.purchase_order_id AND po.organization_id=d.organization_id WHERE d.organization_id=$1 AND d.supplier_id=$2 ORDER BY d.created_at DESC LIMIT 200`,[member.organization_id,member.party_id]),
   ]);
   await db.query(`UPDATE pm_supplier_enquiry_invites SET response_status='viewed' WHERE organization_id=$1 AND supplier_id=$2 AND response_status='invited' AND enquiry_id IN (SELECT id FROM pm_supplier_enquiries WHERE organization_id=$1 AND status='issued')`,[member.organization_id,member.party_id]);
   const [threads,messages]=await Promise.all([
@@ -66,7 +68,7 @@ export async function GET() {
    db.query(`SELECT m.id,m.thread_id,m.body,m.created_at,u.display_name AS sender FROM pm_communication_messages m JOIN pm_communication_threads t ON t.id=m.thread_id AND t.organization_id=m.organization_id JOIN pm_communication_participants cp ON cp.thread_id=t.id AND cp.organization_id=t.organization_id LEFT JOIN users u ON u.id=m.sender_user_id WHERE m.organization_id=$1 AND t.thread_type='supplier' AND t.visibility='external_portal' AND cp.user_id=$2 ORDER BY m.created_at ASC LIMIT 500`,[member.organization_id,session.user.id]),
   ]);
   if(member.permissions?.communication===false){threads.rows.length=0;messages.rows.length=0;}
-  return NextResponse.json({partyType:'supplier',member:{contactName:member.contact_name,email:member.email},supplier:supplier.rows[0],enquiries:enquiries.rows,quotes:quotes.rows,threads:threads.rows,messages:messages.rows});
+  return NextResponse.json({partyType:'supplier',member:{contactName:member.contact_name,email:member.email},supplier:supplier.rows[0],enquiries:enquiries.rows,quotes:quotes.rows,purchaseOrders:purchaseOrders.rows,deliveryUpdates:deliveryUpdates.rows,threads:threads.rows,messages:messages.rows});
  } catch(error) {
   console.error('External portal load failed',error);
   return NextResponse.json({error:'Unable to load your portal workspace.'},{status:500});
@@ -104,6 +106,15 @@ export async function POST(request:Request) {
    const r=await db.query(`UPDATE pm_supplier_enquiry_invites SET response_status='declined',response_note=$4 WHERE organization_id=$1 AND supplier_id=$2 AND enquiry_id=$3 RETURNING id`,[member.organization_id,member.party_id,v.data.enquiryId,v.data.note||'']);
    if(!r.rowCount) return NextResponse.json({error:'Enquiry not found.'},{status:404});
    return NextResponse.json({ok:true});
+  }
+  if(body.action==='update_delivery' && member.party_type==='supplier') {
+   const v=z.object({purchaseOrderId:uuid,status:z.enum(['acknowledged','preparing','dispatched','in_transit','delivered','delayed','cancelled']),carrier:z.string().trim().max(160).optional(),trackingReference:z.string().trim().max(240).optional(),estimatedArrival:z.string().date().optional(),note:z.string().trim().max(2000).optional()}).safeParse(body);
+   if(!v.success) return NextResponse.json({error:'Enter a valid purchase-order delivery update.'},{status:400});
+   const po=await db.query(`SELECT id FROM pm_purchase_orders WHERE id=$1 AND organization_id=$2 AND supplier_id=$3 AND status IN ('approved','sent','partially_received','received')`,[v.data.purchaseOrderId,member.organization_id,member.party_id]);
+   if(!po.rows[0]) return NextResponse.json({error:'Purchase order not found or not yet released to the supplier.'},{status:404});
+   const update=(await db.query(`INSERT INTO pm_supplier_delivery_updates(organization_id,purchase_order_id,supplier_id,status,carrier,tracking_reference,estimated_arrival,note,created_by) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id,status,created_at`,[member.organization_id,v.data.purchaseOrderId,member.party_id,v.data.status,v.data.carrier||'',v.data.trackingReference||'',v.data.estimatedArrival||null,v.data.note||'',session.user.id])).rows[0];
+   await db.query(`INSERT INTO pm_portal_activity_events(organization_id,portal_member_id,event_type,entity_type,entity_id,details) VALUES($1,$2,'delivery_update','purchase_order',$3,$4::jsonb)`,[member.organization_id,member.id,v.data.purchaseOrderId,JSON.stringify({status:v.data.status,trackingReference:v.data.trackingReference||''})]);
+   return NextResponse.json({deliveryUpdate:update},{status:201});
   }
   if(body.action==='reply_message') {
    if(member.permissions?.communication===false) return NextResponse.json({error:'Your portal account does not have communication permission.'},{status:403});
