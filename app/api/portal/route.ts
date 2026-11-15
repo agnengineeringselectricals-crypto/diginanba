@@ -49,7 +49,7 @@ export async function GET() {
    return NextResponse.json({partyType:'client',member:{contactName:member.contact_name,email:member.email},client:client.rows[0],projects:projects.rows,milestones,documents,tasks,approvals:approvals.rows,inspections,payments,versions,threads,messages});
   }
   const [supplier,enquiries,quotes]=await Promise.all([
-   db.query('SELECT legal_name,supplier_code,contact_name,tax_registration_number,status FROM pm_suppliers WHERE id=$1 AND organization_id=$2',[member.party_id,member.organization_id]),
+   db.query('SELECT legal_name,supplier_code,category,specializations,website_url,contact_name,tax_registration_number,status FROM pm_suppliers WHERE id=$1 AND organization_id=$2',[member.party_id,member.organization_id]),
    db.query(`SELECT e.id,e.enquiry_number,e.title,e.description,e.line_items,e.required_delivery_date,e.submission_deadline,e.status,p.project_code,p.name AS project_name,i.response_status,i.response_note
      FROM pm_supplier_enquiry_invites i JOIN pm_supplier_enquiries e ON e.id=i.enquiry_id AND e.organization_id=i.organization_id
      JOIN pm_projects p ON p.id=e.project_id AND p.organization_id=e.organization_id
@@ -57,6 +57,7 @@ export async function GET() {
    db.query(`SELECT id,enquiry_id,quote_number,currency_code,subtotal,tax_total,total_amount,delivery_days,valid_until,line_items,terms,status,submitted_at
      FROM pm_supplier_quotes WHERE organization_id=$1 AND supplier_id=$2 ORDER BY submitted_at DESC`,[member.organization_id,member.party_id]),
   ]);
+  await db.query(`UPDATE pm_supplier_enquiry_invites SET response_status='viewed' WHERE organization_id=$1 AND supplier_id=$2 AND response_status='invited' AND enquiry_id IN (SELECT id FROM pm_supplier_enquiries WHERE organization_id=$1 AND status='issued')`,[member.organization_id,member.party_id]);
   const [threads,messages]=await Promise.all([
    db.query(`SELECT t.id,t.project_id,t.subject,t.status,t.created_at FROM pm_communication_threads t JOIN pm_communication_participants cp ON cp.thread_id=t.id AND cp.organization_id=t.organization_id WHERE t.organization_id=$1 AND t.thread_type='supplier' AND t.visibility='external_portal' AND cp.user_id=$2 ORDER BY t.updated_at DESC LIMIT 100`,[member.organization_id,session.user.id]),
    db.query(`SELECT m.id,m.thread_id,m.body,m.created_at,u.display_name AS sender FROM pm_communication_messages m JOIN pm_communication_threads t ON t.id=m.thread_id AND t.organization_id=m.organization_id JOIN pm_communication_participants cp ON cp.thread_id=t.id AND cp.organization_id=t.organization_id LEFT JOIN users u ON u.id=m.sender_user_id WHERE m.organization_id=$1 AND t.thread_type='supplier' AND t.visibility='external_portal' AND cp.user_id=$2 ORDER BY m.created_at ASC LIMIT 500`,[member.organization_id,session.user.id]),
