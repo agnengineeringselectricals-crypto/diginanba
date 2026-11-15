@@ -33,9 +33,9 @@ export async function GET() {
       WHERE a.organization_id=$1 AND a.metadata->>'portal_member_id'=$2 ORDER BY a.requested_at DESC LIMIT 100`,[member.organization_id,member.id]),
    ]);
    const ids=projects.rows.map((p:any)=>p.id);
-   let milestones:any[]=[]; let documents:any[]=[]; let tasks:any[]=[]; let inspections:any[]=[]; let payments:any[]=[]; let versions:any[]=[]; let threads:any[]=[]; let messages:any[]=[];
+   let milestones:any[]=[]; let documents:any[]=[]; let tasks:any[]=[]; let inspections:any[]=[]; let payments:any[]=[]; let versions:any[]=[]; let threads:any[]=[]; let messages:any[]=[]; let deliveries:any[]=[];
    if(ids.length) {
-    const [m,d,t,q,p,v,th,msg]=await Promise.all([
+    const [m,d,t,q,p,v,th,msg,del]=await Promise.all([
      db.query(`SELECT project_id,id,name,description,baseline_date,forecast_date,actual_date,status FROM pm_project_milestones WHERE organization_id=$1 AND project_id=ANY($2::uuid[]) ORDER BY baseline_date NULLS LAST`,[member.organization_id,ids]),
      db.query(`SELECT id,project_id,document_number,title,document_type,revision,mime_type,file_size_bytes,status,created_at FROM pm_documents WHERE organization_id=$1 AND project_id=ANY($2::uuid[]) AND status='approved' ORDER BY created_at DESC LIMIT 300`,[member.organization_id,ids]),
      db.query(`SELECT project_id,task_code,title,status,progress_percent,planned_start_date,planned_end_date,forecast_end_date FROM pm_tasks WHERE organization_id=$1 AND project_id=ANY($2::uuid[]) AND status<>'cancelled' ORDER BY planned_end_date NULLS LAST LIMIT 300`,[member.organization_id,ids]),
@@ -44,12 +44,13 @@ export async function GET() {
      db.query(`SELECT v.document_id,v.revision,v.change_summary,v.created_at FROM pm_document_versions v JOIN pm_documents d ON d.id=v.document_id AND d.organization_id=v.organization_id WHERE v.organization_id=$1 AND d.project_id=ANY($2::uuid[]) AND d.status='approved' ORDER BY v.created_at DESC LIMIT 300`,[member.organization_id,ids]),
      db.query(`SELECT t.id,t.project_id,t.subject,t.status,t.created_at FROM pm_communication_threads t JOIN pm_communication_participants cp ON cp.thread_id=t.id AND cp.organization_id=t.organization_id WHERE t.organization_id=$1 AND t.project_id=ANY($2::uuid[]) AND t.thread_type='client' AND t.visibility='external_portal' AND cp.user_id=$3 ORDER BY t.updated_at DESC LIMIT 100`,[member.organization_id,ids,session.user.id]),
      db.query(`SELECT m.id,m.thread_id,m.body,m.created_at,u.display_name AS sender FROM pm_communication_messages m JOIN pm_communication_threads t ON t.id=m.thread_id AND t.organization_id=m.organization_id JOIN pm_communication_participants cp ON cp.thread_id=t.id AND cp.organization_id=t.organization_id LEFT JOIN users u ON u.id=m.sender_user_id WHERE m.organization_id=$1 AND t.project_id=ANY($2::uuid[]) AND t.thread_type='client' AND t.visibility='external_portal' AND cp.user_id=$3 ORDER BY m.created_at ASC LIMIT 500`,[member.organization_id,ids,session.user.id]),
+     db.query(`SELECT po.project_id,po.po_number,s.legal_name AS supplier_name,d.status,d.carrier,d.tracking_reference,d.estimated_arrival,d.created_at FROM pm_purchase_orders po JOIN pm_suppliers s ON s.id=po.supplier_id AND s.organization_id=po.organization_id JOIN pm_supplier_delivery_updates d ON d.purchase_order_id=po.id AND d.organization_id=po.organization_id WHERE po.organization_id=$1 AND po.project_id=ANY($2::uuid[]) ORDER BY d.created_at DESC LIMIT 200`,[member.organization_id,ids]),
     ]);
-    milestones=m.rows;documents=d.rows;tasks=t.rows;inspections=q.rows;payments=p.rows;versions=v.rows;threads=th.rows;messages=msg.rows;
+    milestones=m.rows;documents=d.rows;tasks=t.rows;inspections=q.rows;payments=p.rows;versions=v.rows;threads=th.rows;messages=msg.rows;deliveries=del.rows;
     if(member.permissions?.documents===false){documents=[];versions=[];}
     if(member.permissions?.communication===false){threads=[];messages=[];}
    }
-   return NextResponse.json({partyType:'client',member:{contactName:member.contact_name,email:member.email},client:client.rows[0],projects:projects.rows,milestones,documents,tasks,approvals:approvals.rows,inspections,payments,versions,threads,messages});
+   return NextResponse.json({partyType:'client',member:{contactName:member.contact_name,email:member.email},client:client.rows[0],projects:projects.rows,milestones,documents,tasks,approvals:approvals.rows,inspections,payments,versions,threads,messages,deliveries});
   }
   const [supplier,enquiries,quotes,purchaseOrders,deliveryUpdates]=await Promise.all([
    db.query('SELECT legal_name,supplier_code,category,specializations,website_url,contact_name,tax_registration_number,status FROM pm_suppliers WHERE id=$1 AND organization_id=$2',[member.party_id,member.organization_id]),
