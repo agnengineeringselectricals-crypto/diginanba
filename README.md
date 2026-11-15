@@ -82,3 +82,21 @@ Before production payments, configure a payment provider, merchant/KYC settings,
 - Before launch, implement and verify referral links/codes, attribution, a tamper-resistant commission ledger, promoter dashboard, refund/chargeback reversals, admin controls, payout reconciliation, audit trails, and a dispute/appeal workflow.
 - Test valid sales, duplicate events, self-referrals, fraud scenarios, refunds, currency handling, and payout failures end to end.
 - This policy documentation does not mean the promoter program is already implemented or active. Do not accrue or pay commissions until implementation, testing, legal/tax review, and explicit business approval are complete.
+
+## Task 4 — Project operational modules
+
+The project workspace provides the following organization-scoped modules:
+
+- **Procurement:** suppliers, purchase indents, purchase orders, goods-receipt notes (GRNs), and line-level received/accepted/rejected quantities. GRNs are checked against the originating purchase order, partial deliveries are supported, and rejected quantities can be replaced without counting rejected stock as accepted.
+- **Manpower:** workforce assignments and timesheets. Assigned project staff can submit their own timesheets; managers control approvals.
+- **Quality:** inspections and non-conformities with corrective follow-up. Assigned staff can submit inspection findings under their own membership.
+- **Finance:** project budgets, cost entries, and manager-controlled status/approval workflows. No payment or external billing is activated by these records.
+- **Documents:** private file upload, controlled revision history, and authenticated project-member downloads. Uploads are limited to PDF, Office, image, TXT and CSV files up to 4 MB per request. Files are stored in a private Vercel Blob store; raw Blob URLs are not exposed to project users.
+
+### Task 4 schema and storage setup
+
+- Apply `db/migrations/20261117_task4_operational_integrity.sql` after the project-management foundation migrations. It adds receipt quantity integrity checks and supporting indexes; the check is `NOT VALID` so legacy rows are not silently rewritten while new writes are enforced.
+- The private Vercel Blob store `diginanba-project-documents` is connected to the DigiNanba Vercel project. Vercel manages `BLOB_READ_WRITE_TOKEN` for the project environments; keep this value secret and never expose it to browser code.
+- Document upload and download routes enforce authenticated project membership; upload/revision and GRN status changes are written to the project audit trail.
+- No sample organization, project, supplier, employee, financial or document records are seeded. End-to-end business workflow testing is deferred until a real organization and project are registered.
+- The Task 4 operational modules do not depend on the digital-product AI factory or AI Workforce and do not activate payments, external supplier portals, or notification delivery.
