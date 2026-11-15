@@ -23,7 +23,7 @@ export async function GET(request:Request,context:{params:Promise<{projectId:str
         SELECT 1 FROM pm_external_portal_members ep
         JOIN pm_project_clients pc ON pc.organization_id=ep.organization_id AND pc.client_id=ep.party_id
         WHERE ep.organization_id=p.organization_id AND ep.user_id=$3 AND ep.party_type='client'
-          AND ep.status='active' AND pc.project_id=p.id AND d.status='approved'
+          AND ep.status='active' AND COALESCE((ep.permissions->>'documents')::boolean,true)=true AND pc.project_id=p.id AND d.status='approved'
       ))
     LIMIT 1`,
   [documentId,projectId,session.user.id,new URL(request.url).searchParams.get('revision')],
