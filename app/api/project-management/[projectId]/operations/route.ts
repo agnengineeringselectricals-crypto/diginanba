@@ -56,7 +56,7 @@ export async function GET(request: Request, context: {params: Promise<{projectId
       db.query(`SELECT t.id,t.period_start,t.period_end,t.status,t.submitted_at,t.approved_at,u.display_name,COALESCE(SUM(e.hours),0)::numeric AS total_hours,COUNT(e.id)::int AS entry_count FROM pm_timesheets t JOIN pm_memberships m ON m.id=t.membership_id AND m.organization_id=t.organization_id JOIN users u ON u.id=m.user_id JOIN pm_timesheet_entries e ON e.timesheet_id=t.id AND e.organization_id=t.organization_id AND e.project_id=$2 WHERE t.organization_id=$1 GROUP BY t.id,u.display_name ORDER BY t.created_at DESC LIMIT 200`,[org,projectId]),
       db.query(`SELECT id,inspection_number,inspection_type,inspected_at,result,findings,corrective_action,due_date,closed_at FROM pm_quality_inspections WHERE organization_id=$1 AND project_id=$2 ORDER BY created_at DESC LIMIT 150`,[org,projectId]),
       db.query(`SELECT n.id,n.nc_number,n.title,n.description,n.severity,n.status,n.due_date,u.display_name AS assigned_name,COUNT(a.id)::int AS action_count FROM pm_quality_nonconformities n LEFT JOIN pm_memberships m ON m.id=n.assigned_to_membership_id AND m.organization_id=n.organization_id LEFT JOIN users u ON u.id=m.user_id LEFT JOIN pm_quality_actions a ON a.nonconformity_id=n.id AND a.organization_id=n.organization_id WHERE n.organization_id=$1 AND n.project_id=$2 GROUP BY n.id,u.display_name ORDER BY n.created_at DESC LIMIT 150`,[org,projectId]),
-      db.query(`SELECT a.id,a.nonconformity_id,a.action_type,a.description,a.due_date,a.completed_at,a.effectiveness_result,a.status,u.display_name AS owner_name,n.nc_number,n.title AS nonconformity_title FROM pm_quality_actions a JOIN pm_quality_nonconformities n ON n.id=a.nonconformity_id AND n.organization_id=a.organization_id LEFT JOIN pm_memberships m ON m.id=a.owner_membership_id AND m.organization_id=a.organization_id LEFT JOIN users u ON u.id=m.user_id WHERE a.organization_id=$1 AND n.project_id=$2 ORDER BY a.created_at DESC LIMIT 300`,[org,projectId]),
+      db.query(`SELECT a.id,a.nonconformity_id,a.owner_membership_id,a.action_type,a.description,a.due_date,a.completed_at,a.effectiveness_result,a.status,u.display_name AS owner_name,n.nc_number,n.title AS nonconformity_title FROM pm_quality_actions a JOIN pm_quality_nonconformities n ON n.id=a.nonconformity_id AND n.organization_id=a.organization_id LEFT JOIN pm_memberships m ON m.id=a.owner_membership_id AND m.organization_id=a.organization_id LEFT JOIN users u ON u.id=m.user_id WHERE a.organization_id=$1 AND n.project_id=$2 ORDER BY a.created_at DESC LIMIT 300`,[org,projectId]),
       db.query(`SELECT id,budget_name,currency_code,baseline_amount,revised_amount,committed_amount,actual_amount,status FROM pm_project_budgets WHERE organization_id=$1 AND project_id=$2 ORDER BY created_at DESC LIMIT 150`,[org,projectId]),
       db.query(`SELECT id,entry_number,entry_type,entry_date,description,account_code,party_type,currency_code,amount,tax_amount,status FROM pm_financial_entries WHERE organization_id=$1 AND project_id=$2 ORDER BY entry_date DESC,created_at DESC LIMIT 200`,[org,projectId]),
       db.query(`SELECT d.id,d.document_number,d.title,d.document_type,d.revision,d.mime_type,d.file_size_bytes,d.status,d.created_at,u.display_name AS uploader, (SELECT COUNT(*)::int FROM pm_document_versions v WHERE v.document_id=d.id AND v.organization_id=d.organization_id) AS version_count FROM pm_documents d JOIN users u ON u.id=d.uploaded_by WHERE d.organization_id=$1 AND d.project_id=$2 ORDER BY d.updated_at DESC LIMIT 200`,[org,projectId]),
@@ -358,44 +358,3 @@ export async function PATCH(request: Request, context: {params: Promise<{project
       if(!lines.rows.length)throw new Error('A goods receipt must contain at least one line.');
       if(['accepted','partially_accepted','rejected'].includes(status)){
         for(const line of lines.rows){
-          if(Number(line.accepted_quantity)+Number(line.rejected_quantity)!==Number(line.received_quantity))throw new Error('Before finalizing this receipt, accepted plus rejected quantities must equal the received quantity on every line.');
-          if(status==='accepted' && Number(line.rejected_quantity)>0)throw new Error('Use Partially accepted or Rejected when any quantity is rejected.');
-          if(status==='rejected' && Number(line.accepted_quantity)>0)throw new Error('Rejected receipts cannot contain accepted quantities.');
-        }
-      }
-      const poId=(await client.query('SELECT purchase_order_id FROM pm_goods_receipts WHERE id=$1 AND organization_id=$2',[id,org])).rows[0]?.purchase_order_id;
-      await client.query(`UPDATE pm_purchase_order_items poi SET received_quantity=COALESCE((SELECT SUM(gi.accepted_quantity) FROM pm_goods_receipt_items gi JOIN pm_goods_receipts gr ON gr.id=gi.receipt_id AND gr.organization_id=gi.organization_id WHERE gi.organization_id=poi.organization_id AND gi.purchase_order_item_id=poi.id AND gr.status IN ('accepted','partially_accepted')),0) WHERE poi.organization_id=$1 AND poi.purchase_order_id=$2`,[org,poId]);
-      await client.query(`UPDATE pm_purchase_orders po SET status=CASE WHEN NOT EXISTS(SELECT 1 FROM pm_purchase_order_items poi WHERE poi.organization_id=po.organization_id AND poi.purchase_order_id=po.id AND poi.received_quantity<poi.ordered_quantity) THEN 'received' WHEN EXISTS(SELECT 1 FROM pm_purchase_order_items poi WHERE poi.organization_id=po.organization_id AND poi.purchase_order_id=po.id AND poi.received_quantity>0) THEN 'partially_received' WHEN po.status IN ('received','partially_received') THEN 'approved' ELSE po.status END,updated_at=now() WHERE po.organization_id=$1 AND po.id=$2`,[org,poId]);
-    }
-    await client.query(`INSERT INTO pm_audit_events(organization_id,actor_user_id,project_id,action,entity_type,entity_id,after_data) VALUES($1,$2,$3,$4,$5,$6,$7::jsonb)`,[org,session.user.id,projectId,'operations.'+module+'.status_changed',kind,id,JSON.stringify({status,decision:decision||null})]);
-    await client.query('COMMIT');
-    return NextResponse.json({record:result.rows[0]});
-  }catch(error){await client.query('ROLLBACK').catch(()=>undefined);console.error('Project operational status update failed',error);return NextResponse.json({error:'Could not update this record.'},{status:503});}
-  finally{client.release();}
-}
-+(values.length+2)+(approvalMode==='timestamp'?',approved_at=now()':''):'';
-  const client=await db.connect();
-  try{
-    await client.query('BEGIN');
-    const result=await client.query(`UPDATE ${table} SET ${statusColumn}=$${values.length+1}${setUpdated} ${approval} WHERE id=$1 AND organization_id=$2 ${scope} RETURNING id,${statusColumn} AS status`,[...values,status]);
-    if(!result.rows[0]){await client.query('ROLLBACK');return NextResponse.json({error:'Record not found in this project.'},{status:404});}
-    if(module==='procurement' && kind==='goods_receipt'){
-      const lines=await client.query(`SELECT gi.purchase_order_item_id,gi.received_quantity,gi.accepted_quantity,gi.rejected_quantity FROM pm_goods_receipt_items gi WHERE gi.organization_id=$1 AND gi.receipt_id=$2 FOR UPDATE`,[org,id]);
-      if(!lines.rows.length)throw new Error('A goods receipt must contain at least one line.');
-      if(['accepted','partially_accepted','rejected'].includes(status)){
-        for(const line of lines.rows){
-          if(Number(line.accepted_quantity)+Number(line.rejected_quantity)!==Number(line.received_quantity))throw new Error('Before finalizing this receipt, accepted plus rejected quantities must equal the received quantity on every line.');
-          if(status==='accepted' && Number(line.rejected_quantity)>0)throw new Error('Use Partially accepted or Rejected when any quantity is rejected.');
-          if(status==='rejected' && Number(line.accepted_quantity)>0)throw new Error('Rejected receipts cannot contain accepted quantities.');
-        }
-      }
-      const poId=(await client.query('SELECT purchase_order_id FROM pm_goods_receipts WHERE id=$1 AND organization_id=$2',[id,org])).rows[0]?.purchase_order_id;
-      await client.query(`UPDATE pm_purchase_order_items poi SET received_quantity=COALESCE((SELECT SUM(gi.accepted_quantity) FROM pm_goods_receipt_items gi JOIN pm_goods_receipts gr ON gr.id=gi.receipt_id AND gr.organization_id=gi.organization_id WHERE gi.organization_id=poi.organization_id AND gi.purchase_order_item_id=poi.id AND gr.status IN ('accepted','partially_accepted')),0) WHERE poi.organization_id=$1 AND poi.purchase_order_id=$2`,[org,poId]);
-      await client.query(`UPDATE pm_purchase_orders po SET status=CASE WHEN NOT EXISTS(SELECT 1 FROM pm_purchase_order_items poi WHERE poi.organization_id=po.organization_id AND poi.purchase_order_id=po.id AND poi.received_quantity<poi.ordered_quantity) THEN 'received' WHEN EXISTS(SELECT 1 FROM pm_purchase_order_items poi WHERE poi.organization_id=po.organization_id AND poi.purchase_order_id=po.id AND poi.received_quantity>0) THEN 'partially_received' WHEN po.status IN ('received','partially_received') THEN 'approved' ELSE po.status END,updated_at=now() WHERE po.organization_id=$1 AND po.id=$2`,[org,poId]);
-    }
-    await client.query(`INSERT INTO pm_audit_events(organization_id,actor_user_id,project_id,action,entity_type,entity_id,after_data) VALUES($1,$2,$3,$4,$5,$6,$7::jsonb)`,[org,session.user.id,projectId,'operations.'+module+'.status_changed',kind,id,JSON.stringify({status,decision:decision||null})]);
-    await client.query('COMMIT');
-    return NextResponse.json({record:result.rows[0]});
-  }catch(error){await client.query('ROLLBACK').catch(()=>undefined);console.error('Project operational status update failed',error);return NextResponse.json({error:'Could not update this record.'},{status:503});}
-  finally{client.release();}
-}
