@@ -21,7 +21,9 @@ export default function ProjectDetailPage({params}:{params:Promise<{projectId:st
   const [packages,setPackages]=useState<WorkPackage[]>([]);
   const [members,setMembers]=useState<ProjectMember[]>([]);
   const [milestones,setMilestones]=useState<Milestone[]>([]);
-  const [dependencies,setDependencies]=useState<Dependency[]>([]);\n  const [performance,setPerformance]=useState<PerformanceMetric[]>([]);\n  const [performanceSummary,setPerformanceSummary]=useState<{metric_count:number;completed_count:number;attention_count:number;overdue_followups:number;total_target:string|number;total_actual:string|number}|null>(null);
+  const [dependencies,setDependencies]=useState<Dependency[]>([]);
+  const [performance,setPerformance]=useState<PerformanceMetric[]>([]);
+  const [performanceSummary,setPerformanceSummary]=useState<{metric_count:number;completed_count:number;attention_count:number;overdue_followups:number;total_target:string|number;total_actual:string|number}|null>(null);
   const [milestoneName,setMilestoneName]=useState('');
   const [milestoneDate,setMilestoneDate]=useState('');
   const [dependencyTask,setDependencyTask]=useState('');
@@ -65,7 +67,8 @@ export default function ProjectDetailPage({params}:{params:Promise<{projectId:st
       if(!wr.ok)throw new Error(wd.error||'Unable to load work packages.');
       if(!mr.ok)throw new Error(md.error||'Unable to load project members.');
       if(!milr.ok)throw new Error(mild.error||'Unable to load milestones.');
-      if(!depr.ok)throw new Error(dd.error||'Unable to load dependencies.');\n      if(!perfr.ok)throw new Error(pfd.error||'Unable to load performance report.');
+      if(!depr.ok)throw new Error(dd.error||'Unable to load dependencies.');
+      if(!perfr.ok)throw new Error(pfd.error||'Unable to load performance report.');
       const found=(pd.projects||[]).find((p:Project)=>p.id===projectId);
       if(!found)throw new Error('Project not found or you do not have access.');
       setProject(found);setTasks(td.tasks||[]);setPackages(wd.workPackages||[]);setMembers(md.members||[]);setMilestones(mild.milestones||[]);setDependencies(dd.dependencies||[]);setPerformance(pfd.metrics||[]);setPerformanceSummary(pfd.summary||null);
