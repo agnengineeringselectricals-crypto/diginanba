@@ -33,7 +33,7 @@ export async function GET() {
   if(!access) return NextResponse.json({error:'Organization owner or administrator access is required.'},{status:403});
   const org=access.organization_id;
   try {
-    const [clients,suppliers,projects,members,enquiries,quotes,documents]=await Promise.all([
+    const [clients,suppliers,projects,members,enquiries,quotes,documents,indents]=await Promise.all([
       db.query(`SELECT id,client_code,legal_name,contact_name,email,phone,status FROM pm_clients WHERE organization_id=$1 ORDER BY legal_name`,[org]),
       db.query(`SELECT id,supplier_code,legal_name,contact_name,email,phone,tax_registration_number,status FROM pm_suppliers WHERE organization_id=$1 ORDER BY legal_name`,[org]),
       db.query(`SELECT p.id,p.project_code,p.name,p.status,pc.client_id,c.legal_name AS client_name FROM pm_projects p LEFT JOIN pm_project_clients pc ON pc.project_id=p.id AND pc.organization_id=p.organization_id LEFT JOIN pm_clients c ON c.id=pc.client_id AND c.organization_id=p.organization_id WHERE p.organization_id=$1 AND p.status<>'archived' ORDER BY p.created_at DESC`,[org]),
@@ -41,8 +41,9 @@ export async function GET() {
       db.query(`SELECT e.id,e.project_id,e.enquiry_number,e.title,e.description,e.line_items,e.required_delivery_date,e.submission_deadline,e.status,e.created_at,p.name AS project_name,COUNT(DISTINCT i.supplier_id)::int AS invited_suppliers,COUNT(DISTINCT q.id)::int AS quote_count FROM pm_supplier_enquiries e JOIN pm_projects p ON p.id=e.project_id AND p.organization_id=e.organization_id LEFT JOIN pm_supplier_enquiry_invites i ON i.enquiry_id=e.id AND i.organization_id=e.organization_id LEFT JOIN pm_supplier_quotes q ON q.enquiry_id=e.id AND q.organization_id=e.organization_id WHERE e.organization_id=$1 GROUP BY e.id,p.name ORDER BY e.created_at DESC`,[org]),
       db.query(`SELECT q.id,q.enquiry_id,q.supplier_id,q.quote_number,q.currency_code,q.subtotal,q.tax_total,q.total_amount,q.delivery_days,q.valid_until,q.line_items,q.terms,q.status,q.submitted_at,s.legal_name AS supplier_name,e.enquiry_number,e.title AS enquiry_title FROM pm_supplier_quotes q JOIN pm_suppliers s ON s.id=q.supplier_id AND s.organization_id=q.organization_id JOIN pm_supplier_enquiries e ON e.id=q.enquiry_id AND e.organization_id=q.organization_id WHERE q.organization_id=$1 ORDER BY q.submitted_at DESC`,[org]),
       db.query(`SELECT d.id,d.project_id,d.document_number,d.title,d.revision,d.status,p.name AS project_name,pc.client_id,c.legal_name AS client_name FROM pm_documents d JOIN pm_projects p ON p.id=d.project_id AND p.organization_id=d.organization_id LEFT JOIN pm_project_clients pc ON pc.project_id=p.id AND pc.organization_id=p.organization_id LEFT JOIN pm_clients c ON c.id=pc.client_id AND c.organization_id=pc.organization_id WHERE d.organization_id=$1 AND d.status IN ('in_review','approved') ORDER BY d.created_at DESC LIMIT 300`,[org]),
+      db.query(`SELECT id,project_id,indent_number,purpose,required_by,status FROM pm_material_indents WHERE organization_id=$1 AND status IN ('approved','partially_ordered') ORDER BY created_at DESC LIMIT 300`,[org]),
     ]);
-    return NextResponse.json({clients:clients.rows,suppliers:suppliers.rows,projects:projects.rows,portalMembers:members.rows,enquiries:enquiries.rows,quotes:quotes.rows,documents:documents.rows});
+    return NextResponse.json({clients:clients.rows,suppliers:suppliers.rows,projects:projects.rows,portalMembers:members.rows,enquiries:enquiries.rows,quotes:quotes.rows,documents:documents.rows,indents:indents.rows});
   } catch(error) {
     console.error('Portal management load failed',error);
     return NextResponse.json({error:'Unable to load client and supplier workspace.'},{status:500});
@@ -92,6 +93,17 @@ export async function POST(request:Request) {
       if(!project.rows[0]) return NextResponse.json({error:'Project not found.'},{status:404});
       const number=`RFQ-${new Date().toISOString().slice(0,10).replaceAll('-','')}-${randomBytes(3).toString('hex').toUpperCase()}`;
       const r=await db.query(`INSERT INTO pm_supplier_enquiries(organization_id,project_id,enquiry_number,title,description,line_items,required_delivery_date,submission_deadline,status,created_by) VALUES($1,$2,$3,$4,$5,$6::jsonb,$7,$8,'draft',$9) RETURNING id,enquiry_number,title,status`,[org,v.data.projectId,number,v.data.title,v.data.description||'',JSON.stringify(v.data.items),v.data.requiredDeliveryDate||null,v.data.submissionDeadline||null,session.user.id]);
+      return NextResponse.json({enquiry:r.rows[0]},{status:201});
+    }
+    if(body.action==='create_enquiry_from_indent') {
+      const v=z.object({indentId:uuid,title:clean(240),description:z.string().trim().max(4000).optional(),submissionDeadline:z.string().datetime().optional()}).safeParse(body);
+      if(!v.success) return NextResponse.json({error:'Select an approved material indent and enter an enquiry title.'},{status:400});
+      const indent=(await db.query(`SELECT i.id,i.project_id,i.indent_number FROM pm_material_indents i WHERE i.id=$1 AND i.organization_id=$2 AND i.status IN ('approved','partially_ordered')`,[v.data.indentId,org])).rows[0];
+      if(!indent) return NextResponse.json({error:'Only approved material indents can be issued to suppliers.'},{status:409});
+      const lines=(await db.query(`SELECT description,specification,unit,target_quantity AS quantity,COALESCE(estimated_rate,0) AS estimatedRate FROM pm_material_indent_items WHERE organization_id=$1 AND indent_id=$2 ORDER BY created_at,id`,[org,indent.id])).rows;
+      if(!lines.length) return NextResponse.json({error:'The selected indent has no material lines.'},{status:409});
+      const number=`RFQ-${new Date().toISOString().slice(0,10).replaceAll('-','')}-${randomBytes(3).toString('hex').toUpperCase()}`;
+      const r=await db.query(`INSERT INTO pm_supplier_enquiries(organization_id,project_id,source_indent_id,enquiry_number,title,description,line_items,submission_deadline,status,created_by) VALUES($1,$2,$3,$4,$5,$6,$7::jsonb,$8,'draft',$9) RETURNING id,enquiry_number,title,status`,[org,indent.project_id,indent.id,number,v.data.title,v.data.description||`Quotation requested against material indent ${indent.indent_number}`,JSON.stringify(lines),v.data.submissionDeadline||null,session.user.id]);
       return NextResponse.json({enquiry:r.rows[0]},{status:201});
     }
     if(body.action==='issue_enquiry') {
