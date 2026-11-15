@@ -45,6 +45,10 @@ export async function GET(request:Request){
       `SELECT role FROM organization_memberships WHERE organization_id=$1 AND user_id=$2 AND status='active' LIMIT 1`,
       [orgId,session.user.id]);
     if(!access.rows[0]||!['owner','admin'].includes(access.rows[0].role))return NextResponse.json({error:'Only organization owners and admins can manage the team.'},{status:403});
+    const setup=await db.connect();
+    try{await setup.query('BEGIN');await ensureDefaultRoles(setup,orgId);await setup.query('COMMIT');}
+    catch(error){await setup.query('ROLLBACK').catch(()=>undefined);throw error;}
+    finally{setup.release();}
     const [members,departments,roles]=await Promise.all([
       db.query(
         `SELECT pm.id AS membership_id,pm.status,pm.employee_code,pm.employment_type,pm.joined_at,pm.department_id,pm.designation_id,pm.reports_to_membership_id,pm.role_id,
