@@ -10,7 +10,7 @@ const line=z.object({description:z.string().trim().min(1).max(500),specification
 
 async function memberFor(userId:string) {
  const r=await db.query(`SELECT id,organization_id,party_type,party_id,contact_name,email,permissions
-   FROM pm_external_portal_members WHERE user_id=$1 AND status='active' LIMIT 1`,[userId]);
+   FROM pm_external_portal_members ep WHERE user_id=$1 AND status='active' AND ((party_type='client' AND EXISTS(SELECT 1 FROM pm_clients c WHERE c.id=ep.party_id AND c.organization_id=ep.organization_id AND c.status='active')) OR (party_type='supplier' AND EXISTS(SELECT 1 FROM pm_suppliers s WHERE s.id=ep.party_id AND s.organization_id=ep.organization_id AND s.status='active'))) LIMIT 1`,[userId]);
  return r.rows[0] as any;
 }
 
