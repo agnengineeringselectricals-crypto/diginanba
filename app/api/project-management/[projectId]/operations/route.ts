@@ -241,7 +241,11 @@ export async function PATCH(request: Request, context: {params: Promise<{project
   const [table,statusColumn,updatedColumn,allowed,scopeType,approvalMode]=config;
   const scope=scopeType==='project'?' AND project_id=$3':scopeType==='timesheet'?' AND EXISTS (SELECT 1 FROM pm_timesheet_entries te WHERE te.timesheet_id='+table+'.id AND te.organization_id='+table+'.organization_id AND te.project_id=$3)':scopeType==='purchase_order'?' AND EXISTS (SELECT 1 FROM pm_purchase_orders pox WHERE pox.id=pm_goods_receipts.purchase_order_id AND pox.organization_id=pm_goods_receipts.organization_id AND pox.project_id=$3)':scopeType==='quality_action'?' AND EXISTS (SELECT 1 FROM pm_quality_nonconformities qn WHERE qn.id=pm_quality_actions.nonconformity_id AND qn.organization_id=pm_quality_actions.organization_id AND qn.project_id=$3)':'';
   const values:any[]=[id,org];if(scope)values.push(projectId);
-  const ownerScope=!access.can_manage&&kind==='quality_action'?' AND owner_membership_id=
+  const ownerScope=!access.can_manage&&kind==='quality_action'?' AND owner_membership_id=$'+(values.length+1):'';
+  if(ownerScope)values.push(access.actor_membership_id);
+  const setUpdated=updatedColumn?`, ${updatedColumn}=now()`:'';
+  const approval=decision==='approve'&&approvalMode?',approved_by=$'+(values.length+2)+(approvalMode==='timestamp'?',approved_at=now()':''):'';
+  const updateParams:any[]=[...values,status];if(approval)updateParams.push(session.user.id);
   const client=await db.connect();
   try{
     await client.query('BEGIN');
@@ -346,15 +350,4 @@ export async function PATCH(request: Request, context: {params: Promise<{project
     return NextResponse.json({record:result.rows[0]});
   }catch(error){await client.query('ROLLBACK').catch(()=>undefined);console.error('Project operational status update failed',error);return NextResponse.json({error:'Could not update this record.'},{status:503});}
   finally{client.release();}
-}+(values.length+2)+(approvalMode==='timestamp'?',approved_at=now()':''):'';
-  const updateParams:any[]=[...values,status];if(approval)updateParams.push(session.user.id);
-  const client=await db.connect();
-  try{
-    await client.query('BEGIN');
-    const result=await client.query(`UPDATE ${table} SET ${statusColumn}=$${values.length+1}${setUpdated} ${approval} WHERE id=$1 AND organization_id=$2 ${scope} RETURNING id,${statusColumn} AS status`,[...values,status]);
-    if(!result.rows[0]){await client.query('ROLLBACK');return NextResponse.json({error:'Record not found in this project.'},{status:404});}
-    if(module==='procurement' && kind==='goods_receipt'){
-      const lines=await client.query(`SELECT gi.purchase_order_item_id,gi.received_quantity,gi.accepted_quantity,gi.rejected_quantity FROM pm_goods_receipt_items gi WHERE gi.organization_id=$1 AND gi.receipt_id=$2 FOR UPDATE`,[org,id]);
-      if(!lines.rows.length)throw new Error('A goods receipt must contain at least one line.');
-      if(['accepted','partially_accepted','rejected'].includes(status)){
-        for(const line of lines.rows){
+}
