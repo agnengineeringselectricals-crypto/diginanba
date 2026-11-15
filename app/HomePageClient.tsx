@@ -265,7 +265,8 @@ export default function HomePageClient({ initialProducts, initialMarket }: Props
 
     <nav className="ref-category-nav" aria-label="My DigiNanba marketplace">
       <div className="ref-category-nav-inner">
-        <Link href="/explore?market=${market}">My Digital Products</Link>
+        <Link href={`/explore?market=${market}`}>My Digital Products</Link>
+        <Link href="/organizations">My Organisation &amp; Projects</Link>
         <Link href="/shops">My Shops</Link>
         <Link href="/services">My Services</Link>
         <Link href="/professionals">My Professionals</Link>
