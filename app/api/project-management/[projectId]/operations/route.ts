@@ -209,39 +209,3 @@ export async function PATCH(request: Request, context: {params: Promise<{project
   }catch(error){await client.query('ROLLBACK').catch(()=>undefined);console.error('Project operational status update failed',error);return NextResponse.json({error:'Could not update this record.'},{status:503});}
   finally{client.release();}
 }
-+(values.length+2)+',approved_at=now()':'';
-  const client=await db.connect();
-  try{
-    await client.query('BEGIN');
-    const result=await client.query(`UPDATE ${table} SET status=$${values.length+1},updated_at=now() ${approval} WHERE id=$1 AND organization_id=$2 ${scope} RETURNING id,status`,[...values,status]);
-    if(!result.rows[0]){await client.query('ROLLBACK');return NextResponse.json({error:'Record not found in this project.'},{status:404});}
-    await client.query(`INSERT INTO pm_audit_events(organization_id,actor_user_id,project_id,action,entity_type,entity_id,after_data) VALUES($1,$2,$3,$4,$5,$6,$7::jsonb)`,[org,session.user.id,projectId,'operations.'+module+'.status_changed',kind,id,JSON.stringify({status,decision:decision||null})]);
-    await client.query('COMMIT');
-    return NextResponse.json({record:result.rows[0]});
-  }catch(error){await client.query('ROLLBACK').catch(()=>undefined);console.error('Project operational status update failed',error);return NextResponse.json({error:'Could not update this record.'},{status:503});}
-  finally{client.release();}
-}
-+(values.length+2)+',approved_at=now()':'';
-  const client=await db.connect();
-  try{
-    await client.query('BEGIN');
-    const result=await client.query(`UPDATE ${table} SET ${statusColumn}=${values.length+1}${setUpdated} ${approval} WHERE id=$1 AND organization_id=$2 ${scope} RETURNING id,${statusColumn} AS status`,[...values,status]);
-    if(!result.rows[0]){await client.query('ROLLBACK');return NextResponse.json({error:'Record not found in this project.'},{status:404});}
-    await client.query(`INSERT INTO pm_audit_events(organization_id,actor_user_id,project_id,action,entity_type,entity_id,after_data) VALUES($1,$2,$3,$4,$5,$6,$7::jsonb)`,[org,session.user.id,projectId,'operations.'+module+'.status_changed',kind,id,JSON.stringify({status,decision:decision||null})]);
-    await client.query('COMMIT');
-    return NextResponse.json({record:result.rows[0]});
-  }catch(error){await client.query('ROLLBACK').catch(()=>undefined);console.error('Project operational status update failed',error);return NextResponse.json({error:'Could not update this record.'},{status:503});}
-  finally{client.release();}
-}
-+(values.length+2)+',approved_at=now()':'';
-  const client=await db.connect();
-  try{
-    await client.query('BEGIN');
-    const result=await client.query(`UPDATE ${table} SET status=$${values.length+1},updated_at=now() ${approval} WHERE id=$1 AND organization_id=$2 ${scope} RETURNING id,status`,[...values,status]);
-    if(!result.rows[0]){await client.query('ROLLBACK');return NextResponse.json({error:'Record not found in this project.'},{status:404});}
-    await client.query(`INSERT INTO pm_audit_events(organization_id,actor_user_id,project_id,action,entity_type,entity_id,after_data) VALUES($1,$2,$3,$4,$5,$6,$7::jsonb)`,[org,session.user.id,projectId,'operations.'+module+'.status_changed',kind,id,JSON.stringify({status,decision:decision||null})]);
-    await client.query('COMMIT');
-    return NextResponse.json({record:result.rows[0]});
-  }catch(error){await client.query('ROLLBACK').catch(()=>undefined);console.error('Project operational status update failed',error);return NextResponse.json({error:'Could not update this record.'},{status:503});}
-  finally{client.release();}
-}
