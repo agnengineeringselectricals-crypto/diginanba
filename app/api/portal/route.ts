@@ -99,14 +99,42 @@ export async function POST(request:Request) {
    if(!r.rowCount) return NextResponse.json({error:'Enquiry not found.'},{status:404});
    return NextResponse.json({ok:true});
   }
+  if(body.action==='send_message') {
+   const v=z.object({projectId:uuid.optional(),enquiryId:uuid.optional(),subject:z.string().trim().min(3).max(200),body:z.string().trim().min(1).max(5000)}).safeParse(body);
+   if(!v.success) return NextResponse.json({error:'Enter a subject and message.'},{status:400});
+   let projectId:string|null=null;
+   if(member.party_type==='client') {
+    if(!v.data.projectId) return NextResponse.json({error:'Select one of your shared projects.'},{status:400});
+    const allowed=await db.query('SELECT project_id FROM pm_project_clients WHERE organization_id=$1 AND client_id=$2 AND project_id=$3',[member.organization_id,member.party_id,v.data.projectId]);
+    if(!allowed.rows[0]) return NextResponse.json({error:'This project is not shared with your client account.'},{status:404});
+    projectId=v.data.projectId;
+   } else {
+    if(!v.data.enquiryId) return NextResponse.json({error:'Select an assigned supplier enquiry.'},{status:400});
+    const allowed=await db.query(`SELECT e.project_id FROM pm_supplier_enquiry_invites i JOIN pm_supplier_enquiries e ON e.id=i.enquiry_id AND e.organization_id=i.organization_id WHERE i.organization_id=$1 AND i.supplier_id=$2 AND i.enquiry_id=$3`,[member.organization_id,member.party_id,v.data.enquiryId]);
+    if(!allowed.rows[0]) return NextResponse.json({error:'This enquiry is not assigned to your supplier account.'},{status:404});
+    projectId=allowed.rows[0].project_id;
+   }
+   const project=await db.query(`SELECT project_manager_membership_id FROM pm_projects WHERE id=$1 AND organization_id=$2`,[projectId,member.organization_id]);
+   const thread=(await db.query(`INSERT INTO pm_communication_threads(organization_id,project_id,subject,thread_type,visibility,status,created_by) VALUES($1,$2,$3,$4,'external_portal','open',$5) RETURNING id`,[member.organization_id,projectId,v.data.subject,member.party_type,session.user.id])).rows[0];
+   await db.query(`INSERT INTO pm_communication_participants(organization_id,thread_id,user_id,participant_role) VALUES($1,$2,$3,'external')`,[member.organization_id,thread.id,session.user.id]);
+   const managerMembership=project.rows[0]?.project_manager_membership_id;
+   if(managerMembership) await db.query(`INSERT INTO pm_communication_participants(organization_id,thread_id,user_id,participant_role) SELECT $1,$2,m.user_id,'project_manager' FROM pm_memberships m WHERE m.organization_id=$1 AND m.id=$3 AND m.user_id IS NOT NULL`,[member.organization_id,thread.id,managerMembership]);
+   const message=(await db.query(`INSERT INTO pm_communication_messages(organization_id,thread_id,sender_user_id,body) VALUES($1,$2,$3,$4) RETURNING id,created_at`,[member.organization_id,thread.id,session.user.id,v.data.body])).rows[0];
+   await db.query(`UPDATE pm_communication_threads SET updated_at=now() WHERE id=$1 AND organization_id=$2`,[thread.id,member.organization_id]);
+   await db.query(`INSERT INTO pm_portal_activity_events(organization_id,portal_member_id,project_id,event_type,entity_type,entity_id,details) VALUES($1,$2,$3,'message_sent','communication_thread',$4,$5::jsonb)`,[member.organization_id,member.id,projectId,thread.id,JSON.stringify({subject:v.data.subject})]);
+   return NextResponse.json({threadId:thread.id,message},{status:201});
+  }
   if(body.action==='client_decision' && member.party_type==='client') {
-   const v=z.object({approvalId:uuid,decision:z.enum(['approved','rejected']),note:z.string().trim().max(2000).optional()}).safeParse(body);
-   if(!v.success) return NextResponse.json({error:'Choose approve or reject and provide an optional note.'},{status:400});
+   const v=z.object({approvalId:uuid,decision:z.enum(['approved','rejected']),note:z.string().trim().max(2000).optional(),signerName:z.string().trim().min(2).max(160),confirm:z.literal(true)}).safeParse(body);
+   if(!v.success) return NextResponse.json({error:'Enter your name and confirm the electronic approval declaration.'},{status:400});
+   const forwarded=request.headers.get('x-forwarded-for');
+   const signerIp=request.headers.get('x-real-ip')||(forwarded?forwarded.split(',')[0].trim():'');
+   const signature={decision_note:v.data.note||'',decided_by_portal_member:member.id,signer_name:v.data.signerName,signer_email:member.email,signed_at:new Date().toISOString(),signer_ip:signerIp,signer_user_agent:request.headers.get('user-agent')||'',signature_declaration:'I confirm that I am authorised to record this project document decision on behalf of the client.'};
    const r=await db.query(`UPDATE pm_approval_requests a SET status=$4,completed_at=now(),metadata=a.metadata || $5::jsonb
      FROM pm_project_clients pc
      WHERE a.id=$1 AND a.organization_id=$2 AND a.project_id=pc.project_id AND pc.organization_id=a.organization_id AND pc.client_id=$3
        AND a.metadata->>'portal_member_id'=$6 AND a.status='pending' AND a.approval_type='client_review'
-     RETURNING a.id,a.status,a.completed_at`,[v.data.approvalId,member.organization_id,member.party_id,v.data.decision,JSON.stringify({decision_note:v.data.note||'',decided_by_portal_member:member.id}),member.id]);
+     RETURNING a.id,a.status,a.completed_at`,[v.data.approvalId,member.organization_id,member.party_id,v.data.decision,JSON.stringify(signature),member.id]);
    if(!r.rows[0]) return NextResponse.json({error:'Approval request is no longer available to this client.'},{status:404});
    return NextResponse.json({approval:r.rows[0]});
   }
