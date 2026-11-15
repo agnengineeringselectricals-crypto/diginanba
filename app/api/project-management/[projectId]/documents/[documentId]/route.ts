@@ -24,7 +24,7 @@ export async function GET(request:Request,context:{params:Promise<{projectId:str
   [documentId,projectId,session.user.id,new URL(request.url).searchParams.get('revision')],
  );
  const doc=result.rows[0];
- if(!doc)return NextResponse.json({error:'Document not found or access denied.'},{status:404});
+ if(!doc || (new URL(request.url).searchParams.has('revision') && !doc.version_storage_key))return NextResponse.json({error:'Document or requested revision not found, or access denied.'},{status:404});
  const pathname=doc.version_storage_key||doc.storage_key;
  if(!pathname||pathname==='pending-upload')return NextResponse.json({error:'This document has no uploaded file.'},{status:404});
  try{
