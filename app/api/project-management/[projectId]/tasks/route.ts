@@ -186,6 +186,26 @@ export async function PATCH(request: Request, context: { params: Promise<{ proje
       await client.query('ROLLBACK');
       return NextResponse.json({ error: 'Only a project manager can change task targets and schedule dates.' }, { status: 403 });
     }
+    if (input.status === 'in_progress' || input.status === 'completed') {
+      const unmet = await client.query(
+        `SELECT predecessor.title, d.dependency_type, predecessor.status
+         FROM pm_task_dependencies d
+         JOIN pm_tasks predecessor ON predecessor.id=d.depends_on_task_id AND predecessor.organization_id=d.organization_id
+         WHERE d.organization_id=$1 AND d.task_id=$2 AND (
+           (d.dependency_type='finish_to_start' AND predecessor.status<>'completed') OR
+           (d.dependency_type='start_to_start' AND predecessor.actual_start_date IS NULL AND predecessor.status NOT IN ('in_progress','completed')) OR
+           (d.dependency_type='finish_to_finish' AND $3='completed' AND predecessor.status<>'completed') OR
+           (d.dependency_type='start_to_finish' AND $3='completed' AND predecessor.actual_start_date IS NULL AND predecessor.status NOT IN ('in_progress','completed'))
+         ) ORDER BY predecessor.title`,
+        [orgId,input.taskId,input.status]);
+      if (unmet.rows.length) {
+        await client.query('ROLLBACK');
+        return NextResponse.json({
+          error: 'This task cannot move to ' + input.status.replaceAll('_',' ') + ' until its predecessor tasks meet their dependency conditions.',
+          unmetDependencies: unmet.rows,
+        }, { status: 409 });
+      }
+    }
     const updated = await client.query(
       `UPDATE pm_tasks SET
         status=COALESCE($1,status),
