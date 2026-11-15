@@ -57,7 +57,7 @@ export async function POST(request: Request, context: {params: Promise<{projectI
   const form=await request.formData();
   const file=form.get('file');
   if(!(file instanceof File) || file.size===0)return NextResponse.json({error:'Choose a document file to upload.'},{status:400});
-  if(file.size>maxBytes)return NextResponse.json({error:'Documents must be 25 MB or smaller.'},{status:413});
+  if(file.size>maxBytes)return NextResponse.json({error:'Documents must be 4 MB or smaller.'},{status:413});
   const mimeType=file.type || 'application/octet-stream';
   if(!allowedTypes.has(mimeType))return NextResponse.json({error:'Unsupported file type. Upload PDF, Word, Excel, PowerPoint, JPG, PNG, WebP, TXT or CSV files.'},{status:415});
 
@@ -98,7 +98,7 @@ export async function POST(request: Request, context: {params: Promise<{projectI
     return NextResponse.json({document:{id,title,documentType,revision,fileSizeBytes:file.size,mimeType,downloadUrl:`/api/project-management/${projectId}/documents/${id}`}}, {status:documentId?200:201});
   }catch(error){
     await client.query('ROLLBACK').catch(()=>undefined);
-    if(uploadedPath)await del(uploadedPath,{access:'private'}).catch(()=>undefined);
+    if(uploadedPath)await del(uploadedPath).catch(()=>undefined);
     const message=error instanceof Error?error.message:'Could not upload the document.';
     console.error('Project document upload failed',error);
     return NextResponse.json({error:message},{status:400});
