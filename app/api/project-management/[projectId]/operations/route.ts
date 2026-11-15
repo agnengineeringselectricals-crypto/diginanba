@@ -63,7 +63,7 @@ export async function GET(request: Request, context: {params: Promise<{projectId
       db.query(`SELECT m.id AS membership_id,u.display_name,u.email FROM pm_memberships m JOIN users u ON u.id=m.user_id WHERE m.organization_id=$1 AND m.status='active' ORDER BY u.display_name LIMIT 500`,[org]),
       db.query(`SELECT id,task_code,title,status,planned_start_date,planned_end_date FROM pm_tasks WHERE organization_id=$1 AND project_id=$2 ORDER BY title LIMIT 1000`,[org,projectId]),
     ]);
-    const canSubmit=Boolean(access.can_manage || ['project_admin','editor','contributor'].includes(access.project_access||''));
+    const canSubmit=Boolean(access.can_manage || access.project_access==='assigned');
     return NextResponse.json({canManage:access.can_manage,canSubmit,currentMembershipId:access.actor_membership_id,suppliers:suppliers.rows,indents:indents.rows,purchaseOrders:orders.rows,goodsReceipts:receipts.rows,goodsReceiptItems:receiptItems.rows,purchaseOrderItems:purchaseOrderItems.rows,resources:resources.rows,allocations:allocations.rows,workforceAssignments:assignments.rows,timesheets:timesheets.rows,inspections:inspections.rows,nonconformities:ncs.rows,budgets:budgets.rows,financialEntries:entries.rows,documents:documents.rows,documentVersions:documentVersions.rows,members:members.rows,tasks:tasks.rows});
   } catch(error) {
     console.error('Project operations load failed',error);
@@ -80,7 +80,7 @@ export async function POST(request: Request, context: {params: Promise<{projectI
   const parsed=base.safeParse(input);
   if(!parsed.success) return NextResponse.json({error:'Choose a valid operational module.'},{status:400});
   const access=await projectAccess(projectId,session.user.id);
-  const canSubmit=Boolean(access && (access.can_manage || ['project_admin','editor','contributor'].includes(access.project_access||'')));
+  const canSubmit=Boolean(access && (access.can_manage || access.project_access==='assigned'));
   if(!access || !canSubmit) return NextResponse.json({error:'You do not have permission to submit operational records in this project.'},{status:403});
   const org=access.organization_id;
   const client=await db.connect();
@@ -145,6 +145,7 @@ export async function POST(request: Request, context: {params: Promise<{projectI
       } else if(action==='assignment') {
         const p=z.object({membershipId:uuid,roleOnProject:text(120),plannedStart:z.string().date().optional().nullable(),plannedFinish:z.string().date().optional().nullable(),plannedHours:amount.optional(),notes:z.string().max(2000).optional()}).refine(v=>!v.plannedStart||!v.plannedFinish||v.plannedFinish>=v.plannedStart).safeParse(input);
         if(!p.success) throw new Error(p.error.issues[0]?.message||'Check workforce assignment.');
+        if(!access.can_manage && p.data.membershipId!==access.actor_membership_id)throw new Error('You can submit timesheets only for your own membership.');
         const m=await client.query(`SELECT id FROM pm_memberships WHERE id=$1 AND organization_id=$2 AND status='active'`,[p.data.membershipId,org]);if(!m.rows[0])throw new Error('Select an active organization member.');
         created=(await client.query(`INSERT INTO pm_workforce_assignments(organization_id,project_id,membership_id,role_on_project,planned_start,planned_finish,planned_hours,notes) VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id,role_on_project,status`,[org,projectId,p.data.membershipId,p.data.roleOnProject,p.data.plannedStart||null,p.data.plannedFinish||null,p.data.plannedHours??null,p.data.notes||''])).rows[0];
       } else if(action==='allocation') {
@@ -165,8 +166,9 @@ export async function POST(request: Request, context: {params: Promise<{projectI
         const p=z.object({inspectionType:text(120),inspectedAt:z.string().datetime().optional().nullable(),inspectorMembershipId:uuid.optional().nullable(),result:z.enum(['pending','pass','fail','conditional','rework']).default('pending'),findings:z.array(z.object({item:text(240),result:z.string().max(100),remarks:z.string().max(1000).optional()})).default([]),correctiveAction:z.string().max(4000).optional(),dueDate:z.string().date().optional().nullable()}).safeParse(input);
         if(!p.success)throw new Error(p.error.issues[0]?.message||'Check inspection details.');
         if(!access.can_manage && p.data.inspectorMembershipId && p.data.inspectorMembershipId!==access.actor_membership_id)throw new Error('You can record inspections only under your own membership.');
+        const inspectorMembershipId=p.data.inspectorMembershipId||(!access.can_manage?access.actor_membership_id:null);
         const number=(await client.query(`SELECT 'INSP-'||lpad((COALESCE(MAX(NULLIF(regexp_replace(inspection_number,'[^0-9]','','g'), '')::bigint),0)+1)::text,5,'0') AS n FROM pm_quality_inspections WHERE organization_id=$1`,[org])).rows[0].n;
-        created=(await client.query(`INSERT INTO pm_quality_inspections(organization_id,project_id,inspection_number,inspection_type,inspected_at,inspector_membership_id,result,findings,corrective_action,due_date) VALUES($1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9,$10) RETURNING id,inspection_number,result`,[org,projectId,number,p.data.inspectionType,p.data.inspectedAt||null,p.data.inspectorMembershipId||null,p.data.result,JSON.stringify(p.data.findings),p.data.correctiveAction||'',p.data.dueDate||null])).rows[0];
+        created=(await client.query(`INSERT INTO pm_quality_inspections(organization_id,project_id,inspection_number,inspection_type,inspected_at,inspector_membership_id,result,findings,corrective_action,due_date) VALUES($1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9,$10) RETURNING id,inspection_number,result`,[org,projectId,number,p.data.inspectionType,p.data.inspectedAt||null,inspectorMembershipId,p.data.result,JSON.stringify(p.data.findings),p.data.correctiveAction||'',p.data.dueDate||null])).rows[0];
       } else if(input.action==='nonconformity') {
         const p=z.object({title:text(240),description:z.string().max(5000).default(''),severity:z.enum(['minor','major','critical']),assignedToMembershipId:uuid.optional().nullable(),dueDate:z.string().date().optional().nullable(),inspectionId:uuid.optional().nullable()}).safeParse(input);
         if(!p.success)throw new Error(p.error.issues[0]?.message||'Check non-conformity details.');
