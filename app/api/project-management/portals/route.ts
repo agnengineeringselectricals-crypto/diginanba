@@ -33,7 +33,7 @@ export async function GET() {
   if(!access) return NextResponse.json({error:'Organization owner or administrator access is required.'},{status:403});
   const org=access.organization_id;
   try {
-    const [clients,suppliers,projects,members,enquiries,quotes,documents,indents]=await Promise.all([
+    const [clients,suppliers,projects,members,enquiries,quotes,documents,indents,deliveries]=await Promise.all([
       db.query(`SELECT id,client_code,legal_name,contact_name,email,phone,status FROM pm_clients WHERE organization_id=$1 ORDER BY legal_name`,[org]),
       db.query(`SELECT id,supplier_code,legal_name,category,specializations,website_url,contact_name,email,phone,tax_registration_number,status FROM pm_suppliers WHERE organization_id=$1 ORDER BY legal_name`,[org]),
       db.query(`SELECT p.id,p.project_code,p.name,p.status,pc.client_id,c.legal_name AS client_name FROM pm_projects p LEFT JOIN pm_project_clients pc ON pc.project_id=p.id AND pc.organization_id=p.organization_id LEFT JOIN pm_clients c ON c.id=pc.client_id AND c.organization_id=p.organization_id WHERE p.organization_id=$1 AND p.status<>'archived' ORDER BY p.created_at DESC`,[org]),
@@ -42,8 +42,9 @@ export async function GET() {
       db.query(`SELECT q.id,q.enquiry_id,q.supplier_id,q.quote_number,q.currency_code,q.subtotal,q.tax_total,q.total_amount,q.delivery_days,q.valid_until,q.line_items,q.terms,q.status,q.submitted_at,s.legal_name AS supplier_name,e.enquiry_number,e.title AS enquiry_title FROM pm_supplier_quotes q JOIN pm_suppliers s ON s.id=q.supplier_id AND s.organization_id=q.organization_id JOIN pm_supplier_enquiries e ON e.id=q.enquiry_id AND e.organization_id=q.organization_id WHERE q.organization_id=$1 ORDER BY q.submitted_at DESC`,[org]),
       db.query(`SELECT d.id,d.project_id,d.document_number,d.title,d.revision,d.status,p.name AS project_name,pc.client_id,c.legal_name AS client_name FROM pm_documents d JOIN pm_projects p ON p.id=d.project_id AND p.organization_id=d.organization_id LEFT JOIN pm_project_clients pc ON pc.project_id=p.id AND pc.organization_id=p.organization_id LEFT JOIN pm_clients c ON c.id=pc.client_id AND c.organization_id=pc.organization_id WHERE d.organization_id=$1 AND d.status IN ('in_review','approved') ORDER BY d.created_at DESC LIMIT 300`,[org]),
       db.query(`SELECT id,project_id,indent_number,purpose,required_by,status FROM pm_material_indents WHERE organization_id=$1 AND status IN ('approved','partially_ordered') ORDER BY created_at DESC LIMIT 300`,[org]),
+      db.query(`SELECT d.id,d.purchase_order_id,d.supplier_id,d.status,d.carrier,d.tracking_reference,d.estimated_arrival,d.note,d.created_at,po.po_number,s.legal_name AS supplier_name,p.name AS project_name FROM pm_supplier_delivery_updates d JOIN pm_purchase_orders po ON po.id=d.purchase_order_id AND po.organization_id=d.organization_id JOIN pm_suppliers s ON s.id=d.supplier_id AND s.organization_id=d.organization_id JOIN pm_projects p ON p.id=po.project_id AND p.organization_id=po.organization_id WHERE d.organization_id=$1 ORDER BY d.created_at DESC LIMIT 200`,[org]),
     ]);
-    return NextResponse.json({clients:clients.rows,suppliers:suppliers.rows,projects:projects.rows,portalMembers:members.rows,enquiries:enquiries.rows,quotes:quotes.rows,documents:documents.rows,indents:indents.rows});
+    return NextResponse.json({clients:clients.rows,suppliers:suppliers.rows,projects:projects.rows,portalMembers:members.rows,enquiries:enquiries.rows,quotes:quotes.rows,documents:documents.rows,indents:indents.rows,deliveries:deliveries.rows});
   } catch(error) {
     console.error('Portal management load failed',error);
     return NextResponse.json({error:'Unable to load client and supplier workspace.'},{status:500});
