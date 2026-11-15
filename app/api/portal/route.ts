@@ -105,6 +105,17 @@ export async function POST(request:Request) {
    if(!r.rowCount) return NextResponse.json({error:'Enquiry not found.'},{status:404});
    return NextResponse.json({ok:true});
   }
+  if(body.action==='reply_message') {
+   if(member.permissions?.communication===false) return NextResponse.json({error:'Your portal account does not have communication permission.'},{status:403});
+   const v=z.object({threadId:uuid,body:z.string().trim().min(1).max(5000)}).safeParse(body);
+   if(!v.success) return NextResponse.json({error:'Enter a message.'},{status:400});
+   const thread=await db.query(`SELECT t.id FROM pm_communication_threads t JOIN pm_communication_participants cp ON cp.thread_id=t.id AND cp.organization_id=t.organization_id
+     WHERE t.id=$1 AND t.organization_id=$2 AND t.thread_type=$3 AND t.visibility='external_portal' AND t.status='open' AND cp.user_id=$4 LIMIT 1`,[v.data.threadId,member.organization_id,member.party_type,session.user.id]);
+   if(!thread.rows[0]) return NextResponse.json({error:'This conversation is not available to your portal account.'},{status:404});
+   const message=(await db.query(`INSERT INTO pm_communication_messages(organization_id,thread_id,sender_user_id,body) VALUES($1,$2,$3,$4) RETURNING id,created_at`,[member.organization_id,v.data.threadId,session.user.id,v.data.body])).rows[0];
+   await db.query(`UPDATE pm_communication_threads SET updated_at=now() WHERE id=$1 AND organization_id=$2`,[v.data.threadId,member.organization_id]);
+   return NextResponse.json({message},{status:201});
+  }
   if(body.action==='send_message') {
    if(member.permissions?.communication===false) return NextResponse.json({error:'Your portal account does not have communication permission.'},{status:403});
    const v=z.object({projectId:uuid.optional(),enquiryId:uuid.optional(),subject:z.string().trim().min(3).max(200),body:z.string().trim().min(1).max(5000)}).safeParse(body);
