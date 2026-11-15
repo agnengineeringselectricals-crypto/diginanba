@@ -6,7 +6,7 @@ import { db } from '@/lib/db';
 
 export const runtime='nodejs';
 const uuid=z.string().uuid();
-const line=z.object({description:z.string().trim().min(1).max(500),specification:z.string().trim().max(1000).optional().default(''),unit:z.string().trim().max(40).optional().default('Nos'),quantity:z.number().positive().finite(),unitRate:z.number().nonnegative().finite(),taxRate:z.number().min(0).max(100).finite().optional().default(0)});
+const line=z.object({description:z.string().trim().min(1).max(500),specification:z.string().trim().max(1000).optional().default(''),unit:z.string().trim().max(40).optional().default('Nos'),quantity:z.number().positive().finite(),unitRate:z.number().nonnegative().finite(),taxRate:z.number().min(0).max(100).finite().optional().default(0),datasheetUrl:z.string().url().max(1000).optional()});
 
 async function memberFor(userId:string) {
  const r=await db.query(`SELECT id,organization_id,party_type,party_id,contact_name,email,permissions
