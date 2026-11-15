@@ -38,7 +38,7 @@ export async function GET(_request: Request, context: { params: Promise<{ projec
        LIMIT 1`, [projectId, session.user.id]);
     if (!access.rows[0]) return NextResponse.json({ error: 'Project not found or access denied.' }, { status: 404 });
     const tasks = await db.query(
-      `SELECT t.id,t.task_code,t.title,t.description,t.unit,t.target_quantity,t.actual_quantity,
+      `SELECT t.id,t.task_code,t.title,t.description,t.unit,t.work_package_id,t.parent_task_id,t.target_quantity,t.actual_quantity,
               t.planned_start_date,t.planned_end_date,t.actual_start_date,t.actual_end_date,t.forecast_end_date,
               t.priority,t.status,t.progress_percent,t.owner_membership_id,
               u.display_name AS owner_name
