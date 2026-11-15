@@ -95,10 +95,10 @@ CREATE TABLE IF NOT EXISTS pm_memberships (
   UNIQUE (organization_id,id),
   UNIQUE (organization_id,user_id),
   FOREIGN KEY (organization_id) REFERENCES organization_accounts(id) ON DELETE CASCADE,
-  FOREIGN KEY (organization_id,department_id) REFERENCES pm_departments(organization_id,id) ON DELETE SET NULL,
-  FOREIGN KEY (organization_id,designation_id) REFERENCES pm_designations(organization_id,id) ON DELETE SET NULL,
-  FOREIGN KEY (organization_id,role_id) REFERENCES pm_roles(organization_id,id) ON DELETE SET NULL,
-  FOREIGN KEY (organization_id,reports_to_membership_id) REFERENCES pm_memberships(organization_id,id) ON DELETE SET NULL
+  FOREIGN KEY (organization_id,department_id) REFERENCES pm_departments(organization_id,id) ON DELETE RESTRICT,
+  FOREIGN KEY (organization_id,designation_id) REFERENCES pm_designations(organization_id,id) ON DELETE RESTRICT,
+  FOREIGN KEY (organization_id,role_id) REFERENCES pm_roles(organization_id,id) ON DELETE RESTRICT,
+  FOREIGN KEY (organization_id,reports_to_membership_id) REFERENCES pm_memberships(organization_id,id) ON DELETE RESTRICT
 );
 CREATE INDEX IF NOT EXISTS pm_memberships_department_idx ON pm_memberships(organization_id,department_id,status);
 CREATE INDEX IF NOT EXISTS pm_memberships_reporting_idx ON pm_memberships(organization_id,reports_to_membership_id);
@@ -130,7 +130,7 @@ CREATE TABLE IF NOT EXISTS pm_projects (
   UNIQUE (organization_id,id),
   UNIQUE (organization_id,project_code),
   FOREIGN KEY (organization_id,project_manager_membership_id)
-    REFERENCES pm_memberships(organization_id,id) ON DELETE SET NULL
+    REFERENCES pm_memberships(organization_id,id) ON DELETE RESTRICT
 );
 CREATE INDEX IF NOT EXISTS pm_projects_status_dates_idx ON pm_projects(organization_id,status,baseline_end_date);
 
@@ -192,9 +192,9 @@ CREATE TABLE IF NOT EXISTS pm_tasks (
   updated_at timestamptz NOT NULL DEFAULT now(),
   UNIQUE (organization_id,id),
   FOREIGN KEY (organization_id,project_id) REFERENCES pm_projects(organization_id,id) ON DELETE CASCADE,
-  FOREIGN KEY (organization_id,work_package_id) REFERENCES pm_work_packages(organization_id,id) ON DELETE SET NULL,
+  FOREIGN KEY (organization_id,work_package_id) REFERENCES pm_work_packages(organization_id,id) ON DELETE RESTRICT,
   FOREIGN KEY (organization_id,parent_task_id) REFERENCES pm_tasks(organization_id,id) ON DELETE RESTRICT,
-  FOREIGN KEY (organization_id,owner_membership_id) REFERENCES pm_memberships(organization_id,id) ON DELETE SET NULL
+  FOREIGN KEY (organization_id,owner_membership_id) REFERENCES pm_memberships(organization_id,id) ON DELETE RESTRICT
 );
 CREATE INDEX IF NOT EXISTS pm_tasks_project_status_idx ON pm_tasks(organization_id,project_id,status,planned_end_date);
 CREATE INDEX IF NOT EXISTS pm_tasks_owner_idx ON pm_tasks(organization_id,owner_membership_id,status);
@@ -236,11 +236,11 @@ CREATE TABLE IF NOT EXISTS pm_performance_metrics (
   deviation_reason text,
   corrective_action text,
   next_follow_up_at timestamptz,
-  updated_by uuid REFERENCES users(id) ON DELETE SET NULL,
+  updated_by uuid REFERENCES users(id) ON DELETE RESTRICT,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
   FOREIGN KEY (organization_id,project_id) REFERENCES pm_projects(organization_id,id) ON DELETE CASCADE,
-  FOREIGN KEY (organization_id,responsible_membership_id) REFERENCES pm_memberships(organization_id,id) ON DELETE SET NULL
+  FOREIGN KEY (organization_id,responsible_membership_id) REFERENCES pm_memberships(organization_id,id) ON DELETE RESTRICT
 );
 CREATE INDEX IF NOT EXISTS pm_performance_entity_idx ON pm_performance_metrics(organization_id,entity_type,entity_id,metric_code);
 CREATE INDEX IF NOT EXISTS pm_performance_followup_idx ON pm_performance_metrics(organization_id,next_follow_up_at) WHERE next_follow_up_at IS NOT NULL;
@@ -254,7 +254,7 @@ CREATE TABLE IF NOT EXISTS pm_performance_measurements (
   actual_value numeric(20,4),
   status text,
   note text NOT NULL DEFAULT '',
-  measured_by uuid REFERENCES users(id) ON DELETE SET NULL,
+  measured_by uuid REFERENCES users(id) ON DELETE RESTRICT,
   created_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS pm_measurements_metric_time_idx ON pm_performance_measurements(organization_id,metric_id,measured_at DESC);
@@ -267,7 +267,7 @@ CREATE TABLE IF NOT EXISTS pm_status_history (
   previous_status text,
   new_status text NOT NULL,
   reason text NOT NULL DEFAULT '',
-  changed_by uuid REFERENCES users(id) ON DELETE SET NULL,
+  changed_by uuid REFERENCES users(id) ON DELETE RESTRICT,
   changed_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS pm_status_history_entity_idx ON pm_status_history(organization_id,entity_type,entity_id,changed_at DESC);
@@ -289,14 +289,14 @@ CREATE TABLE IF NOT EXISTS pm_follow_up_actions (
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
   FOREIGN KEY (organization_id,project_id) REFERENCES pm_projects(organization_id,id) ON DELETE CASCADE,
-  FOREIGN KEY (organization_id,owner_membership_id) REFERENCES pm_memberships(organization_id,id) ON DELETE SET NULL
+  FOREIGN KEY (organization_id,owner_membership_id) REFERENCES pm_memberships(organization_id,id) ON DELETE RESTRICT
 );
 CREATE INDEX IF NOT EXISTS pm_followups_due_idx ON pm_follow_up_actions(organization_id,status,due_at);
 
 CREATE TABLE IF NOT EXISTS pm_audit_events (
   id bigserial PRIMARY KEY,
   organization_id uuid NOT NULL REFERENCES organization_accounts(id) ON DELETE CASCADE,
-  actor_user_id uuid REFERENCES users(id) ON DELETE SET NULL,
+  actor_user_id uuid REFERENCES users(id) ON DELETE RESTRICT,
   project_id uuid,
   action text NOT NULL,
   entity_type text NOT NULL,
