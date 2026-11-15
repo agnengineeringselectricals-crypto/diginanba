@@ -102,7 +102,7 @@ export async function POST(request:Request){
     await client.query('COMMIT');
 
     let emailSent=false;
-    const from=process.env.EMAIL_FROM;const key=process.env.RESEND_API_KEY;
+    const from=process.env.EMAIL_FROM||process.env.PASSWORD_RESET_FROM_EMAIL;const key=process.env.RESEND_API_KEY;
     if(from&&key){
       try{
         const base=(process.env.AUTH_URL||process.env.NEXTAUTH_URL||'https://www.diginanba.com').replace(/\/$/,'');
