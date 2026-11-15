@@ -150,22 +150,42 @@ export async function PATCH(request: Request, context: { params: Promise<{ proje
   try {
     await client.query('BEGIN');
     const access = await client.query(
-      `SELECT p.organization_id FROM pm_projects p
-       JOIN organization_memberships m ON m.organization_id=p.organization_id
+      `SELECT p.organization_id,m.role,
+              (m.role IN ('owner','admin') OR EXISTS (
+                SELECT 1 FROM pm_project_members pmx JOIN pm_memberships mmx ON mmx.id=pmx.membership_id
+                WHERE pmx.project_id=p.id AND pmx.organization_id=p.organization_id AND pmx.status='active'
+                  AND mmx.user_id=$2 AND mmx.status='active' AND pmx.access_level='project_admin'
+              )) AS can_manage,
+              (SELECT id FROM pm_memberships WHERE organization_id=p.organization_id AND user_id=$2 AND status='active' LIMIT 1) AS actor_membership_id
+       FROM pm_projects p JOIN organization_memberships m ON m.organization_id=p.organization_id
        WHERE p.id=$1 AND m.user_id=$2 AND m.status='active' AND p.status <> 'archived'
          AND (m.role IN ('owner','admin') OR EXISTS (
            SELECT 1 FROM pm_project_members pmx JOIN pm_memberships mmx ON mmx.id=pmx.membership_id
            WHERE pmx.project_id=p.id AND pmx.organization_id=p.organization_id AND pmx.status='active'
-             AND mmx.user_id=$2 AND mmx.status='active' AND pmx.access_level='project_admin'
+             AND mmx.user_id=$2 AND mmx.status='active'
          ))
        LIMIT 1 FOR UPDATE OF p`, [projectId, session.user.id]);
     if (!access.rows[0]) { await client.query('ROLLBACK'); return NextResponse.json({ error: 'Project not found or access denied.' }, { status: 404 }); }
     const orgId = access.rows[0].organization_id as string;
     const before = await client.query(
-      'SELECT id,status,actual_quantity,target_quantity,progress_percent,actual_start_date,actual_end_date,forecast_end_date FROM pm_tasks WHERE id=$1 AND organization_id=$2 AND project_id=$3 FOR UPDATE',
+      'SELECT id,status,actual_quantity,target_quantity,progress_percent,actual_start_date,actual_end_date,forecast_end_date,owner_membership_id FROM pm_tasks WHERE id=$1 AND organization_id=$2 AND project_id=$3 FOR UPDATE',
       [input.taskId, orgId, projectId]);
     if (!before.rows[0]) { await client.query('ROLLBACK'); return NextResponse.json({ error: 'Task not found.' }, { status: 404 }); }
     const old = before.rows[0];
+    const isAssignedOwner = Boolean(access.rows[0].actor_membership_id && old.owner_membership_id === access.rows[0].actor_membership_id);
+    if (!access.rows[0].can_manage && !isAssignedOwner) {
+      await client.query('ROLLBACK');
+      return NextResponse.json({ error: 'You can update only tasks assigned to you.' }, { status: 403 });
+    }
+    if (!access.rows[0].can_manage && (
+      Object.prototype.hasOwnProperty.call(input,'targetQuantity') ||
+      Object.prototype.hasOwnProperty.call(input,'actualStartDate') ||
+      Object.prototype.hasOwnProperty.call(input,'actualEndDate') ||
+      Object.prototype.hasOwnProperty.call(input,'forecastEndDate')
+    )) {
+      await client.query('ROLLBACK');
+      return NextResponse.json({ error: 'Only a project manager can change task targets and schedule dates.' }, { status: 403 });
+    }
     const updated = await client.query(
       `UPDATE pm_tasks SET
         status=COALESCE($1,status),
