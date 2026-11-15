@@ -31,6 +31,10 @@ export async function GET(_request: Request, context: { params: Promise<{ projec
       `SELECT p.id,p.organization_id FROM pm_projects p
        JOIN organization_memberships m ON m.organization_id=p.organization_id
        WHERE p.id=$1 AND m.user_id=$2 AND m.status='active' AND p.status <> 'archived'
+         AND (m.role IN ('owner','admin') OR EXISTS (
+           SELECT 1 FROM pm_project_members pmx JOIN pm_memberships mmx ON mmx.id=pmx.membership_id
+           WHERE pmx.project_id=p.id AND pmx.organization_id=p.organization_id AND pmx.status='active' AND mmx.user_id=$2 AND mmx.status='active'
+         ))
        LIMIT 1`, [projectId, session.user.id]);
     if (!access.rows[0]) return NextResponse.json({ error: 'Project not found or access denied.' }, { status: 404 });
     const tasks = await db.query(
@@ -65,6 +69,10 @@ export async function POST(request: Request, context: { params: Promise<{ projec
       `SELECT p.organization_id FROM pm_projects p
        JOIN organization_memberships m ON m.organization_id=p.organization_id
        WHERE p.id=$1 AND m.user_id=$2 AND m.status='active' AND p.status <> 'archived'
+         AND (m.role IN ('owner','admin') OR EXISTS (
+           SELECT 1 FROM pm_project_members pmx JOIN pm_memberships mmx ON mmx.id=pmx.membership_id
+           WHERE pmx.project_id=p.id AND pmx.organization_id=p.organization_id AND pmx.status='active' AND mmx.user_id=$2 AND mmx.status='active' AND pmx.access_level='project_admin'
+         ))
        LIMIT 1 FOR UPDATE OF p`, [projectId, session.user.id]);
     if (!access.rows[0]) {
       await client.query('ROLLBACK');
