@@ -92,7 +92,15 @@ export async function PATCH(request:Request){
    const current=await client.query(`SELECT id,user_id FROM pm_memberships WHERE id=$1 AND organization_id=$2 FOR UPDATE`,[input.membershipId,orgId]);
    if(!current.rows[0]){await client.query('ROLLBACK');return NextResponse.json({error:'Employee not found.'},{status:404});}
    if(input.reportsToMembershipId===input.membershipId){await client.query('ROLLBACK');return NextResponse.json({error:'An employee cannot report to themselves.'},{status:400});}
-   if(input.reportsToMembershipId){const manager=await client.query(`SELECT id FROM pm_memberships WHERE id=$1 AND organization_id=$2 AND status='active'`,[input.reportsToMembershipId,orgId]);if(!manager.rows[0]){await client.query('ROLLBACK');return NextResponse.json({error:'Reporting manager must be an active organization employee.'},{status:400});}}
+   if(input.reportsToMembershipId){
+    const manager=await client.query(`SELECT id FROM pm_memberships WHERE id=$1 AND organization_id=$2 AND status='active'`,[input.reportsToMembershipId,orgId]);
+    if(!manager.rows[0]){await client.query('ROLLBACK');return NextResponse.json({error:'Reporting manager must be an active organization employee.'},{status:400});}
+    const cycle=await client.query(`WITH RECURSIVE chain(id,reports_to_membership_id) AS (
+      SELECT id,reports_to_membership_id FROM pm_memberships WHERE id=$1 AND organization_id=$2
+      UNION SELECT m.id,m.reports_to_membership_id FROM pm_memberships m JOIN chain c ON m.id=c.reports_to_membership_id WHERE m.organization_id=$2
+     ) SELECT 1 FROM chain WHERE id=$3 LIMIT 1`,[input.reportsToMembershipId,orgId,input.membershipId]);
+    if(cycle.rows[0]){await client.query('ROLLBACK');return NextResponse.json({error:'This reporting change would create a management cycle.'},{status:400});}
+   }
    await client.query(`UPDATE pm_memberships SET department_id=$3,designation_id=$4,reports_to_membership_id=$5,role_id=$6,employee_code=NULLIF($7,''),employment_type=$8,status=$9,updated_at=now(),joined_at=CASE WHEN $9='active' THEN COALESCE(joined_at,now()) ELSE joined_at END WHERE id=$1 AND organization_id=$2`,
     [input.membershipId,orgId,input.departmentId,input.designationId,input.reportsToMembershipId,input.roleId,input.employeeCode||null,input.employmentType,input.status]);
    const orgStatus=input.status==='removed'?'removed':input.status==='suspended'?'suspended':input.status==='active'?'active':'active';
@@ -101,7 +109,15 @@ export async function PATCH(request:Request){
     VALUES($1,$2,'team.member_updated','organization_member',$3,$4::jsonb)`,[orgId,session.user.id,current.rows[0].user_id,JSON.stringify(input)]);
   }else if(input.type==='department'){
    if(input.parentId===input.id){await client.query('ROLLBACK');return NextResponse.json({error:'A department cannot be its own parent.'},{status:400});}
-   if(input.parentId){const parent=await client.query(`SELECT id FROM pm_departments WHERE id=$1 AND organization_id=$2 AND status='active'`,[input.parentId,orgId]);if(!parent.rows[0]){await client.query('ROLLBACK');return NextResponse.json({error:'Parent department not found.'},{status:404});}}
+   if(input.parentId){
+    const parent=await client.query(`SELECT id FROM pm_departments WHERE id=$1 AND organization_id=$2 AND status='active'`,[input.parentId,orgId]);
+    if(!parent.rows[0]){await client.query('ROLLBACK');return NextResponse.json({error:'Parent department not found.'},{status:404});}
+    const cycle=await client.query(`WITH RECURSIVE ancestors(id,parent_department_id) AS (
+      SELECT id,parent_department_id FROM pm_departments WHERE id=$1 AND organization_id=$2
+      UNION SELECT d.id,d.parent_department_id FROM pm_departments d JOIN ancestors a ON d.id=a.parent_department_id WHERE d.organization_id=$2
+     ) SELECT 1 FROM ancestors WHERE id=$3 LIMIT 1`,[input.parentId,orgId,input.id]);
+    if(cycle.rows[0]){await client.query('ROLLBACK');return NextResponse.json({error:'This change would create a department hierarchy cycle.'},{status:400});}
+   }
    await client.query(`UPDATE pm_departments SET name=$3,code=$4,description=$5,parent_department_id=$6,status=$7,updated_at=now() WHERE id=$1 AND organization_id=$2`,[input.id,orgId,input.name,input.code,input.description,input.parentId,input.status]);
   }else if(input.type==='designation'){
    await client.query(`UPDATE pm_designations SET name=$3,description=$4,level=$5,status=$6 WHERE id=$1 AND organization_id=$2`,[input.id,orgId,input.name,input.description,input.level,input.status]);
@@ -110,6 +126,10 @@ export async function PATCH(request:Request){
    if(role.rows[0].is_system_role){await client.query('ROLLBACK');return NextResponse.json({error:'Built-in roles cannot be renamed or deactivated. Create a custom role instead.'},{status:400});}
    await client.query(`UPDATE pm_roles SET name=$3,description=$4,status=$5 WHERE id=$1 AND organization_id=$2`,[input.id,orgId,input.name,input.description,input.status]);
    await savePermissions(client,orgId,input.id,input.permissions);
+  }
+  if(input.type!=='member'){
+   await client.query(`INSERT INTO pm_audit_events(organization_id,actor_user_id,action,entity_type,entity_id,after_data)
+    VALUES($1,$2,$3,$4,$5,$6::jsonb)`,[orgId,session.user.id,'organization.'+input.type+'_updated',input.type,input.id,JSON.stringify(input)]);
   }
   await client.query('COMMIT');return NextResponse.json({message:'Changes saved.'});
  }catch(error){await client.query('ROLLBACK').catch(()=>undefined);console.error('Organization people update failed',error);return NextResponse.json({error:'Could not save changes. Check linked employees and duplicate values.'},{status:409});}
