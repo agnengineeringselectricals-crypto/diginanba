@@ -48,7 +48,7 @@ export async function GET() {
    db.query(`SELECT e.id,e.enquiry_number,e.title,e.description,e.line_items,e.required_delivery_date,e.submission_deadline,e.status,p.project_code,p.name AS project_name,i.response_status,i.response_note
      FROM pm_supplier_enquiry_invites i JOIN pm_supplier_enquiries e ON e.id=i.enquiry_id AND e.organization_id=i.organization_id
      JOIN pm_projects p ON p.id=e.project_id AND p.organization_id=e.organization_id
-     WHERE i.organization_id=$1 AND i.supplier_id=$2 AND e.status='issued' ORDER BY e.created_at DESC`,[member.organization_id,member.party_id]),
+     WHERE i.organization_id=$1 AND i.supplier_id=$2 AND e.status='issued' AND i.response_status IN ('invited','viewed','quoted') ORDER BY e.created_at DESC`,[member.organization_id,member.party_id]),
    db.query(`SELECT id,enquiry_id,quote_number,currency_code,subtotal,tax_total,total_amount,delivery_days,valid_until,line_items,terms,status,submitted_at
      FROM pm_supplier_quotes WHERE organization_id=$1 AND supplier_id=$2 ORDER BY submitted_at DESC`,[member.organization_id,member.party_id]),
   ]);
@@ -80,7 +80,7 @@ export async function POST(request:Request) {
      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12,'submitted',$13)
      ON CONFLICT(organization_id,enquiry_id,supplier_id) DO UPDATE SET quote_number=EXCLUDED.quote_number,currency_code=EXCLUDED.currency_code,subtotal=EXCLUDED.subtotal,tax_total=EXCLUDED.tax_total,total_amount=EXCLUDED.total_amount,delivery_days=EXCLUDED.delivery_days,valid_until=EXCLUDED.valid_until,line_items=EXCLUDED.line_items,terms=EXCLUDED.terms,status='submitted',submitted_by=EXCLUDED.submitted_by,submitted_at=now(),updated_at=now()
      RETURNING id,quote_number,total_amount,currency_code,status`,[member.organization_id,v.data.enquiryId,member.party_id,quoteNumber,v.data.currencyCode.toUpperCase(),subtotal,taxTotal,subtotal+taxTotal,v.data.deliveryDays??null,v.data.validUntil??null,JSON.stringify(v.data.items),v.data.terms||'',session.user.id]);
-   await db.query(`UPDATE pm_supplier_enquiry_invites SET response_status='quoted',response_note='',WHERE organization_id=$1 AND supplier_id=$2 AND enquiry_id=$3`.replace("response_note='',WHERE","response_note='' WHERE"),[member.organization_id,member.party_id,v.data.enquiryId]);
+   await db.query(`UPDATE pm_supplier_enquiry_invites SET response_status='quoted',response_note='' WHERE organization_id=$1 AND supplier_id=$2 AND enquiry_id=$3`,[member.organization_id,member.party_id,v.data.enquiryId]);
    return NextResponse.json({quote:r.rows[0]},{status:201});
   }
   if(body.action==='decline_enquiry' && member.party_type==='supplier') {
