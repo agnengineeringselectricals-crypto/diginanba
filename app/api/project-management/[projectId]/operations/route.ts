@@ -215,7 +215,7 @@ export async function PATCH(request: Request, context: {params: Promise<{project
   if(!access || !access.can_manage)return NextResponse.json({error:'Only project managers and organization administrators can update approval/status fields.'},{status:403});
   const {module,id,status,decision}=p.data;const org=access.organization_id;
   const maps:any={
-    procurement:{indent:['pm_material_indents','status','updated_at',['draft','submitted','approved','rejected','partially_ordered','ordered','closed','cancelled'],'project',true],purchase_order:['pm_purchase_orders','status','updated_at',['draft','submitted','approved','sent','partially_received','received','closed','cancelled'],'project',true],goods_receipt:['pm_goods_receipts','status',null,['draft','inspected','accepted','rejected','partially_accepted'],'project',false]},
+    procurement:{indent:['pm_material_indents','status','updated_at',['draft','submitted','approved','rejected','partially_ordered','ordered','closed','cancelled'],'project',true],purchase_order:['pm_purchase_orders','status','updated_at',['draft','submitted','approved','sent','partially_received','received','closed','cancelled'],'project',true],goods_receipt:['pm_goods_receipts','status',null,['draft','inspected','accepted','rejected','partially_accepted'],'purchase_order',false]},
     manpower:{assignment:['pm_workforce_assignments','status','updated_at',['planned','active','completed','released','cancelled'],'project',false],timesheet:['pm_timesheets','status','updated_at',['draft','submitted','approved','rejected','locked'],'timesheet',true]},
     quality:{inspection:['pm_quality_inspections','result',null,['pending','pass','fail','conditional','rework'],'project',false],nonconformity:['pm_quality_nonconformities','status','updated_at',['open','contained','under_review','corrective_action','verification','closed','rejected'],'project',false]},
     finance:{budget:['pm_project_budgets','status','updated_at',['draft','submitted','approved','locked'],'project',true],entry:['pm_financial_entries','status','updated_at',['draft','submitted','approved','posted','void'],'project',true]},
@@ -226,7 +226,7 @@ export async function PATCH(request: Request, context: {params: Promise<{project
   if(!config||!config[3].includes(status))return NextResponse.json({error:'Unsupported record type or status.'},{status:400});
   if(decision==='approve' && !access.can_manage)return NextResponse.json({error:'Approval requires project-manager permission.'},{status:403});
   const [table,statusColumn,updatedColumn,allowed,scopeType,hasApproval]=config;
-  const scope=scopeType==='project'?' AND project_id=$3':scopeType==='timesheet'?' AND EXISTS (SELECT 1 FROM pm_timesheet_entries te WHERE te.timesheet_id='+table+'.id AND te.organization_id='+table+'.organization_id AND te.project_id=$3)':'';
+  const scope=scopeType==='project'?' AND project_id=$3':scopeType==='timesheet'?' AND EXISTS (SELECT 1 FROM pm_timesheet_entries te WHERE te.timesheet_id='+table+'.id AND te.organization_id='+table+'.organization_id AND te.project_id=$3)':scopeType==='purchase_order'?' AND EXISTS (SELECT 1 FROM pm_purchase_orders pox WHERE pox.id=pm_goods_receipts.purchase_order_id AND pox.organization_id=pm_goods_receipts.organization_id AND pox.project_id=$3)':'';
   const values:any[]=[id,org];if(scope)values.push(projectId);
   const setUpdated=updatedColumn?`, ${updatedColumn}=now()`:'';
   const approval=decision==='approve'&&hasApproval?',approved_by=$'+(values.length+2)+',approved_at=now()':'';
