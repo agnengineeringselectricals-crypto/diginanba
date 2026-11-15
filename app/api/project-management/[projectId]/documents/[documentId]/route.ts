@@ -10,7 +10,7 @@ export async function GET(request:Request,context:{params:Promise<{projectId:str
  if(!session?.user?.id)return NextResponse.json({error:'Sign in to download project documents.'},{status:401});
  const {projectId,documentId}=await context.params;
  const result=await db.query(
-  `SELECT d.title,d.storage_key,d.mime_type,d.file_size_bytes,d.revision,v.storage_key AS version_storage_key,v.mime_type AS version_mime_type,v.file_size_bytes AS version_size,v.revision AS version_revision
+  `SELECT d.organization_id,d.title,d.storage_key,d.mime_type,d.file_size_bytes,d.revision,v.storage_key AS version_storage_key,v.mime_type AS version_mime_type,v.file_size_bytes AS version_size,v.revision AS version_revision
      FROM pm_documents d
      JOIN pm_projects p ON p.id=d.project_id AND p.organization_id=d.organization_id
      JOIN organization_memberships m ON m.organization_id=p.organization_id AND m.user_id=$3 AND m.status='active'
@@ -26,7 +26,7 @@ export async function GET(request:Request,context:{params:Promise<{projectId:str
  const doc=result.rows[0];
  if(!doc || (new URL(request.url).searchParams.has('revision') && !doc.version_storage_key))return NextResponse.json({error:'Document or requested revision not found, or access denied.'},{status:404});
  const pathname=doc.version_storage_key||doc.storage_key;
- if(!pathname||pathname==='pending-upload')return NextResponse.json({error:'This document has no uploaded file.'},{status:404});
+ if(!pathname||pathname==='pending-upload'||!pathname.startsWith('organizations/'+doc.organization_id+'/projects/'+projectId+'/documents/'))return NextResponse.json({error:'This document has no valid private storage object.'},{status:404});
  try{
   const blob=await get(pathname,{access:'private'});
   if(!blob||blob.statusCode!==200||!blob.stream)return NextResponse.json({error:'Document file not found.'},{status:404});
