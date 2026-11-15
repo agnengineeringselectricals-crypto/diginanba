@@ -95,7 +95,7 @@ The project workspace provides the following organization-scoped modules:
 
 ### Task 4 schema and storage setup
 
-- Apply `db/migrations/019_task4_operational_integrity.sql` after the project-management foundation migrations. It adds receipt quantity integrity checks and supporting indexes; the check is `NOT VALID` so legacy rows are not silently rewritten while new writes are enforced.
+- Apply `db/migrations/20261117_task4_operational_integrity.sql` after the project-management foundation migrations. It adds receipt quantity integrity checks and supporting indexes; the check is `NOT VALID` so legacy rows are not silently rewritten while new writes are enforced.
 - The private Vercel Blob store `diginanba-project-documents` is connected to the DigiNanba Vercel project. Vercel manages `BLOB_READ_WRITE_TOKEN` for the project environments; keep this value secret and never expose it to browser code.
 - Document upload and download routes enforce authenticated project membership; upload/revision and GRN status changes are written to the project audit trail.
 - No sample organization, project, supplier, employee, financial or document records are seeded. End-to-end business workflow testing is deferred until a real organization and project are registered.
