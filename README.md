@@ -83,6 +83,18 @@ Before production payments, configure a payment provider, merchant/KYC settings,
 - Test valid sales, duplicate events, self-referrals, fraud scenarios, refunds, currency handling, and payout failures end to end.
 - This policy documentation does not mean the promoter program is already implemented or active. Do not accrue or pay commissions until implementation, testing, legal/tax review, and explicit business approval are complete.
 
+## Task 5 — Ask AI Nanba project-workflow intelligence
+
+- Ask AI Nanba is a project-scoped, read-only assistant for project managers, department chiefs, stage/team leaders and assigned staff.
+- It analyzes recorded WBS/work packages, tasks, dependencies, baseline/forecast/actual progress, milestones, pending approvals, workforce allocations, procurement, quality actions, finance and controlled-document metadata according to the user's project access.
+- Assigned-task members receive a narrower context limited to their assigned tasks, related measures, own workforce assignments, assigned quality actions and approvals. Procurement, finance and document registers are excluded from that scope.
+- It must never invent progress, dates, quantities, approvals, people or causes; it must distinguish recorded facts from recommendations and explicitly identify missing data.
+- The assistant is read-only. It cannot update tasks, approve requests, send messages or perform project actions. Authorized people remain responsible for acting on recommendations.
+- Chat messages are not persisted. A minimal usage ledger records model and token counts for rate limiting and cost visibility; an audit event records that the assistant was used without storing the question or answer.
+- Configure `OPENAI_API_KEY` and optionally `PROJECT_AI_MODEL` in Vercel before enabling responses. Requests are bounded to 25 per user and 150 per project organization in a rolling 24-hour window. API credits and provider availability remain external prerequisites.
+- No sample organization or project data is created. Real workflow testing is deferred until a real organization and project are registered.
+- This is project-management intelligence, separate from the digital-product AI Factory and AI Workforce.
+
 ## Task 4 — Project operational modules
 
 The project workspace provides the following organization-scoped modules:
