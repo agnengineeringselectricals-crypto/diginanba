@@ -30,8 +30,10 @@ function TeamContent(){
    const allowed=(d.organizations||[]).filter((o:Org)=>['owner','admin'].includes(o.role));setOrgs(allowed);
    const selected=orgId&&allowed.some((o:Org)=>o.id===orgId)?orgId:allowed[0]?.id||'';setOrgId(selected);
    if(selected){
-    const [tr,ar]=await Promise.all([fetch('/api/project-management/team?organizationId='+selected,{cache:'no-store'}),fetch('/api/project-management/team/admin?organizationId='+selected,{cache:'no-store'})]);
-    const [td,ad]=await Promise.all([tr.json(),ar.json()]);if(!tr.ok)throw new Error(td.error||'Unable to load team.');if(!ar.ok)throw new Error(ad.error||'Unable to load organization structure.');
+    const tr=await fetch('/api/project-management/team?organizationId='+selected,{cache:'no-store'});
+    const td=await tr.json();if(!tr.ok)throw new Error(td.error||'Unable to load team.');
+    const ar=await fetch('/api/project-management/team/admin?organizationId='+selected,{cache:'no-store'});
+    const ad=await ar.json();if(!ar.ok)throw new Error(ad.error||'Unable to load organization structure.');
     setMembers(td.members||[]);setDepartments(ad.departments||[]);setDesignations(ad.designations||[]);setRoles(td.roles||ad.roles||[]);setPermissions(ad.permissions||[]);setRolePermissions(ad.rolePermissions||[]);
     setGrants(prev=>{const next={...prev};for(const p of ad.permissions||[])if(!next[p.code])next[p.code]=blankGrant(p.code);return next;});
     setInviteRole(prev=>prev&&((td.roles||ad.roles||[]).some((x:Role)=>x.id===prev))?prev:(td.roles||ad.roles||[])[0]?.id||'');
