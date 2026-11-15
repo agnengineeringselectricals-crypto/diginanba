@@ -13,6 +13,8 @@ const base = z.object({ module: z.enum(['procurement','manpower','quality','fina
 async function projectAccess(projectId: string, userId: string, write = false) {
   const result = await db.query(
     `SELECT p.organization_id,
+       (SELECT x.access_level FROM pm_project_members x JOIN pm_memberships xm ON xm.id=x.membership_id WHERE x.project_id=p.id AND x.organization_id=p.organization_id AND x.status='active' AND xm.user_id=$2 AND xm.status='active' LIMIT 1) AS project_access,
+       (SELECT xm.id FROM pm_memberships xm WHERE xm.organization_id=p.organization_id AND xm.user_id=$2 AND xm.status='active' LIMIT 1) AS actor_membership_id,
        (m.role IN ('owner','admin') OR EXISTS (
          SELECT 1 FROM pm_project_members x JOIN pm_memberships xm ON xm.id=x.membership_id
          WHERE x.project_id=p.id AND x.organization_id=p.organization_id AND x.status='active'
@@ -29,7 +31,7 @@ async function projectAccess(projectId: string, userId: string, write = false) {
   );
   const row=result.rows[0];
   if (!row || (write && !row.can_manage)) return null;
-  return row as {organization_id:string;can_manage:boolean};
+  return row as {organization_id:string;can_manage:boolean;project_access:string|null;actor_membership_id:string|null};
 }
 
 export async function GET(request: Request, context: {params: Promise<{projectId:string}>}) {
