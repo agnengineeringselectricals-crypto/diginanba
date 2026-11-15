@@ -22,7 +22,7 @@ const allowedTypes = new Set([
   'text/csv',
   'application/csv',
 ]);
-const maxBytes = 25 * 1024 * 1024;
+const maxBytes = 4 * 1024 * 1024;
 
 async function projectAccess(projectId: string, userId: string, write = false) {
   const result = await db.query(
