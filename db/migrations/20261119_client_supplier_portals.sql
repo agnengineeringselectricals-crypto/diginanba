@@ -1,6 +1,11 @@
 -- Client and Supplier Portals: external access, RFQs, quotations and client project links.
 BEGIN;
 
+ALTER TABLE pm_suppliers ADD COLUMN IF NOT EXISTS category text NOT NULL DEFAULT 'general';
+ALTER TABLE pm_suppliers ADD COLUMN IF NOT EXISTS specializations jsonb NOT NULL DEFAULT '[]'::jsonb;
+ALTER TABLE pm_suppliers ADD COLUMN IF NOT EXISTS website_url text;
+CREATE INDEX IF NOT EXISTS pm_suppliers_category_idx ON pm_suppliers(organization_id,category,status);
+
 CREATE TABLE IF NOT EXISTS pm_project_clients (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id uuid NOT NULL REFERENCES organization_accounts(id) ON DELETE CASCADE,
