@@ -4,7 +4,7 @@ import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
 
 export const runtime='nodejs';
-const inviteSchema=z.object({organizationId:z.string().uuid(),email:z.string().trim().email().max(254),roleCode:z.enum(['project_manager','engineer','viewer']).default('engineer'),departmentId:z.string().uuid().nullable().optional()});
+const inviteSchema=z.object({organizationId:z.string().uuid(),email:z.string().trim().email().max(254),roleId:z.string().uuid().optional(),roleCode:z.enum(['project_manager','engineer','viewer']).default('engineer'),departmentId:z.string().uuid().nullable().optional()});
 
 async function ensureDefaultRoles(client:any,organizationId:string){
   const roles=[
@@ -47,17 +47,19 @@ export async function GET(request:Request){
     if(!access.rows[0]||!['owner','admin'].includes(access.rows[0].role))return NextResponse.json({error:'Only organization owners and admins can manage the team.'},{status:403});
     const [members,departments,roles]=await Promise.all([
       db.query(
-        `SELECT pm.id AS membership_id,pm.status,pm.employee_code,pm.employment_type,pm.joined_at,
+        `SELECT pm.id AS membership_id,pm.status,pm.employee_code,pm.employment_type,pm.joined_at,pm.department_id,pm.designation_id,pm.reports_to_membership_id,pm.role_id,
                 u.id AS user_id,u.display_name,u.email,r.code AS role_code,r.name AS role_name,
-                d.name AS department_name,ds.name AS designation_name
+                d.name AS department_name,ds.name AS designation_name,COALESCE(manager_u.display_name,manager_u.email) AS reports_to_name
          FROM pm_memberships pm JOIN users u ON u.id=pm.user_id
          LEFT JOIN pm_roles r ON r.id=pm.role_id AND r.organization_id=pm.organization_id
          LEFT JOIN pm_departments d ON d.id=pm.department_id AND d.organization_id=pm.organization_id
          LEFT JOIN pm_designations ds ON ds.id=pm.designation_id AND ds.organization_id=pm.organization_id
+         LEFT JOIN pm_memberships manager ON manager.id=pm.reports_to_membership_id AND manager.organization_id=pm.organization_id
+         LEFT JOIN users manager_u ON manager_u.id=manager.user_id
          WHERE pm.organization_id=$1 ORDER BY CASE pm.status WHEN 'active' THEN 0 WHEN 'invited' THEN 1 ELSE 2 END,COALESCE(u.display_name,u.email)`,
         [orgId]),
       db.query("SELECT id,name FROM pm_departments WHERE organization_id=$1 AND status='active' ORDER BY name",[orgId]),
-      db.query("SELECT code,name FROM pm_roles WHERE organization_id=$1 AND status='active' ORDER BY name",[orgId]),
+      db.query("SELECT id,code,name,description,is_system_role FROM pm_roles WHERE organization_id=$1 AND status='active' ORDER BY name",[orgId]),
     ]);
     return NextResponse.json({members:members.rows,departments:departments.rows,roles:roles.rows});
   }catch(error){console.error('Project Management team lookup failed',error);return NextResponse.json({error:'Team information is temporarily unavailable.'},{status:503});}
@@ -89,7 +91,9 @@ export async function POST(request:Request){
        VALUES($1,$2,'member','invited',$3)
        ON CONFLICT(organization_id,user_id) DO UPDATE SET role='member',status='invited',invited_by=$3,updated_at=now()`,
       [input.organizationId,user.rows[0].id,session.user.id]);
-    const role=await client.query('SELECT id FROM pm_roles WHERE organization_id=$1 AND code=$2',[input.organizationId,input.roleCode]);
+    const role= input.roleId ? await client.query('SELECT id,code FROM pm_roles WHERE organization_id=$1 AND id=$2 AND status=\'active\'',[input.organizationId,input.roleId]) : await client.query('SELECT id,code FROM pm_roles WHERE organization_id=$1 AND code=$2',[input.organizationId,input.roleCode]);
+    if(!role.rows[0]){await client.query('ROLLBACK');return NextResponse.json({error:'Select an active role for this employee.'},{status:400});}
+    if(input.departmentId){const department=await client.query("SELECT id FROM pm_departments WHERE id=$1 AND organization_id=$2 AND status='active'",[input.departmentId,input.organizationId]);if(!department.rows[0]){await client.query('ROLLBACK');return NextResponse.json({error:'Select an active department.'},{status:400});}}
     await client.query(
       `INSERT INTO pm_memberships(organization_id,user_id,department_id,role_id,status,employment_type)
        VALUES($1,$2,$3,$4,'invited','employee')
@@ -98,7 +102,7 @@ export async function POST(request:Request){
     await client.query(
       `INSERT INTO pm_audit_events(organization_id,actor_user_id,action,entity_type,entity_id,after_data)
        VALUES($1,$2,'team.member_invited','organization_member',$3,$4::jsonb)`,
-      [input.organizationId,session.user.id,user.rows[0].id,JSON.stringify({email,roleCode:input.roleCode})]);
+      [input.organizationId,session.user.id,user.rows[0].id,JSON.stringify({email,roleCode:role.rows[0].code})]);
     await client.query('COMMIT');
 
     let emailSent=false;
@@ -106,7 +110,7 @@ export async function POST(request:Request){
     if(from&&key){
       try{
         const base=(process.env.AUTH_URL||process.env.NEXTAUTH_URL||'https://www.diginanba.com').replace(/\/$/,'');
-        const response=await fetch('https://api.resend.com/emails',{method:'POST',headers:{Authorization:'Bearer '+key,'Content-Type':'application/json'},body:JSON.stringify({from,to:[email],subject:'You are invited to join '+access.rows[0].name+' on DigiNanba',text:'You have been invited to join '+access.rows[0].name+' as '+input.roleCode.replaceAll('_',' ')+'. Sign in to DigiNanba with this email address and open Project Management → Team to accept the invitation: '+base+'/project-management/team?accept='+encodeURIComponent(input.organizationId)})});
+        const response=await fetch('https://api.resend.com/emails',{method:'POST',headers:{Authorization:'Bearer '+key,'Content-Type':'application/json'},body:JSON.stringify({from,to:[email],subject:'You are invited to join '+access.rows[0].name+' on DigiNanba',text:'You have been invited to join '+access.rows[0].name+' as '+role.rows[0].code.replaceAll('_',' ')+'. Sign in to DigiNanba with this email address and open Project Management → Team to accept the invitation: '+base+'/project-management/team?accept='+encodeURIComponent(input.organizationId)})});
         emailSent=response.ok;
         if(!response.ok)console.error('Project Management invitation email was not accepted by provider',response.status);
       }catch(error){console.error('Project Management invitation email failed',error);}
