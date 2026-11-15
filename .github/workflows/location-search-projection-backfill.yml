@@ -7,8 +7,6 @@ on:
         description: Rows per database batch (500-20000)
         required: false
         default: "5000"
-  schedule:
-    - cron: "17 20 * * *"
 
 permissions:
   contents: read
