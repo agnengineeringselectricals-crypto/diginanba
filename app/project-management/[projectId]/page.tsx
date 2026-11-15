@@ -59,7 +59,8 @@ export default function ProjectDetailPage({params}:{params:Promise<{projectId:st
         fetch('/api/project-management/'+projectId+'/work-packages',{cache:'no-store'}),
         fetch('/api/project-management/'+projectId+'/members',{cache:'no-store'}),
         fetch('/api/project-management/'+projectId+'/milestones',{cache:'no-store'}),
-        fetch('/api/project-management/'+projectId+'/dependencies',{cache:'no-store'})
+        fetch('/api/project-management/'+projectId+'/dependencies',{cache:'no-store'}),
+        fetch('/api/project-management/'+projectId+'/performance',{cache:'no-store'})
       ]);
       const [pd,td,wd,md,mild,dd,pfd]=await Promise.all([pr.json(),tr.json(),wr.json(),mr.json(),milr.json(),depr.json(),perfr.json()]);
       if(!pr.ok)throw new Error(pd.error||'Unable to load project.');
