@@ -101,7 +101,7 @@ The project workspace provides the following organization-scoped modules:
 
 - **Procurement:** suppliers, purchase indents, purchase orders, goods-receipt notes (GRNs), and line-level received/accepted/rejected quantities. GRNs are checked against the originating purchase order, partial deliveries are supported, and rejected quantities can be replaced without counting rejected stock as accepted.
 - **Manpower:** workforce assignments and timesheets. Assigned project staff can submit their own timesheets; managers control approvals.
-- **Quality:** inspections and non-conformities with corrective follow-up. Assigned staff can submit inspection findings under their own membership.
+- **Quality:** inspections, non-conformities, and separately tracked containment, correction, corrective, preventive and verification actions. Action ownership, due dates, status and effectiveness results are tracked; assigned staff can submit findings and actions only within their assignment scope.
 - **Finance:** project budgets, cost entries, and manager-controlled status/approval workflows. No payment or external billing is activated by these records.
 - **Documents:** private file upload, controlled revision history, and authenticated project-member downloads. Uploads are limited to PDF, Office, image, TXT and CSV files up to 4 MB per request. Files are stored in a private Vercel Blob store; raw Blob URLs are not exposed to project users.
 
@@ -110,5 +110,6 @@ The project workspace provides the following organization-scoped modules:
 - Apply `db/migrations/20261117_task4_operational_integrity.sql` after the project-management foundation migrations. It adds receipt quantity integrity checks and supporting indexes; the check is `NOT VALID` so legacy rows are not silently rewritten while new writes are enforced.
 - The private Vercel Blob store `diginanba-project-documents` is connected to the DigiNanba Vercel project. Vercel manages `BLOB_READ_WRITE_TOKEN` for the project environments; keep this value secret and never expose it to browser code.
 - Document upload and download routes enforce authenticated project membership; upload/revision and GRN status changes are written to the project audit trail.
+- Staff-submitted timesheets enter the submitted queue automatically; managers can approve, reject or lock them. Approval metadata is written only to columns supported by each operational record type.
 - No sample organization, project, supplier, employee, financial or document records are seeded. End-to-end business workflow testing is deferred until a real organization and project are registered.
 - The Task 4 operational modules do not depend on the digital-product AI factory or AI Workforce and do not activate payments, external supplier portals, or notification delivery.
