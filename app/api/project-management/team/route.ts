@@ -110,12 +110,11 @@ export async function POST(request:Request){
     await client.query('COMMIT');
 
     let emailSent=false;
-    const base=(process.env.AUTH_URL||process.env.NEXTAUTH_URL||'https://www.diginanba.com').replace(/\\/$/,'');
+    const base=(process.env.AUTH_URL||process.env.NEXTAUTH_URL||'https://www.diginanba.com').replace(/\/$/,'');
     const acceptUrl=base+'/project-management/team?accept='+encodeURIComponent(input.organizationId);
     const from=process.env.EMAIL_FROM||process.env.PASSWORD_RESET_FROM_EMAIL;const key=process.env.RESEND_API_KEY;
     if(from&&key){
       try{
-        const base=(process.env.AUTH_URL||process.env.NEXTAUTH_URL||'https://www.diginanba.com').replace(/\/$/,'');
         const response=await fetch('https://api.resend.com/emails',{method:'POST',headers:{Authorization:'Bearer '+key,'Content-Type':'application/json'},body:JSON.stringify({from,to:[email],subject:'You are invited to join '+access.rows[0].name+' on DigiNanba',text:'You have been invited to join '+access.rows[0].name+' as '+role.rows[0].code.replaceAll('_',' ')+'. Sign in to DigiNanba with this email address and open Project Management → Team to accept the invitation: '+acceptUrl})});
         emailSent=response.ok;
         if(!response.ok)console.error('Project Management invitation email was not accepted by provider',response.status);
