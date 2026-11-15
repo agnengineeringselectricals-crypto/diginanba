@@ -252,14 +252,14 @@ export async function PATCH(request: Request, context: { params: Promise<{ proje
         planned_start_date=CASE WHEN $12 THEN $13::date ELSE planned_start_date END,
         planned_end_date=CASE WHEN $14 THEN $15::date ELSE planned_end_date END,
         status=COALESCE($16,status),
-        actual_quantity=COALESCE($2,actual_quantity),
-        target_quantity=CASE WHEN $3 THEN $4 ELSE target_quantity END,
-        progress_percent=COALESCE($5,progress_percent),
-        actual_start_date=CASE WHEN $6 THEN $7::date ELSE actual_start_date END,
-        actual_end_date=CASE WHEN $8 THEN $9::date ELSE actual_end_date END,
-        forecast_end_date=CASE WHEN $10 THEN $11::date ELSE forecast_end_date END,
+        actual_quantity=COALESCE($17,actual_quantity),
+        target_quantity=CASE WHEN $18 THEN $19 ELSE target_quantity END,
+        progress_percent=COALESCE($20,progress_percent),
+        actual_start_date=CASE WHEN $21 THEN $22::date ELSE actual_start_date END,
+        actual_end_date=CASE WHEN $23 THEN $24::date ELSE actual_end_date END,
+        forecast_end_date=CASE WHEN $25 THEN $26::date ELSE forecast_end_date END,
         updated_at=now()
-       WHERE id=$12 AND organization_id=$13 AND project_id=$14
+       WHERE id=$27 AND organization_id=$28 AND project_id=$29
        RETURNING id,title,status,actual_quantity,target_quantity,progress_percent,actual_start_date,actual_end_date,forecast_end_date`,
       [input.title ?? null,input.description ?? null,Object.prototype.hasOwnProperty.call(input,'unit'),input.unit ?? null,input.priority ?? null,
        Object.prototype.hasOwnProperty.call(input,'workPackageId'),input.workPackageId ?? null,Object.prototype.hasOwnProperty.call(input,'parentTaskId'),input.parentTaskId ?? null,
