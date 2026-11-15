@@ -127,9 +127,9 @@ export async function POST(request: Request, context: {params: Promise<{projectI
         if(receiptLines.rows.length!==itemIds.length)throw new Error('One or more receipt lines do not belong to this purchase order.');
         for(const item of p.data.items){
           if(item.receivedQuantity<=0)throw new Error('Received quantity must be greater than zero.');
-          const already=await client.query(`SELECT COALESCE(SUM(gi.received_quantity),0)::numeric AS quantity FROM pm_goods_receipt_items gi JOIN pm_goods_receipts gr ON gr.id=gi.receipt_id AND gr.organization_id=gi.organization_id WHERE gi.organization_id=$1 AND gi.purchase_order_item_id=$2 AND gr.status<>'rejected'`,[org,item.purchaseOrderItemId]);
+          const already=await client.query(`SELECT COALESCE(SUM(gi.accepted_quantity),0)::numeric AS accepted,COALESCE(SUM(gi.rejected_quantity),0)::numeric AS rejected FROM pm_goods_receipt_items gi JOIN pm_goods_receipts gr ON gr.id=gi.receipt_id AND gr.organization_id=gi.organization_id WHERE gi.organization_id=$1 AND gi.purchase_order_item_id=$2 AND gr.status<>'rejected'`,[org,item.purchaseOrderItemId]);
           const ordered=receiptLines.rows.find(x=>x.id===item.purchaseOrderItemId);
-          if(Number(already.rows[0].quantity)+item.receivedQuantity>Number(ordered.ordered_quantity)+0.0001)throw new Error('Received quantity exceeds the outstanding purchase-order quantity.');
+          if(Number(already.rows[0].accepted)+item.receivedQuantity>Number(ordered.ordered_quantity)+Number(already.rows[0].rejected)+0.0001)throw new Error('Received quantity exceeds the outstanding purchase-order quantity.');
         }
         const number=(await client.query(`SELECT 'GRN-'||lpad((COALESCE(MAX(NULLIF(regexp_replace(receipt_number,'[^0-9]','','g'), '')::bigint),0)+1)::text,5,'0') AS n FROM pm_goods_receipts WHERE organization_id=$1`,[org])).rows[0].n;
         const receipt=(await client.query(`INSERT INTO pm_goods_receipts(organization_id,purchase_order_id,receipt_number,received_at,received_by,status,notes) VALUES($1,$2,$3,COALESCE($4::timestamptz,now()),$5,'draft',$6) RETURNING id,receipt_number,status`,[org,p.data.purchaseOrderId,number,p.data.receivedAt||null,session.user.id,p.data.notes||''])).rows[0];
