@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createHash, randomBytes } from 'node:crypto';
+import { randomBytes } from 'node:crypto';
 import { z } from 'zod';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
@@ -19,6 +19,7 @@ export async function GET() {
  if(!session?.user?.id) return NextResponse.json({error:'Sign in to access your external portal.'},{status:401});
  const member=await memberFor(session.user.id);
  if(!member) return NextResponse.json({error:'No active client or supplier portal is linked to this account.'},{status:403});
+ if(member.permissions?.view===false) return NextResponse.json({error:'Your portal account does not have viewing permission.'},{status:403});
  try {
   if(member.party_type==='client') {
    const [client,projects,approvals]=await Promise.all([
@@ -74,6 +75,7 @@ export async function POST(request:Request) {
  if(!session?.user?.id) return NextResponse.json({error:'Sign in required.'},{status:401});
  const member=await memberFor(session.user.id);
  if(!member) return NextResponse.json({error:'No active portal access is linked to this account.'},{status:403});
+ if(member.permissions?.respond===false) return NextResponse.json({error:'Your portal account does not have response permission.'},{status:403});
  const body=await request.json().catch(()=>null);
  if(!body||typeof body.action!=='string') return NextResponse.json({error:'Invalid request.'},{status:400});
  try {
