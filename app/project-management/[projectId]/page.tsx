@@ -29,7 +29,7 @@ export default function ProjectDetailPage({params}:{params:Promise<{projectId:st
   const [start,setStart]=useState('');
   const [finish,setFinish]=useState('');
   const [priority,setPriority]=useState('normal');
-  const [edits,setEdits]=useState<Record<string,{actual:string;status:string;progress:string}>>({});
+  const [edits,setEdits]=useState<Record<string,{actual:string;target:string;status:string;progress:string;reason:string;action:string}>>({});
   useEffect(()=>{void params.then(p=>setProjectId(p.projectId))},[params]);
   const load=useCallback(async()=>{
     if(!projectId)return;
@@ -47,7 +47,7 @@ export default function ProjectDetailPage({params}:{params:Promise<{projectId:st
       const found=(pd.projects||[]).find((p:Project)=>p.id===projectId);
       if(!found)throw new Error('Project not found or you do not have access.');
       setProject(found);setTasks(td.tasks||[]);setPackages(wd.workPackages||[]);
-      setEdits(Object.fromEntries((td.tasks||[]).map((t:Task)=>[t.id,{actual:String(t.actual_quantity??0),status:t.status,progress:String(t.progress_percent??0)}])));
+      setEdits(Object.fromEntries((td.tasks||[]).map((t:Task)=>[t.id,{actual:String(t.actual_quantity??0),target:String(t.target_quantity??''),status:t.status,progress:String(t.progress_percent??0),reason:'',action:''}])));
     }catch(e){setError(e instanceof Error?e.message:'Unable to load project.')}
     finally{setLoading(false)}
   },[projectId]);
@@ -69,7 +69,7 @@ export default function ProjectDetailPage({params}:{params:Promise<{projectId:st
   async function saveTask(task:Task){
     const v=edits[task.id];if(!v)return;setSaving(true);setError('');setNotice('');
     try{
-      const r=await fetch('/api/project-management/'+projectId+'/tasks',{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({taskId:task.id,actualQuantity:Number(v.actual),status:v.status,progressPercent:Number(v.progress)})});
+      const r=await fetch('/api/project-management/'+projectId+'/tasks',{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({taskId:task.id,actualQuantity:Number(v.actual),targetQuantity:v.target===''?null:Number(v.target),status:v.status,progressPercent:Number(v.progress),deviationReason:v.reason,correctiveAction:v.action})});
       const d=await r.json();if(!r.ok)throw new Error(d.error||'Could not update task.');
       setNotice('Task progress saved.');await load();
     }catch(e){setError(e instanceof Error?e.message:'Could not update task.')}finally{setSaving(false)}
@@ -85,7 +85,7 @@ export default function ProjectDetailPage({params}:{params:Promise<{projectId:st
         {packages.length>0&&<div className="pd-package-list">{packages.map(p=><span key={p.id} className="pd-package">{p.package_code||'WBS'} · {p.name}</span>)}</div>}
         {!tasks.length?<p className="pd-muted">No tasks have been added. Start with the first measurable activity below.</p>:<div className="pd-task-list">{tasks.map(t=><article className="pd-task" key={t.id}>
           <div className="pd-task-info"><strong>{t.title}</strong><small>{t.task_code||'Task'} · {t.priority} priority · {t.owner_name||'Unassigned'}</small><p>{t.description||'No description'}</p><small>Planned: {fmt(t.planned_start_date)} – {fmt(t.planned_end_date)} {t.unit?' · Unit: '+t.unit:''}</small></div>
-          <div className="pd-task-edit"><label>Status<select value={edits[t.id]?.status||t.status} onChange={e=>setEdits(s=>({...s,[t.id]:{...s[t.id],status:e.target.value}}))}>{statuses.map(s=><option key={s} value={s}>{s.replaceAll('_',' ')}</option>)}</select></label><label>Target {t.unit||'quantity'}<input value={String(t.target_quantity??'—')} readOnly /></label><label>Actual {t.unit||'quantity'}<input type="number" min="0" step="any" value={edits[t.id]?.actual??'0'} onChange={e=>setEdits(s=>({...s,[t.id]:{...s[t.id],actual:e.target.value}}))}/></label><label>Progress %<input type="number" min="0" max="100" value={edits[t.id]?.progress??'0'} onChange={e=>setEdits(s=>({...s,[t.id]:{...s[t.id],progress:e.target.value}}))}/></label><button className="pd-save" disabled={saving} onClick={()=>void saveTask(t)}>Save update</button></div>
+          <div className="pd-task-edit"><label>Status<select value={edits[t.id]?.status||t.status} onChange={e=>setEdits(s=>({...s,[t.id]:{...s[t.id],status:e.target.value}}))}>{statuses.map(s=><option key={s} value={s}>{s.replaceAll('_',' ')}</option>)}</select></label><label>Target {t.unit||'quantity'}<input type="number" min="0" step="any" value={edits[t.id]?.target??''} onChange={e=>setEdits(s=>({...s,[t.id]:{...s[t.id],target:e.target.value}}))}/></label><label>Actual {t.unit||'quantity'}<input type="number" min="0" step="any" value={edits[t.id]?.actual??'0'} onChange={e=>setEdits(s=>({...s,[t.id]:{...s[t.id],actual:e.target.value}}))}/></label><label>Progress %<input type="number" min="0" max="100" value={edits[t.id]?.progress??'0'} onChange={e=>setEdits(s=>({...s,[t.id]:{...s[t.id],progress:e.target.value}}))}/></label><label className="pd-wide">Reason for deviation<textarea rows={2} value={edits[t.id]?.reason??''} onChange={e=>setEdits(s=>({...s,[t.id]:{...s[t.id],reason:e.target.value}}))}/></label><label className="pd-wide">Corrective action<textarea rows={2} value={edits[t.id]?.action??''} onChange={e=>setEdits(s=>({...s,[t.id]:{...s[t.id],action:e.target.value}}))}/></label><button className="pd-save" disabled={saving} onClick={()=>void saveTask(t)}>Save update</button></div>
         </article>)}</div>}
       </section>
       <section className="pd-panel"><div className="pd-title"><div><span className="pd-eyebrow">WORK BREAKDOWN STRUCTURE</span><h2>Create a work package</h2></div></div><form className="pd-form" onSubmit={addPackage}><label>Package name<input required minLength={2} maxLength={180} value={packageName} onChange={e=>setPackageName(e.target.value)} placeholder="e.g. Electrical installation"/></label><label>Description<input value={packageDescription} onChange={e=>setPackageDescription(e.target.value)} maxLength={5000}/></label><div className="pd-wide pd-actions"><button className="pd-save" disabled={saving||!packageName.trim()}>{saving?'Saving…':'Add work package'}</button></div></form></section>
