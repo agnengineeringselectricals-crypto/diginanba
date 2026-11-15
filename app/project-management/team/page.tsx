@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { Suspense } from 'react';
 import { useCallback,useEffect,useState,type FormEvent } from 'react';
 import { useSearchParams } from 'next/navigation';
 
@@ -8,7 +9,7 @@ type Org={id:string;name:string;role:string};
 type Member={membership_id:string;status:string;employee_code:string|null;employment_type:string;joined_at:string|null;user_id:string;display_name:string|null;email:string;role_code:string|null;role_name:string|null;department_name:string|null;designation_name:string|null};
 type Department={id:string;name:string};
 
-export default function ProjectTeamPage(){
+function ProjectTeamContent(){
   const search=useSearchParams();
   const acceptId=search.get('accept')||'';
   const [orgs,setOrgs]=useState<Org[]>([]);
@@ -93,4 +94,8 @@ export default function ProjectTeamPage(){
       .pt-shell{max-width:1100px;margin:auto;padding:26px 5% 60px;color:#182235}.pt-head{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #e7eaf0;padding-bottom:20px}.pt-back{font-size:12px;color:#6558df;text-decoration:none}.pt-head h1{font-size:30px;margin:8px 0 4px}.pt-head p,.pt-muted{font-size:13px;color:#758096}.pt-org{color:#6558df;font-size:12px;text-decoration:none}.pt-panel{background:white;border:1px solid #e7eaf0;border-radius:15px;padding:20px;margin:17px 0}.pt-title{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}.pt-title h2{font-size:20px;margin:5px 0}.pt-eyebrow{font-size:10px;letter-spacing:.13em;font-weight:850;color:#6558df}.pt-panel select,.pt-form input,.pt-form select{border:1px solid #dfe3ec;border-radius:9px;padding:11px;background:white;color:#182235;font:inherit;min-width:0}.pt-form{display:grid;grid-template-columns:2fr 1fr 1fr;gap:13px}.pt-form label{display:grid;gap:6px;font-size:12px;font-weight:750;color:#596477}.pt-actions{display:flex;align-items:end}.pt-actions button{background:#5b46f6;color:white;border:0;border-radius:9px;padding:12px 16px;font-weight:800;cursor:pointer}.pt-actions button:disabled{opacity:.5}.pt-alert,.pt-notice{padding:12px 14px;border-radius:9px;font-size:13px}.pt-alert{background:#fff1f2;color:#be123c}.pt-notice{background:#ecfdf3;color:#047857}.pt-count{background:#f1efff;color:#5144c7;padding:6px 9px;border-radius:99px;font-size:11px;font-weight:800}.pt-table{display:grid}.pt-row{display:grid;grid-template-columns:2fr 1fr 1fr 100px;gap:12px;padding:12px 6px;border-top:1px solid #edf0f5;align-items:center;font-size:12px}.pt-row small{display:block;color:#7b8496;margin-top:4px}.pt-th{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:#8a93a4;font-weight:800;border-top:0}.pt-pill{font-style:normal;font-size:10px;padding:5px 8px;border-radius:99px;background:#f2f4f7;color:#626d80}.pt-active{background:#e9f9ef;color:#087b49}.pt-invited{background:#fff7e6;color:#9a6500}.pt-foot{text-align:center;color:#919aaa;font-size:11px;padding-top:20px}@media(max-width:760px){.pt-form{grid-template-columns:1fr 1fr}.pt-actions{grid-column:1/-1}.pt-row{grid-template-columns:1.5fr 1fr 90px}.pt-row span:nth-child(3){display:none}}@media(max-width:520px){.pt-shell{padding:18px 4% 40px}.pt-head h1{font-size:26px}.pt-form{grid-template-columns:1fr}.pt-actions{grid-column:auto}.pt-row{grid-template-columns:1fr 90px}.pt-row span:nth-child(2){display:none}}
     `}</style>
   </main>;
+}
+
+export default function ProjectTeamPage(){
+  return <Suspense fallback={<main style={{padding:32}}>Loading team workspace…</main>}><ProjectTeamContent /></Suspense>;
 }
