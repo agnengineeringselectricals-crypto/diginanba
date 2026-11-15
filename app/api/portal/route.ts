@@ -65,6 +65,7 @@ export async function GET() {
    db.query(`SELECT t.id,t.project_id,t.subject,t.status,t.created_at FROM pm_communication_threads t JOIN pm_communication_participants cp ON cp.thread_id=t.id AND cp.organization_id=t.organization_id WHERE t.organization_id=$1 AND t.thread_type='supplier' AND t.visibility='external_portal' AND cp.user_id=$2 ORDER BY t.updated_at DESC LIMIT 100`,[member.organization_id,session.user.id]),
    db.query(`SELECT m.id,m.thread_id,m.body,m.created_at,u.display_name AS sender FROM pm_communication_messages m JOIN pm_communication_threads t ON t.id=m.thread_id AND t.organization_id=m.organization_id JOIN pm_communication_participants cp ON cp.thread_id=t.id AND cp.organization_id=t.organization_id LEFT JOIN users u ON u.id=m.sender_user_id WHERE m.organization_id=$1 AND t.thread_type='supplier' AND t.visibility='external_portal' AND cp.user_id=$2 ORDER BY m.created_at ASC LIMIT 500`,[member.organization_id,session.user.id]),
   ]);
+  if(member.permissions?.communication===false){threads.rows.length=0;messages.rows.length=0;}
   return NextResponse.json({partyType:'supplier',member:{contactName:member.contact_name,email:member.email},supplier:supplier.rows[0],enquiries:enquiries.rows,quotes:quotes.rows,threads:threads.rows,messages:messages.rows});
  } catch(error) {
   console.error('External portal load failed',error);
