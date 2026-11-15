@@ -11,8 +11,11 @@ export async function GET(_request:Request,context:{params:Promise<{projectId:st
   const {projectId}=await context.params;if(!z.string().uuid().safeParse(projectId).success)return NextResponse.json({error:'Invalid project.'},{status:400});
   try{
     const access=await db.query(
-      `SELECT p.organization_id FROM pm_projects p JOIN organization_memberships m ON m.organization_id=p.organization_id
-       WHERE p.id=$1 AND m.user_id=$2 AND m.status='active'
+      `SELECT p.organization_id,m.role AS organization_role,
+              (SELECT mine.id FROM pm_memberships mine WHERE mine.organization_id=p.organization_id AND mine.user_id=$2 AND mine.status='active' LIMIT 1) AS current_membership_id,
+              (m.role IN ('owner','admin') OR EXISTS(SELECT 1 FROM pm_project_members x JOIN pm_memberships xm ON xm.id=x.membership_id WHERE x.project_id=p.id AND x.organization_id=p.organization_id AND x.status='active' AND xm.user_id=$2 AND xm.status='active' AND x.access_level='project_admin')) AS can_manage_project
+       FROM pm_projects p JOIN organization_memberships m ON m.organization_id=p.organization_id
+       WHERE p.id=$1 AND m.user_id=$2 AND m.status='active' AND p.status<>'archived'
        AND (m.role IN ('owner','admin') OR EXISTS(SELECT 1 FROM pm_project_members x JOIN pm_memberships xm ON xm.id=x.membership_id WHERE x.project_id=p.id AND x.organization_id=p.organization_id AND x.status='active' AND xm.user_id=$2 AND xm.status='active'))
        LIMIT 1`,[projectId,session.user.id]);
     if(!access.rows[0])return NextResponse.json({error:'Project not found or access denied.'},{status:404});
@@ -29,7 +32,7 @@ export async function GET(_request:Request,context:{params:Promise<{projectId:st
            OR EXISTS(SELECT 1 FROM pm_project_members mine WHERE mine.project_id=$2 AND mine.organization_id=pm.organization_id AND mine.membership_id=pm.id AND mine.status='active')
          )
        ORDER BY COALESCE(u.display_name,u.email)`,[access.rows[0].organization_id,projectId,session.user.id]);
-    return NextResponse.json({members:members.rows});
+    return NextResponse.json({members:members.rows,capabilities:{canManageProject:Boolean(access.rows[0].can_manage_project),currentMembershipId:access.rows[0].current_membership_id||null}});
   }catch(error){console.error('Project member lookup failed',error);return NextResponse.json({error:'Project members are temporarily unavailable.'},{status:503});}
 }
 
