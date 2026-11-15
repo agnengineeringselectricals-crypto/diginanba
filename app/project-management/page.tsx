@@ -71,7 +71,7 @@ export default function ProjectManagementPage() {
   return <main className="pm-shell">
     <header className="pm-header">
       <div><Link href="/" className="pm-brand">DigiNanba <span>Projects</span></Link><p>Project delivery and organizational performance</p></div>
-      <div className="pm-header-actions"><Link href="/project-management/team" className="pm-secondary">Team</Link><Link href="/organizations" className="pm-secondary">Organizations</Link><button className="pm-primary" onClick={() => setShowCreate(v => !v)} disabled={!organizations.length}>{showCreate ? 'Close form' : '+ New project'}</button></div>
+      <div className="pm-header-actions"><Link href="/project-management/portals" className="pm-secondary">Clients & Suppliers</Link><Link href="/project-management/team" className="pm-secondary">Team</Link><Link href="/organizations" className="pm-secondary">Organizations</Link><button className="pm-primary" onClick={() => setShowCreate(v => !v)} disabled={!organizations.length}>{showCreate ? 'Close form' : '+ New project'}</button></div>
     </header>
     <section className="pm-intro"><div><span className="pm-eyebrow">AGN ENGINEERING · WORKSPACE</span><h1>Plan clearly. Execute with control.</h1><p>Manage projects, people, commitments and performance in one connected workspace.</p></div><div className="pm-intro-mark">PM</div></section>
     {error && <p className="pm-alert" role="alert">{error}</p>}
