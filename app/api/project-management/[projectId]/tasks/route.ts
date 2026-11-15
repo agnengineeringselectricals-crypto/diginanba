@@ -99,6 +99,19 @@ export async function POST(request: Request, context: { params: Promise<{ projec
        RETURNING id,title,status,actual_quantity,target_quantity,planned_start_date,planned_end_date,priority`,
       [orgId,projectId,input.workPackageId||null,input.parentTaskId||null,input.title,input.description,input.unit||null,
        input.targetQuantity??null,input.plannedStartDate||null,input.plannedEndDate||null,input.priority,input.ownerMembershipId||null,session.user.id]);
+    const metric = await client.query(
+      `INSERT INTO pm_performance_metrics(
+         organization_id,project_id,entity_type,entity_id,metric_code,metric_name,unit,
+         baseline_target,current_target,actual_value,current_status,
+         planned_start_date,planned_finish_date,responsible_membership_id,updated_by
+       ) VALUES($1,$2,'task',$3,'quantity','Task quantity',$4,$5,$5,0,'not_started',$6,$7,$8,$9)
+       RETURNING id`,
+      [orgId,projectId,created.rows[0].id,input.unit||null,input.targetQuantity??null,
+       input.plannedStartDate||null,input.plannedEndDate||null,input.ownerMembershipId||null,session.user.id]);
+    await client.query(
+      `INSERT INTO pm_performance_measurements(organization_id,metric_id,target_value,actual_value,status,note,measured_by)
+       VALUES($1,$2,$3,0,'not_started','Initial task baseline',$4)`,
+      [orgId,metric.rows[0].id,input.targetQuantity??null,session.user.id]);
     await client.query(
       `INSERT INTO pm_audit_events(organization_id,actor_user_id,project_id,action,entity_type,entity_id,after_data)
        VALUES($1,$2,$3,'task.created','task',$4,$5::jsonb)`,
