@@ -113,7 +113,8 @@ export async function POST(request:Request) {
       const e=await db.query(`SELECT id FROM pm_supplier_enquiries WHERE id=$1 AND organization_id=$2 AND status='draft'`,[v.data.enquiryId,org]);
       if(!e.rows[0]) return NextResponse.json({error:'Draft enquiry not found.'},{status:404});
       for(const supplierId of [...new Set(v.data.supplierIds)]) {
-        const s=await db.query(`SELECT id FROM pm_suppliers WHERE id=$1 AND organization_id=$2 AND status='active'`,[supplierId,org]);
+        const s=await db.query(`SELECT id,EXISTS(SELECT 1 FROM pm_external_portal_members ep WHERE ep.organization_id=pm_suppliers.organization_id AND ep.party_type='supplier' AND ep.party_id=pm_suppliers.id AND ep.status='active') AS portal_active FROM pm_suppliers WHERE id=$1 AND organization_id=$2 AND status='active'`,[supplierId,org]);
+        if(s.rows[0]&&!s.rows[0].portal_active) throw new Error('Activate a supplier portal invitation before issuing this enquiry to that supplier.');
         if(s.rows[0]) await db.query(`INSERT INTO pm_supplier_enquiry_invites(organization_id,enquiry_id,supplier_id) VALUES($1,$2,$3) ON CONFLICT DO NOTHING`,[org,v.data.enquiryId,supplierId]);
       }
       await db.query(`UPDATE pm_supplier_enquiries SET status='issued',updated_at=now() WHERE id=$1 AND organization_id=$2`,[v.data.enquiryId,org]);
