@@ -68,7 +68,7 @@ export default function ProjectDetailPage({params}:{params:Promise<{projectId:st
       const found=(pd.projects||[]).find((p:Project)=>p.id===projectId);
       if(!found)throw new Error('Project not found or you do not have access.');
       setProject(found);setTasks(td.tasks||[]);setPackages(wd.workPackages||[]);setMembers(md.members||[]);setMilestones(mild.milestones||[]);setDependencies(dd.dependencies||[]);
-      setEdits(Object.fromEntries((td.tasks||[]).map((t:Task)=>[t.id,{actual:String(t.actual_quantity??0),target:String(t.target_quantity??''),status:t.status,progress:String(t.progress_percent??0),reason:'',action:'',title:t.title,description:t.description||'',unit:t.unit||'',priority:t.priority,plannedStart:t.planned_start_date?.slice(0,10)||'',plannedEnd:t.planned_end_date?.slice(0,10)||'',ownerId:t.owner_membership_id||'',packageId:t.work_package_id||'',parentId:t.parent_task_id||''}])));
+      setEdits(Object.fromEntries((td.tasks||[]).map((t:Task)=>[t.id,{actual:String(t.actual_quantity??0),target:String(t.target_quantity??''),status:t.status,progress:String(t.progress_percent??0),reason:'',action:'',title:t.title,description:t.description||'',unit:t.unit||'',priority:t.priority,plannedStart:t.planned_start_date?.slice(0,10)||'',plannedEnd:t.planned_end_date?.slice(0,10)||'',actualStart:t.actual_start_date?.slice(0,10)||'',actualEnd:t.actual_end_date?.slice(0,10)||'',forecastEnd:t.forecast_end_date?.slice(0,10)||'',nextFollowUp:'',ownerId:t.owner_membership_id||'',packageId:t.work_package_id||'',parentId:t.parent_task_id||''}])));
     }catch(e){setError(e instanceof Error?e.message:'Unable to load project.')}
     finally{setLoading(false)}
   },[projectId]);
