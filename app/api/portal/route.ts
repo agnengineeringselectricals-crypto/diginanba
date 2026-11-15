@@ -32,16 +32,21 @@ export async function GET() {
       WHERE a.organization_id=$1 AND a.metadata->>'portal_member_id'=$2 ORDER BY a.requested_at DESC LIMIT 100`,[member.organization_id,member.id]),
    ]);
    const ids=projects.rows.map((p:any)=>p.id);
-   let milestones:any[]=[]; let documents:any[]=[]; let tasks:any[]=[];
+   let milestones:any[]=[]; let documents:any[]=[]; let tasks:any[]=[]; let inspections:any[]=[]; let payments:any[]=[]; let versions:any[]=[]; let threads:any[]=[]; let messages:any[]=[];
    if(ids.length) {
-    const [m,d,t]=await Promise.all([
+    const [m,d,t,q,p,v,th,msg]=await Promise.all([
      db.query(`SELECT project_id,id,name,description,baseline_date,forecast_date,actual_date,status FROM pm_project_milestones WHERE organization_id=$1 AND project_id=ANY($2::uuid[]) ORDER BY baseline_date NULLS LAST`,[member.organization_id,ids]),
      db.query(`SELECT id,project_id,document_number,title,document_type,revision,mime_type,file_size_bytes,status,created_at FROM pm_documents WHERE organization_id=$1 AND project_id=ANY($2::uuid[]) AND status='approved' ORDER BY created_at DESC LIMIT 300`,[member.organization_id,ids]),
      db.query(`SELECT project_id,task_code,title,status,progress_percent,planned_start_date,planned_end_date,forecast_end_date FROM pm_tasks WHERE organization_id=$1 AND project_id=ANY($2::uuid[]) AND status<>'cancelled' ORDER BY planned_end_date NULLS LAST LIMIT 300`,[member.organization_id,ids]),
+     db.query(`SELECT project_id,inspection_number,inspection_type,inspected_at,result,due_date,closed_at FROM pm_quality_inspections WHERE organization_id=$1 AND project_id=ANY($2::uuid[]) ORDER BY inspected_at DESC NULLS LAST LIMIT 200`,[member.organization_id,ids]),
+     db.query(`SELECT project_id,entry_number,entry_type,entry_date,description,amount,tax_amount,currency_code,status FROM pm_financial_entries WHERE organization_id=$1 AND project_id=ANY($2::uuid[]) AND party_type='client' AND party_id=$3 AND status IN ('approved','posted') ORDER BY entry_date DESC LIMIT 200`,[member.organization_id,ids,member.party_id]),
+     db.query(`SELECT v.document_id,v.revision,v.change_summary,v.created_at FROM pm_document_versions v JOIN pm_documents d ON d.id=v.document_id AND d.organization_id=v.organization_id WHERE v.organization_id=$1 AND d.project_id=ANY($2::uuid[]) AND d.status='approved' ORDER BY v.created_at DESC LIMIT 300`,[member.organization_id,ids]),
+     db.query(`SELECT t.id,t.project_id,t.subject,t.status,t.created_at FROM pm_communication_threads t JOIN pm_communication_participants cp ON cp.thread_id=t.id AND cp.organization_id=t.organization_id WHERE t.organization_id=$1 AND t.project_id=ANY($2::uuid[]) AND t.thread_type='client' AND t.visibility='external_portal' AND cp.user_id=$3 ORDER BY t.updated_at DESC LIMIT 100`,[member.organization_id,ids,session.user.id]),
+     db.query(`SELECT m.id,m.thread_id,m.body,m.created_at,u.display_name AS sender FROM pm_communication_messages m JOIN pm_communication_threads t ON t.id=m.thread_id AND t.organization_id=m.organization_id JOIN pm_communication_participants cp ON cp.thread_id=t.id AND cp.organization_id=t.organization_id LEFT JOIN users u ON u.id=m.sender_user_id WHERE m.organization_id=$1 AND t.project_id=ANY($2::uuid[]) AND t.thread_type='client' AND t.visibility='external_portal' AND cp.user_id=$3 ORDER BY m.created_at ASC LIMIT 500`,[member.organization_id,ids,session.user.id]),
     ]);
-    milestones=m.rows;documents=d.rows;tasks=t.rows;
+    milestones=m.rows;documents=d.rows;tasks=t.rows;inspections=q.rows;payments=p.rows;versions=v.rows;threads=th.rows;messages=msg.rows;
    }
-   return NextResponse.json({partyType:'client',member:{contactName:member.contact_name,email:member.email},client:client.rows[0],projects:projects.rows,milestones,documents,tasks,approvals:approvals.rows});
+   return NextResponse.json({partyType:'client',member:{contactName:member.contact_name,email:member.email},client:client.rows[0],projects:projects.rows,milestones,documents,tasks,approvals:approvals.rows,inspections,payments,versions,threads,messages});
   }
   const [supplier,enquiries,quotes]=await Promise.all([
    db.query('SELECT legal_name,supplier_code,contact_name,tax_registration_number,status FROM pm_suppliers WHERE id=$1 AND organization_id=$2',[member.party_id,member.organization_id]),
@@ -52,7 +57,11 @@ export async function GET() {
    db.query(`SELECT id,enquiry_id,quote_number,currency_code,subtotal,tax_total,total_amount,delivery_days,valid_until,line_items,terms,status,submitted_at
      FROM pm_supplier_quotes WHERE organization_id=$1 AND supplier_id=$2 ORDER BY submitted_at DESC`,[member.organization_id,member.party_id]),
   ]);
-  return NextResponse.json({partyType:'supplier',member:{contactName:member.contact_name,email:member.email},supplier:supplier.rows[0],enquiries:enquiries.rows,quotes:quotes.rows});
+  const [threads,messages]=await Promise.all([
+   db.query(`SELECT t.id,t.project_id,t.subject,t.status,t.created_at FROM pm_communication_threads t JOIN pm_communication_participants cp ON cp.thread_id=t.id AND cp.organization_id=t.organization_id WHERE t.organization_id=$1 AND t.thread_type='supplier' AND t.visibility='external_portal' AND cp.user_id=$2 ORDER BY t.updated_at DESC LIMIT 100`,[member.organization_id,session.user.id]),
+   db.query(`SELECT m.id,m.thread_id,m.body,m.created_at,u.display_name AS sender FROM pm_communication_messages m JOIN pm_communication_threads t ON t.id=m.thread_id AND t.organization_id=m.organization_id JOIN pm_communication_participants cp ON cp.thread_id=t.id AND cp.organization_id=t.organization_id LEFT JOIN users u ON u.id=m.sender_user_id WHERE m.organization_id=$1 AND t.thread_type='supplier' AND t.visibility='external_portal' AND cp.user_id=$2 ORDER BY m.created_at ASC LIMIT 500`,[member.organization_id,session.user.id]),
+  ]);
+  return NextResponse.json({partyType:'supplier',member:{contactName:member.contact_name,email:member.email},supplier:supplier.rows[0],enquiries:enquiries.rows,quotes:quotes.rows,threads:threads.rows,messages:messages.rows});
  } catch(error) {
   console.error('External portal load failed',error);
   return NextResponse.json({error:'Unable to load your portal workspace.'},{status:500});
