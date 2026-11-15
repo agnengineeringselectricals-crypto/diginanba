@@ -47,13 +47,8 @@ CREATE INDEX IF NOT EXISTS pm_supplier_enquiries_project_idx
 ALTER TABLE pm_supplier_enquiries ADD COLUMN IF NOT EXISTS source_indent_id uuid;
 CREATE INDEX IF NOT EXISTS pm_supplier_enquiries_source_indent_idx
   ON pm_supplier_enquiries(organization_id,source_indent_id) WHERE source_indent_id IS NOT NULL;
-DO $
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='pm_supplier_enquiries_source_indent_fk') THEN
-    ALTER TABLE pm_supplier_enquiries ADD CONSTRAINT pm_supplier_enquiries_source_indent_fk
-      FOREIGN KEY (organization_id,source_indent_id) REFERENCES pm_material_indents(organization_id,id) ON DELETE RESTRICT;
-  END IF;
-END $;
+ALTER TABLE pm_supplier_enquiries ADD CONSTRAINT pm_supplier_enquiries_source_indent_fk FOREIGN KEY (organization_id,source_indent_id) REFERENCES pm_material_indents(organization_id,id) ON DELETE RESTRICT;
+
 
 CREATE TABLE IF NOT EXISTS pm_supplier_enquiry_invites (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -106,13 +101,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS pm_supplier_quotes_org_id_uq ON pm_supplier_qu
 ALTER TABLE pm_purchase_orders ADD COLUMN IF NOT EXISTS supplier_quote_id uuid;
 CREATE UNIQUE INDEX IF NOT EXISTS pm_purchase_orders_supplier_quote_uq
   ON pm_purchase_orders(organization_id,supplier_quote_id) WHERE supplier_quote_id IS NOT NULL;
-DO $
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='pm_purchase_orders_supplier_quote_fk') THEN
-    ALTER TABLE pm_purchase_orders ADD CONSTRAINT pm_purchase_orders_supplier_quote_fk
-      FOREIGN KEY (organization_id,supplier_quote_id) REFERENCES pm_supplier_quotes(organization_id,id) ON DELETE RESTRICT;
-  END IF;
-END $;
+ALTER TABLE pm_purchase_orders ADD CONSTRAINT pm_purchase_orders_supplier_quote_fk FOREIGN KEY (organization_id,supplier_quote_id) REFERENCES pm_supplier_quotes(organization_id,id) ON DELETE RESTRICT;
+
 
 CREATE TABLE IF NOT EXISTS pm_portal_activity_events (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
