@@ -3,7 +3,7 @@
 Product owner: AGN Engineering
 Repository: agnengineeringselectricals-crypto/diginanba
 Application: DigiNanba; shared identity, organizations and authentication
-Implementation branch: feature/project-management-saas-mvp
+Implementation branch: main (work is committed directly to main)
 Status: Foundation and initial workspace screen only. Not production-ready.
 
 ## Product intent
@@ -62,9 +62,9 @@ Existing organization_subscriptions is reused. It currently stores one subscript
 - Existing organization workspace: /organizations and /api/organizations.
 - New PM dashboard: /project-management.
 - New organization-scoped PM API: /api/project-management (list organizations/projects and create a project).
-- New task API: /api/project-management/[projectId]/tasks (list/create).
-- Current branch: feature/project-management-saas-mvp.
-- Foundation only. Task update/delete, work package CRUD, permission UI/enforcement, invitations, module pages, external portals, secure storage, billing metering, notifications and automated tests remain to be implemented.
+- New task API: /api/project-management/[projectId]/tasks (list/create/update; actual quantity, target, status, progress and audit/performance measurement history).
+- Team onboarding screen: /project-management/team (organization owner/admin invites existing DigiNanba accounts; invitee accepts from emailed deep link).\n- Project assignment API: /api/project-management/[projectId]/members.\n- Work breakdown API: /api/project-management/[projectId]/work-packages.\n- Current branch: main.
+- Initial working foundation: project portfolio/create, project task execution, work packages, task progress/target/actual updates, shared performance ledger initialization, project team assignment, and organization engineer invitation/acceptance are implemented. Remaining: task delete, dependency management, richer permission administration, department/designation setup UI, module pages for procurement/finance/quality/resources, client/supplier portals, secure document storage, billing metering, notifications and automated tenant-isolation tests.
 
 ## Delivery sequence
 Phase A — safe working MVP:
