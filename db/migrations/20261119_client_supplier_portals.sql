@@ -51,7 +51,7 @@ DO $
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='pm_supplier_enquiries_source_indent_fk') THEN
     ALTER TABLE pm_supplier_enquiries ADD CONSTRAINT pm_supplier_enquiries_source_indent_fk
-      FOREIGN KEY (organization_id,source_indent_id) REFERENCES pm_material_indents(organization_id,id) ON DELETE SET NULL;
+      FOREIGN KEY (organization_id,source_indent_id) REFERENCES pm_material_indents(organization_id,id) ON DELETE RESTRICT;
   END IF;
 END $;
 
