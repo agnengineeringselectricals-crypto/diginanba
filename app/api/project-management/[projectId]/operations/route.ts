@@ -265,7 +265,9 @@ export async function PATCH(request: Request, context: {params: Promise<{project
     const currentStatus=String(current.rows[0].current_status);
     if(currentStatus===status){await client.query('ROLLBACK');return NextResponse.json({error:'The record already has that status.'},{status:409});}
     if(!transitions[module]?.[kind]?.[currentStatus]?.includes(status)){await client.query('ROLLBACK');return NextResponse.json({error:'Invalid '+kind.replaceAll('_',' ')+' status transition from '+currentStatus+' to '+status+'.'},{status:409});}
-    const updateSql='UPDATE '+table+' SET '+statusColumn+'=
+    const statusPlaceholder=String.fromCharCode(36)+(values.length+1);
+    const updateSql='UPDATE '+table+' SET '+statusColumn+'='+statusPlaceholder+setUpdated+approval+' WHERE id='+String.fromCharCode(36)+'1 AND organization_id='+String.fromCharCode(36)+'2 '+scope+ownerScope+' RETURNING id,'+statusColumn+' AS status';
+    const result=await client.query(updateSql,updateParams);
     if(!result.rows[0]){await client.query('ROLLBACK');return NextResponse.json({error:'Record not found in this project.'},{status:404});}
     if(module==='procurement' && kind==='goods_receipt'){
       const lines=await client.query(`SELECT gi.purchase_order_item_id,gi.received_quantity,gi.accepted_quantity,gi.rejected_quantity FROM pm_goods_receipt_items gi WHERE gi.organization_id=$1 AND gi.receipt_id=$2 FOR UPDATE`,[org,id]);
