@@ -14,8 +14,7 @@ const schema = z.object({
 
 async function getProjectAccess(projectId: string, userId: string, write = false) {
   return db.query(
-    `SELECT p.organization_id FROM pm_projects p
-     JOIN organization_memberships m ON m.organization_id=p.organization_id
+    `SELECT p.organization_id FROM pm_projects p JOIN organization_accounts org_active ON org_active.id=p.organization_id AND org_active.status='active' JOIN organization_memberships m ON m.organization_id=p.organization_id
      WHERE p.id=$1 AND m.user_id=$2 AND m.status='active' AND p.status <> 'archived'
        AND (m.role IN ('owner','admin') OR EXISTS (
          SELECT 1 FROM pm_project_members pmx
