@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
+import { checkProjectPermission } from '@/lib/server/project-permissions';
 
 export const runtime = 'nodejs';
 const schema = z.object({
@@ -36,6 +37,7 @@ export async function GET(_request: Request, context: { params: Promise<{ projec
   try{
     const access=await getProjectAccess(projectId,session.user.id,false);
     if(!access.rows[0])return NextResponse.json({error:'Project not found or access denied.'},{status:404});
+    const permission=await checkProjectPermission(db,projectId,s.user.id,'tasks.read','view');if(!permission?.allowed)return NextResponse.json({error:'Your organization role does not allow this viewing work packages.'},{status:403});
     const result=await db.query(
       `SELECT id,package_code,name,description,parent_package_id,sort_order,created_at
        FROM pm_work_packages WHERE organization_id=$1 AND project_id=$2
@@ -69,6 +71,7 @@ export async function POST(request:Request,context:{params:Promise<{projectId:st
          ))
        LIMIT 1 FOR UPDATE OF p`,[projectId,session.user.id]);
     if(!access.rows[0]){await client.query('ROLLBACK');return NextResponse.json({error:'Project not found or access denied.'},{status:404});}
+    const permission=await checkProjectPermission(client,projectId,session.user.id,'tasks.create','create');if(!permission?.allowed){await client.query('ROLLBACK');return NextResponse.json({error:'Your organization role does not allow creating work packages.'},{status:403});}
     const orgId=access.rows[0].organization_id as string;
     if(input.parentPackageId){
       const parent=await client.query('SELECT 1 FROM pm_work_packages WHERE id=$1 AND organization_id=$2 AND project_id=$3',[input.parentPackageId,orgId,projectId]);

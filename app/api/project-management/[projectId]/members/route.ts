@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
+import { checkProjectPermission } from '@/lib/server/project-permissions';
 
 export const runtime='nodejs';
 const schema=z.object({membershipId:z.string().uuid(),projectRole:z.enum(['project_manager','engineer','viewer']).default('engineer'),accessLevel:z.enum(['project_admin','project_read','assigned']).default('assigned')});
