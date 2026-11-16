@@ -50,7 +50,8 @@ export async function GET() {
     if(member.permissions?.documents===false){documents=[];versions=[];}
     if(member.permissions?.communication===false){threads=[];messages=[];}
    }
-   return NextResponse.json({partyType:'client',member:{contactName:member.contact_name,email:member.email},client:client.rows[0],projects:projects.rows,milestones,documents,tasks,approvals:approvals.rows,inspections,payments,versions,threads,messages,deliveries});
+   const clientApprovals=member.permissions?.documents===false?[]:approvals.rows;
+   return NextResponse.json({partyType:'client',member:{contactName:member.contact_name,email:member.email},client:client.rows[0],projects:projects.rows,milestones,documents,tasks,approvals:clientApprovals,inspections,payments,versions,threads,messages,deliveries});
   }
   const [supplier,enquiries,quotes,purchaseOrders,purchaseOrderItems,deliveryUpdates]=await Promise.all([
    db.query('SELECT legal_name,supplier_code,category,specializations,website_url,contact_name,tax_registration_number,status FROM pm_suppliers WHERE id=$1 AND organization_id=$2',[member.party_id,member.organization_id]),
@@ -156,6 +157,7 @@ export async function POST(request:Request) {
    return NextResponse.json({threadId:thread.id,message},{status:201});
   }
   if(body.action==='client_decision' && member.party_type==='client') {
+   if(member.permissions?.documents===false) return NextResponse.json({error:'Your portal account does not have document approval permission.'},{status:403});
    const v=z.object({approvalId:uuid,decision:z.enum(['approved','rejected']),note:z.string().trim().max(2000).optional(),signerName:z.string().trim().min(2).max(160),confirm:z.literal(true)}).safeParse(body);
    if(!v.success) return NextResponse.json({error:'Enter your name and confirm the electronic approval declaration.'},{status:400});
    const forwarded=request.headers.get('x-forwarded-for');
