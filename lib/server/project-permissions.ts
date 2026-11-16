@@ -30,7 +30,7 @@ export async function checkProjectPermission(
             CASE
               WHEN om.role IN ('owner','admin') OR pmx.access_level='project_admin' THEN true
               ELSE COALESCE((
-                SELECT CASE $5::text
+                SELECT CASE $4::text
                   WHEN 'view' THEN rp.can_view
                   WHEN 'create' THEN rp.can_create
                   WHEN 'update' THEN rp.can_update
@@ -41,7 +41,7 @@ export async function checkProjectPermission(
                 JOIN pm_permissions perm ON perm.id=rp.permission_id
                 WHERE rp.organization_id=p.organization_id
                   AND rp.role_id=actor.role_id
-                  AND perm.code=$4
+                  AND perm.code=$3
                 LIMIT 1
               ),false)
             END AS allowed,
@@ -53,7 +53,7 @@ export async function checkProjectPermission(
                 JOIN pm_permissions perm ON perm.id=rp.permission_id
                 WHERE rp.organization_id=p.organization_id
                   AND rp.role_id=actor.role_id
-                  AND perm.code=$4
+                  AND perm.code=$3
                 LIMIT 1
               )
             END AS permission_scope,
@@ -72,7 +72,7 @@ export async function checkProjectPermission(
      WHERE p.id=$1 AND p.status<>'archived'
        AND (om.role IN ('owner','admin') OR pmx.id IS NOT NULL)
      LIMIT 1`,
-    [projectId,userId,permissionCode,permissionCode,action],
+    [projectId,userId,permissionCode,action],
   );
   const row=r.rows[0];
   if(!row)return null;
