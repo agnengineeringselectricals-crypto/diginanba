@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
+import { checkProjectPermission } from '@/lib/server/project-permissions';
 
 export const runtime = 'nodejs';
 
@@ -37,6 +38,8 @@ export async function GET(_request: Request, context: { params: Promise<{ projec
          ))
        LIMIT 1`, [projectId, session.user.id]);
     if (!access.rows[0]) return NextResponse.json({ error: 'Project not found or access denied.' }, { status: 404 });
+    const permission=await checkProjectPermission(db,projectId,session.user.id,'tasks.read','view');
+    if(!permission?.allowed)return NextResponse.json({error:'Your organization role does not allow viewing project tasks.'},{status:403});
     const tasks = await db.query(
       `SELECT t.id,t.task_code,t.title,t.description,t.unit,t.work_package_id,t.parent_task_id,t.target_quantity,t.actual_quantity,
               t.planned_start_date,t.planned_end_date,t.actual_start_date,t.actual_end_date,t.forecast_end_date,
@@ -46,8 +49,10 @@ export async function GET(_request: Request, context: { params: Promise<{ projec
        LEFT JOIN pm_memberships pm ON pm.id=t.owner_membership_id AND pm.organization_id=t.organization_id
        LEFT JOIN users u ON u.id=pm.user_id
        WHERE t.organization_id=$1 AND t.project_id=$2
+         AND ($3::text NOT IN ('assigned','own') OR t.owner_membership_id=$5)
+         AND ($3::text <> 'department' OR EXISTS(SELECT 1 FROM pm_memberships task_owner WHERE task_owner.id=t.owner_membership_id AND task_owner.organization_id=t.organization_id AND task_owner.department_id=$4))
        ORDER BY t.created_at,t.title LIMIT 1000`,
-      [access.rows[0].organization_id, projectId]);
+      [access.rows[0].organization_id, projectId, permission.scope, permission.departmentId, permission.membershipId]);
     return NextResponse.json({ tasks: tasks.rows });
   } catch (error) {
     console.error('Project task list failed', error);
@@ -78,6 +83,8 @@ export async function POST(request: Request, context: { params: Promise<{ projec
       await client.query('ROLLBACK');
       return NextResponse.json({ error: 'Project not found or access denied.' }, { status: 404 });
     }
+    const permission=await checkProjectPermission(client,projectId,session.user.id,'tasks.create','create');
+    if(!permission?.allowed || (['assigned','own'].includes(permission.scope||'') && parsed.data.ownerMembershipId && parsed.data.ownerMembershipId!==permission.membershipId)) { await client.query('ROLLBACK'); return NextResponse.json({error:'Your organization role does not allow creating tasks at this scope.'},{status:403}); }
     const orgId = access.rows[0].organization_id as string;
     const input = parsed.data;
     if (input.workPackageId) {
@@ -176,6 +183,12 @@ export async function PATCH(request: Request, context: { params: Promise<{ proje
          ))
        LIMIT 1 FOR UPDATE OF p`, [projectId, session.user.id]);
     if (!access.rows[0]) { await client.query('ROLLBACK'); return NextResponse.json({ error: 'Project not found or access denied.' }, { status: 404 }); }
+    const permission=await checkProjectPermission(client,projectId,session.user.id,'tasks.update','update');
+    const approvalPermission=input.status==='completed'?await checkProjectPermission(client,projectId,session.user.id,'tasks.approve','approve'):null;
+    if(!permission?.allowed && !approvalPermission?.allowed){await client.query('ROLLBACK');return NextResponse.json({error:'Your organization role does not allow updating project tasks.'},{status:403});}
+    if(input.status==='completed'&&!approvalPermission?.allowed&&!permission?.isAdministrator){await client.query('ROLLBACK');return NextResponse.json({error:'Task completion requires task approval permission.'},{status:403});}
+    if(permission?.scope==='assigned'||permission?.scope==='own'){access.rows[0].can_manage=false;}
+    else if(permission?.allowed){access.rows[0].can_manage=true;}
     const orgId = access.rows[0].organization_id as string;
     const before = await client.query(
       'SELECT id,title,description,unit,priority,work_package_id,parent_task_id,planned_start_date,planned_end_date,status,actual_quantity,target_quantity,progress_percent,actual_start_date,actual_end_date,forecast_end_date,owner_membership_id FROM pm_tasks WHERE id=$1 AND organization_id=$2 AND project_id=$3 FOR UPDATE',
