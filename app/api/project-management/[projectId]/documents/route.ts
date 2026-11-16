@@ -33,7 +33,7 @@ async function projectAccess(projectId: string, userId: string, write = false) {
          WHERE x.project_id=p.id AND x.organization_id=p.organization_id AND x.status='active'
            AND xm.user_id=$2 AND xm.status='active' AND x.access_level='project_admin'
        )) AS can_manage
-     FROM pm_projects p JOIN organization_memberships m ON m.organization_id=p.organization_id
+     FROM pm_projects p JOIN organization_accounts org_active ON org_active.id=p.organization_id AND org_active.status='active' JOIN organization_memberships m ON m.organization_id=p.organization_id
      WHERE p.id=$1 AND p.status<>'archived' AND m.user_id=$2 AND m.status='active'
        AND (m.role IN ('owner','admin') OR EXISTS (
          SELECT 1 FROM pm_project_members x JOIN pm_memberships xm ON xm.id=x.membership_id
