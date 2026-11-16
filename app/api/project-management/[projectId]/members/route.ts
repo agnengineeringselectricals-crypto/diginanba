@@ -14,7 +14,7 @@ export async function GET(_request:Request,context:{params:Promise<{projectId:st
       `SELECT p.organization_id,m.role AS organization_role,
               (SELECT mine.id FROM pm_memberships mine WHERE mine.organization_id=p.organization_id AND mine.user_id=$2 AND mine.status='active' LIMIT 1) AS current_membership_id,
               (m.role IN ('owner','admin') OR EXISTS(SELECT 1 FROM pm_project_members x JOIN pm_memberships xm ON xm.id=x.membership_id WHERE x.project_id=p.id AND x.organization_id=p.organization_id AND x.status='active' AND xm.user_id=$2 AND xm.status='active' AND x.access_level='project_admin')) AS can_manage_project
-       FROM pm_projects p JOIN organization_memberships m ON m.organization_id=p.organization_id
+       FROM pm_projects p JOIN organization_accounts org_active ON org_active.id=p.organization_id AND org_active.status='active' JOIN organization_memberships m ON m.organization_id=p.organization_id
        WHERE p.id=$1 AND m.user_id=$2 AND m.status='active' AND p.status<>'archived'
        AND (m.role IN ('owner','admin') OR EXISTS(SELECT 1 FROM pm_project_members x JOIN pm_memberships xm ON xm.id=x.membership_id WHERE x.project_id=p.id AND x.organization_id=p.organization_id AND x.status='active' AND xm.user_id=$2 AND xm.status='active'))
        LIMIT 1`,[projectId,session.user.id]);
@@ -44,7 +44,7 @@ export async function POST(request:Request,context:{params:Promise<{projectId:st
   try{
     await client.query('BEGIN');
     const access=await client.query(
-      `SELECT p.organization_id FROM pm_projects p JOIN organization_memberships m ON m.organization_id=p.organization_id
+      `SELECT p.organization_id FROM pm_projects p JOIN organization_accounts org_active ON org_active.id=p.organization_id AND org_active.status='active' JOIN organization_memberships m ON m.organization_id=p.organization_id
        WHERE p.id=$1 AND m.user_id=$2 AND m.status='active' AND p.status<>'archived'
        AND (m.role IN ('owner','admin') OR EXISTS(SELECT 1 FROM pm_project_members x JOIN pm_memberships xm ON xm.id=x.membership_id WHERE x.project_id=p.id AND x.organization_id=p.organization_id AND x.status='active' AND xm.user_id=$2 AND xm.status='active' AND x.access_level='project_admin'))
        LIMIT 1 FOR UPDATE OF p`,[projectId,session.user.id]);
