@@ -195,6 +195,8 @@ export async function PATCH(request: Request, context: { params: Promise<{ proje
       [input.taskId, orgId, projectId]);
     if (!before.rows[0]) { await client.query('ROLLBACK'); return NextResponse.json({ error: 'Task not found.' }, { status: 404 }); }
     const old = before.rows[0];
+    const editsPerformance=['actualQuantity','progressPercent','deviationReason','correctiveAction','nextFollowUpAt'].some(k=>Object.prototype.hasOwnProperty.call(input,k));
+    if(editsPerformance){const performancePermission=await checkProjectPermission(client,projectId,session.user.id,'performance.update','update');if(!performancePermission?.allowed||(['assigned','own'].includes(performancePermission.scope||'')&&old.owner_membership_id!==performancePermission.membershipId)){await client.query('ROLLBACK');return NextResponse.json({error:'Your organization role does not allow updating performance measurements at this scope.'},{status:403});}}
     const isAssignedOwner = Boolean(access.rows[0].actor_membership_id && old.owner_membership_id === access.rows[0].actor_membership_id);
     if (!access.rows[0].can_manage && !isAssignedOwner) {
       await client.query('ROLLBACK');

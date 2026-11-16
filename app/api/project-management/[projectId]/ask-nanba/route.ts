@@ -99,7 +99,7 @@ export async function POST(request: Request, context: { params: Promise<{ projec
          ORDER BY baseline_date NULLS LAST LIMIT 80`,
         [orgId, projectId, restricted ? memberId : null],
       ),
-      db.query(
+      performanceRead?.allowed ? db.query(
         `SELECT m.metric_name,m.unit,m.current_target,m.actual_value,m.current_status,m.variance,
                 m.planned_finish_date,m.forecast_finish_date,m.deviation_reason,m.corrective_action,
                 m.next_follow_up_at,t.title AS task
@@ -110,7 +110,7 @@ export async function POST(request: Request, context: { params: Promise<{ projec
          ORDER BY CASE WHEN m.current_status IN ('blocked','at_risk','on_hold') THEN 0 ELSE 1 END,m.next_follow_up_at NULLS LAST
          LIMIT 100`,
         [orgId, projectId, restricted ? memberId : null],
-      ),
+      ) : Promise.resolve({rows:[]}),
       db.query(
         `SELECT a.title,a.entity_type,a.approval_type,a.status,a.requested_at,
                 COUNT(s.id)::int AS step_count,
@@ -168,7 +168,7 @@ export async function POST(request: Request, context: { params: Promise<{ projec
         code: access.project_code, name: access.name, description: access.description, status: access.status,
         progressPercent: access.progress_percent, currency: access.currency_code,
         baselineStart: access.baseline_start_date, baselineFinish: access.baseline_end_date,
-        forecastFinish: access.forecast_end_date, approvedBudget: restricted ? null : access.approved_budget,
+        forecastFinish: access.forecast_end_date, approvedBudget: restricted || !financeRead?.allowed ? null : access.approved_budget,
       },
       visibility: restricted ? 'Assigned-task scope: only the requesting member’s assigned tasks, related performance, own assignments, assigned quality actions, and approvals are included. Procurement, finance, and document registers are excluded.' : 'Project scope: project records visible to this organization/project member.',
       workBreakdown: packages.rows,
