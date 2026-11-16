@@ -101,7 +101,7 @@ export async function POST(request:Request) {
       if(!v.success) return NextResponse.json({error:'Select an approved material indent and enter an enquiry title.'},{status:400});
       const indent=(await db.query(`SELECT i.id,i.project_id,i.indent_number FROM pm_material_indents i WHERE i.id=$1 AND i.organization_id=$2 AND i.status IN ('approved','partially_ordered')`,[v.data.indentId,org])).rows[0];
       if(!indent) return NextResponse.json({error:'Only approved material indents can be issued to suppliers.'},{status:409});
-      const lines=(await db.query(`SELECT description,specification,unit,target_quantity AS quantity FROM pm_material_indent_items WHERE organization_id=$1 AND indent_id=$2 ORDER BY created_at,id`,[org,indent.id])).rows;
+      const lines=(await db.query(`SELECT description,specification,unit,COALESCE(approved_quantity,target_quantity) AS quantity FROM pm_material_indent_items WHERE organization_id=$1 AND indent_id=$2 AND COALESCE(approved_quantity,target_quantity)>0 ORDER BY created_at,id`,[org,indent.id])).rows;
       if(!lines.length) return NextResponse.json({error:'The selected indent has no material lines.'},{status:409});
       const number=`RFQ-${new Date().toISOString().slice(0,10).replaceAll('-','')}-${randomBytes(3).toString('hex').toUpperCase()}`;
       const r=await db.query(`INSERT INTO pm_supplier_enquiries(organization_id,project_id,source_indent_id,enquiry_number,title,description,line_items,submission_deadline,status,created_by) VALUES($1,$2,$3,$4,$5,$6,$7::jsonb,$8,'draft',$9) RETURNING id,enquiry_number,title,status`,[org,indent.project_id,indent.id,number,v.data.title,v.data.description||`Quotation requested against material indent ${indent.indent_number}`,JSON.stringify(lines),v.data.submissionDeadline||null,session.user.id]);
@@ -110,17 +110,23 @@ export async function POST(request:Request) {
     if(body.action==='issue_enquiry') {
       const v=z.object({enquiryId:uuid,supplierIds:z.array(uuid).min(1).max(100)}).safeParse(body);
       if(!v.success) return NextResponse.json({error:'Select an enquiry and at least one supplier.'},{status:400});
-      const e=await db.query(`SELECT id FROM pm_supplier_enquiries WHERE id=$1 AND organization_id=$2 AND status='draft'`,[v.data.enquiryId,org]);
-      if(!e.rows[0]) return NextResponse.json({error:'Draft enquiry not found.'},{status:404});
-      let invited=0;
-      for(const supplierId of [...new Set(v.data.supplierIds)]) {
-        const s=await db.query(`SELECT id,EXISTS(SELECT 1 FROM pm_external_portal_members ep WHERE ep.organization_id=pm_suppliers.organization_id AND ep.party_type='supplier' AND ep.party_id=pm_suppliers.id AND ep.status='active') AS portal_active FROM pm_suppliers WHERE id=$1 AND organization_id=$2 AND status='active'`,[supplierId,org]);
-        if(s.rows[0]&&!s.rows[0].portal_active) return NextResponse.json({error:'Activate a supplier portal invitation before issuing this enquiry to that supplier.'},{status:409});
-        if(s.rows[0]) { await db.query(`INSERT INTO pm_supplier_enquiry_invites(organization_id,enquiry_id,supplier_id) VALUES($1,$2,$3) ON CONFLICT DO NOTHING`,[org,v.data.enquiryId,supplierId]); invited++; }
-      }
-      if(!invited) return NextResponse.json({error:'Select at least one active supplier with an accepted portal invitation.'},{status:400});
-      await db.query(`UPDATE pm_supplier_enquiries SET status='issued',updated_at=now() WHERE id=$1 AND organization_id=$2`,[v.data.enquiryId,org]);
-      return NextResponse.json({ok:true});
+      const supplierIds=[...new Set(v.data.supplierIds)];
+      const client=await db.connect();
+      try {
+        await client.query('BEGIN');
+        const e=await client.query(`SELECT id FROM pm_supplier_enquiries WHERE id=$1 AND organization_id=$2 AND status='draft' FOR UPDATE`,[v.data.enquiryId,org]);
+        if(!e.rows[0]) throw new Error('Draft enquiry not found or it has already been issued.');
+        const eligible=await client.query(`SELECT s.id,EXISTS(SELECT 1 FROM pm_external_portal_members ep WHERE ep.organization_id=s.organization_id AND ep.party_type='supplier' AND ep.party_id=s.id AND ep.status='active') AS portal_active FROM pm_suppliers s WHERE s.organization_id=$1 AND s.status='active' AND s.id=ANY($2::uuid[])`,[org,supplierIds]);
+        if(eligible.rows.length!==supplierIds.length) throw new Error('One or more selected suppliers are inactive or do not belong to this organization. No invitations were issued.');
+        if(eligible.rows.some((s:any)=>!s.portal_active)) throw new Error('Activate every selected supplier portal invitation before issuing this RFQ. No invitations were issued.');
+        for(const supplierId of supplierIds) await client.query(`INSERT INTO pm_supplier_enquiry_invites(organization_id,enquiry_id,supplier_id) VALUES($1,$2,$3) ON CONFLICT(organization_id,enquiry_id,supplier_id) DO NOTHING`,[org,v.data.enquiryId,supplierId]);
+        await client.query(`UPDATE pm_supplier_enquiries SET status='issued',updated_at=now() WHERE id=$1 AND organization_id=$2`,[v.data.enquiryId,org]);
+        await client.query('COMMIT');
+        return NextResponse.json({ok:true,invited:supplierIds.length});
+      } catch(error) {
+        await client.query('ROLLBACK').catch(()=>undefined);
+        throw error;
+      } finally { client.release(); }
     }
     if(body.action==='create_po_from_quote') {
       const v=z.object({quoteId:uuid,issueDate:z.string().date().optional(),expectedDeliveryDate:z.string().date().optional()}).safeParse(body);
@@ -134,6 +140,7 @@ export async function POST(request:Request) {
         if(!quote) throw new Error('Supplier quotation not found.');
         const existing=await client.query('SELECT id,po_number FROM pm_purchase_orders WHERE organization_id=$1 AND supplier_quote_id=$2',[org,quote.id]);
         if(existing.rows[0]) { await client.query('COMMIT'); return NextResponse.json({purchaseOrder:existing.rows[0],alreadyCreated:true}); }
+        if(quote.enquiry_status!=='issued') throw new Error('This RFQ is no longer open for quotation award.');
         if(!['submitted','under_review','shortlisted'].includes(quote.status)) throw new Error('This quotation is not available for award.');
         const supplierActive=await client.query(`SELECT id FROM pm_suppliers WHERE id=$1 AND organization_id=$2 AND status='active'`,[quote.supplier_id,org]);
         if(!supplierActive.rows[0]) throw new Error('The supplier is inactive or blocked and cannot be awarded a purchase order.');
