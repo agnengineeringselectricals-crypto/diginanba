@@ -19,7 +19,7 @@ export async function GET(request:Request,context:{params:Promise<{projectId:str
      LEFT JOIN organization_memberships m ON m.organization_id=p.organization_id AND m.user_id=$3 AND m.status='active'
      LEFT JOIN pm_document_versions v ON v.organization_id=d.organization_id AND v.document_id=d.id AND v.revision=$4
     WHERE d.id=$1 AND d.project_id=$2 AND p.status<>'archived'
-      AND (m.role IN ('owner','admin') OR EXISTS (
+      AND (m.role IN ('owner','admin') OR EXISTS (SELECT 1 FROM pm_memberships role_actor JOIN pm_role_permissions role_rp ON role_rp.organization_id=role_actor.organization_id AND role_rp.role_id=role_actor.role_id WHERE role_actor.organization_id=p.organization_id AND role_actor.user_id=$3 AND role_actor.status='active' AND role_rp.access_scope='organization') OR EXISTS (SELECT 1 FROM pm_memberships role_actor JOIN pm_role_permissions role_rp ON role_rp.organization_id=role_actor.organization_id AND role_rp.role_id=role_actor.role_id WHERE role_actor.organization_id=p.organization_id AND role_actor.user_id=$2 AND role_actor.status='active' AND role_rp.access_scope='organization') OR EXISTS (
         SELECT 1 FROM pm_project_members x JOIN pm_memberships xm ON xm.id=x.membership_id
         WHERE x.project_id=p.id AND x.organization_id=p.organization_id AND x.status='active' AND xm.user_id=$3 AND xm.status='active'
       ) OR EXISTS (
