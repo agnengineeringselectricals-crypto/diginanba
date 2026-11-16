@@ -20,6 +20,8 @@ export async function GET(_request:Request,context:{params:Promise<{projectId:st
        AND (m.role IN ('owner','admin') OR EXISTS(SELECT 1 FROM pm_project_members x JOIN pm_memberships xm ON xm.id=x.membership_id WHERE x.project_id=p.id AND x.organization_id=p.organization_id AND x.status='active' AND xm.user_id=$2 AND xm.status='active'))
        LIMIT 1`,[projectId,session.user.id]);
     if(!access.rows[0])return NextResponse.json({error:'Project not found or access denied.'},{status:404});
+    const permission=await checkProjectPermission(db,projectId,session.user.id,'projects.read','view');
+    if(!permission?.allowed||['assigned','own'].includes(permission.scope||''))return NextResponse.json({error:'Your organization role does not allow viewing the full project member list.'},{status:403});
     const members=await db.query(
       `SELECT pm.id AS membership_id,u.display_name,u.email,pm.employee_code,pm.status,r.code AS role_code,r.name AS role_name,
               COALESCE(pmx.access_level,'not_assigned') AS access_level,pmx.project_role
@@ -47,9 +49,11 @@ export async function POST(request:Request,context:{params:Promise<{projectId:st
     const access=await client.query(
       `SELECT p.organization_id FROM pm_projects p JOIN organization_accounts org_active ON org_active.id=p.organization_id AND org_active.status='active' JOIN organization_memberships m ON m.organization_id=p.organization_id
        WHERE p.id=$1 AND m.user_id=$2 AND m.status='active' AND p.status<>'archived'
-       AND (m.role IN ('owner','admin') OR EXISTS(SELECT 1 FROM pm_project_members x JOIN pm_memberships xm ON xm.id=x.membership_id WHERE x.project_id=p.id AND x.organization_id=p.organization_id AND x.status='active' AND xm.user_id=$2 AND xm.status='active' AND x.access_level='project_admin'))
+       AND (m.role IN ('owner','admin') OR EXISTS(SELECT 1 FROM pm_project_members x JOIN pm_memberships xm ON xm.id=x.membership_id WHERE x.project_id=p.id AND x.organization_id=p.organization_id AND x.status='active' AND xm.user_id=$2 AND xm.status='active'))
        LIMIT 1 FOR UPDATE OF p`,[projectId,session.user.id]);
-    if(!access.rows[0]){await client.query('ROLLBACK');return NextResponse.json({error:'Only project managers can assign members.'},{status:403});}
+    if(!access.rows[0]){await client.query('ROLLBACK');return NextResponse.json({error:'Project not found or access denied.'},{status:403});}
+    const permission=await checkProjectPermission(client,projectId,session.user.id,'tasks.assign','update');
+    if(!permission?.allowed||['assigned','own'].includes(permission.scope||'')){await client.query('ROLLBACK');return NextResponse.json({error:'Your organization role does not allow assigning project members.'},{status:403});}
     const orgId=access.rows[0].organization_id as string;
     const member=await client.query(`SELECT id FROM pm_memberships WHERE id=$1 AND organization_id=$2 AND status='active'`,[input.membershipId,orgId]);
     if(!member.rows[0]){await client.query('ROLLBACK');return NextResponse.json({error:'Select an active member of this organization.'},{status:400});}

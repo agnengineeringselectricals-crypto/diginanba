@@ -21,6 +21,8 @@ export async function GET(_request: Request, context: { params: Promise<{ projec
              AND mmx.user_id=$2 AND mmx.status='active'
          )) LIMIT 1`, [projectId, session.user.id]);
     if (!access.rows[0]) return NextResponse.json({ error: 'Project not found or access denied.' }, { status: 404 });
+    const permission=await checkProjectPermission(db,projectId,session.user.id,'performance.read','view');
+    if(!permission?.allowed)return NextResponse.json({error:'Your organization role does not allow viewing performance.'},{status:403});
     const orgId = access.rows[0].organization_id as string;
     const metrics = await db.query(
       `SELECT m.id,m.entity_type,m.entity_id,m.metric_code,m.metric_name,m.unit,
