@@ -49,7 +49,9 @@ export async function GET(_request: Request, context: { params: Promise<{ projec
          WHERE x.metric_id=m.id AND x.organization_id=m.organization_id
        ) history ON true
        WHERE m.organization_id=$1 AND m.project_id=$2
-       ORDER BY m.created_at,m.metric_name LIMIT 1000`, [orgId, projectId]);
+         AND ($3::text NOT IN ('assigned','own') OR (m.responsible_membership_id=$4 OR t.owner_membership_id=$4))
+         AND ($3::text <> 'department' OR pm.department_id=$5)
+       ORDER BY m.created_at,m.metric_name LIMIT 1000`, [orgId, projectId, permission.scope, permission.membershipId, permission.departmentId]);
     const summary = await db.query(
       `SELECT COUNT(*)::int AS metric_count,
               COUNT(*) FILTER (WHERE current_status='completed')::int AS completed_count,
@@ -57,7 +59,7 @@ export async function GET(_request: Request, context: { params: Promise<{ projec
               COUNT(*) FILTER (WHERE next_follow_up_at IS NOT NULL AND next_follow_up_at <= now())::int AS overdue_followups,
               COALESCE(SUM(current_target),0)::numeric AS total_target,
               COALESCE(SUM(actual_value),0)::numeric AS total_actual
-       FROM pm_performance_metrics WHERE organization_id=$1 AND project_id=$2`, [orgId, projectId]);
+       FROM pm_performance_metrics m LEFT JOIN pm_tasks t ON m.entity_type='task' AND t.id=m.entity_id AND t.organization_id=m.organization_id AND t.project_id=m.project_id LEFT JOIN pm_memberships pm ON pm.id=m.responsible_membership_id AND pm.organization_id=m.organization_id WHERE m.organization_id=$1 AND m.project_id=$2 AND ($3::text NOT IN ('assigned','own') OR (m.responsible_membership_id=$4 OR t.owner_membership_id=$4)) AND ($3::text <> 'department' OR pm.department_id=$5)`, [orgId, projectId, permission.scope, permission.membershipId, permission.departmentId]);
     return NextResponse.json({ metrics: metrics.rows, summary: summary.rows[0] });
   } catch (error) {
     console.error('Project performance report failed', error);

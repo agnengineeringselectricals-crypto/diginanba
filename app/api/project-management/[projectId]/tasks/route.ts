@@ -84,7 +84,7 @@ export async function POST(request: Request, context: { params: Promise<{ projec
       return NextResponse.json({ error: 'Project not found or access denied.' }, { status: 404 });
     }
     const permission=await checkProjectPermission(client,projectId,session.user.id,'tasks.create','create');
-    if(!permission?.allowed || (['assigned','own'].includes(permission.scope||'') && parsed.data.ownerMembershipId && parsed.data.ownerMembershipId!==permission.membershipId)) { await client.query('ROLLBACK'); return NextResponse.json({error:'Your organization role does not allow creating tasks at this scope.'},{status:403}); }
+    if(!permission?.allowed || (['assigned','own'].includes(permission.scope||'') && parsed.data.ownerMembershipId!==permission.membershipId)) { await client.query('ROLLBACK'); return NextResponse.json({error:'Your organization role does not allow creating tasks at this scope.'},{status:403}); }
     const orgId = access.rows[0].organization_id as string;
     const input = parsed.data;
     if (input.workPackageId) {
