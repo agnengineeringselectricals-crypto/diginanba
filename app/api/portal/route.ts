@@ -113,10 +113,24 @@ export async function POST(request:Request) {
   if(body.action==='update_delivery' && member.party_type==='supplier') {
    const v=z.object({purchaseOrderId:uuid,status:z.enum(['acknowledged','preparing','dispatched','in_transit','delivered','delayed','cancelled']),carrier:z.string().trim().max(160).optional(),trackingReference:z.string().trim().max(240).optional(),estimatedArrival:z.string().date().optional(),note:z.string().trim().max(2000).optional()}).safeParse(body);
    if(!v.success) return NextResponse.json({error:'Enter a valid purchase-order delivery update.'},{status:400});
-   const po=await db.query(`SELECT id FROM pm_purchase_orders WHERE id=$1 AND organization_id=$2 AND supplier_id=$3 AND status IN ('approved','sent','partially_received','received')`,[v.data.purchaseOrderId,member.organization_id,member.party_id]);
-   if(!po.rows[0]) return NextResponse.json({error:'Purchase order not found or not yet released to the supplier.'},{status:404});
-   const update=(await db.query(`INSERT INTO pm_supplier_delivery_updates(organization_id,purchase_order_id,supplier_id,status,carrier,tracking_reference,estimated_arrival,note,created_by) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id,status,created_at`,[member.organization_id,v.data.purchaseOrderId,member.party_id,v.data.status,v.data.carrier||'',v.data.trackingReference||'',v.data.estimatedArrival||null,v.data.note||'',session.user.id])).rows[0];
-   await db.query(`INSERT INTO pm_portal_activity_events(organization_id,portal_member_id,event_type,entity_type,entity_id,details) VALUES($1,$2,'delivery_update','purchase_order',$3,$4::jsonb)`,[member.organization_id,member.id,v.data.purchaseOrderId,JSON.stringify({status:v.data.status,trackingReference:v.data.trackingReference||''})]);
+   const client=await db.connect();
+   try {
+    await client.query('BEGIN');
+    const po=await client.query(`SELECT id FROM pm_purchase_orders WHERE id=$1 AND organization_id=$2 AND supplier_id=$3 AND status IN ('approved','sent','partially_received','received') FOR UPDATE`,[v.data.purchaseOrderId,member.organization_id,member.party_id]);
+    if(!po.rows[0]) throw new Error('Purchase order not found or not yet released to the supplier.');
+    const latest=(await client.query(`SELECT status FROM pm_supplier_delivery_updates WHERE organization_id=$1 AND purchase_order_id=$2 ORDER BY created_at DESC,id DESC LIMIT 1 FOR UPDATE`,[member.organization_id,v.data.purchaseOrderId])).rows[0];
+    const transitions:Record<string,string[]>={acknowledged:['acknowledged','preparing','dispatched','in_transit','delayed','cancelled'],preparing:['preparing','dispatched','in_transit','delayed','cancelled'],dispatched:['dispatched','in_transit','delivered','delayed','cancelled'],in_transit:['in_transit','delivered','delayed','cancelled'],delayed:['delayed','preparing','dispatched','in_transit','delivered','cancelled'],delivered:['delivered'],cancelled:['cancelled']};
+    const current=latest?.status||'acknowledged';
+    if(!(transitions[current]||[]).includes(v.data.status)) throw new Error(`Delivery cannot move from ${current.replaceAll('_',' ')} to ${v.data.status.replaceAll('_',' ')}.`);
+    const update=(await client.query(`INSERT INTO pm_supplier_delivery_updates(organization_id,purchase_order_id,supplier_id,status,carrier,tracking_reference,estimated_arrival,note,created_by) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id,status,created_at`,[member.organization_id,v.data.purchaseOrderId,member.party_id,v.data.status,v.data.carrier||'',v.data.trackingReference||'',v.data.estimatedArrival||null,v.data.note||'',session.user.id])).rows[0];
+    await client.query(`INSERT INTO pm_portal_activity_events(organization_id,portal_member_id,event_type,entity_type,entity_id,details) VALUES($1,$2,'delivery_update','purchase_order',$3,$4::jsonb)`,[member.organization_id,member.id,v.data.purchaseOrderId,JSON.stringify({status:v.data.status,trackingReference:v.data.trackingReference||'',estimatedArrival:v.data.estimatedArrival||null})]);
+    await client.query('COMMIT');
+    return NextResponse.json({deliveryUpdate:update},{status:201});
+   } catch(error) {
+    await client.query('ROLLBACK').catch(()=>undefined);
+    if(error instanceof Error && (error.message.startsWith('Purchase order not found')||error.message.startsWith('Delivery cannot move'))) return NextResponse.json({error:error.message},{status:409});
+    throw error;
+   } finally { client.release(); }
    return NextResponse.json({deliveryUpdate:update},{status:201});
   }
   if(body.action==='reply_message') {
@@ -126,8 +140,21 @@ export async function POST(request:Request) {
    const thread=await db.query(`SELECT t.id FROM pm_communication_threads t JOIN pm_communication_participants cp ON cp.thread_id=t.id AND cp.organization_id=t.organization_id
      WHERE t.id=$1 AND t.organization_id=$2 AND t.thread_type=$3 AND t.visibility='external_portal' AND t.status='open' AND cp.user_id=$4 LIMIT 1`,[v.data.threadId,member.organization_id,member.party_type,session.user.id]);
    if(!thread.rows[0]) return NextResponse.json({error:'This conversation is not available to your portal account.'},{status:404});
-   const message=(await db.query(`INSERT INTO pm_communication_messages(organization_id,thread_id,sender_user_id,body) VALUES($1,$2,$3,$4) RETURNING id,created_at`,[member.organization_id,v.data.threadId,session.user.id,v.data.body])).rows[0];
-   await db.query(`UPDATE pm_communication_threads SET updated_at=now() WHERE id=$1 AND organization_id=$2`,[v.data.threadId,member.organization_id]);
+   const client=await db.connect();
+   try {
+    await client.query('BEGIN');
+    const thread=await client.query(`SELECT t.id FROM pm_communication_threads t JOIN pm_communication_participants cp ON cp.thread_id=t.id AND cp.organization_id=t.organization_id WHERE t.id=$1 AND t.organization_id=$2 AND t.thread_type=$3 AND t.visibility='external_portal' AND t.status='open' AND cp.user_id=$4 LIMIT 1 FOR UPDATE OF t`,[v.data.threadId,member.organization_id,member.party_type,session.user.id]);
+    if(!thread.rows[0]) throw new Error('This conversation is no longer available to your portal account.');
+    const message=(await client.query(`INSERT INTO pm_communication_messages(organization_id,thread_id,sender_user_id,body) VALUES($1,$2,$3,$4) RETURNING id,created_at`,[member.organization_id,v.data.threadId,session.user.id,v.data.body])).rows[0];
+    await client.query(`UPDATE pm_communication_threads SET updated_at=now() WHERE id=$1 AND organization_id=$2`,[v.data.threadId,member.organization_id]);
+    await client.query(`INSERT INTO pm_portal_activity_events(organization_id,portal_member_id,event_type,entity_type,entity_id,details) VALUES($1,$2,'message_replied','communication_thread',$3,$4::jsonb)`,[member.organization_id,member.id,v.data.threadId,JSON.stringify({message_id:message.id})]);
+    await client.query('COMMIT');
+    return NextResponse.json({message},{status:201});
+   } catch(error) {
+    await client.query('ROLLBACK').catch(()=>undefined);
+    if(error instanceof Error && error.message.startsWith('This conversation')) return NextResponse.json({error:error.message},{status:404});
+    throw error;
+   } finally { client.release(); }
    return NextResponse.json({message},{status:201});
   }
   if(body.action==='send_message') {
