@@ -67,7 +67,7 @@ export async function POST(request:Request,context:{params:Promise<{projectId:st
          AND (m.role IN ('owner','admin') OR EXISTS (
            SELECT 1 FROM pm_project_members pmx JOIN pm_memberships mmx ON mmx.id=pmx.membership_id
            WHERE pmx.project_id=p.id AND pmx.organization_id=p.organization_id AND pmx.status='active'
-             AND mmx.user_id=$2 AND mmx.status='active' AND pmx.access_level='project_admin'
+             AND mmx.user_id=$2 AND mmx.status='active'
          ))
        LIMIT 1 FOR UPDATE OF p`,[projectId,session.user.id]);
     if(!access.rows[0]){await client.query('ROLLBACK');return NextResponse.json({error:'Project not found or access denied.'},{status:404});}

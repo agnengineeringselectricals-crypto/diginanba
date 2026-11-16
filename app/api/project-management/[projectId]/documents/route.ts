@@ -52,7 +52,7 @@ export async function POST(request: Request, context: {params: Promise<{projectI
   if(!session?.user?.id)return NextResponse.json({error:'Sign in to upload project documents.'},{status:401});
   const {projectId}=await context.params;
   if(!uuid.safeParse(projectId).success)return NextResponse.json({error:'Invalid project.'},{status:400});
-  const access=await projectAccess(projectId,session.user.id,true);
+  const access=await projectAccess(projectId,session.user.id,false);
   if(!access)return NextResponse.json({error:'Only project managers and organization administrators can upload or revise controlled documents.'},{status:403});
   const entitlements=await getOrganizationModuleEntitlements(db,access.organization_id);
   if(!entitlements.some(m=>m.module_code==='documents'&&m.has_access))return NextResponse.json({error:'The Documents module is not enabled for this organization.'},{status:403});
