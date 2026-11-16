@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
+import { checkOrganizationPermission, checkProjectPermission } from '@/lib/server/project-permissions';
 import { recordOrganizationUsage } from '@/lib/server/organization-entitlements';
 
 export const runtime = 'nodejs';
@@ -40,8 +41,18 @@ export async function POST(request: Request, context: { params: Promise<{ projec
     );
     const access = accessResult.rows[0];
     if (!access) return NextResponse.json({ error: 'Project not found or access denied.' }, { status: 404 });
-
-    const restricted = access.organization_role !== 'owner' && access.organization_role !== 'admin' && access.access_level === 'assigned';
+    const projectRead=await checkProjectPermission(db,projectId,session.user.id,'projects.read','view');
+    if(!projectRead?.allowed)return NextResponse.json({error:'Your organization role does not allow Ask AI Nanba access to this project.'},{status:403});
+    const [taskRead,performanceRead,procurementRead,manpowerRead,qualityRead,financeRead,documentsRead]=await Promise.all([
+      checkProjectPermission(db,projectId,session.user.id,'tasks.read','view'),
+      checkProjectPermission(db,projectId,session.user.id,'performance.read','view'),
+      checkProjectPermission(db,projectId,session.user.id,'procurement.read','view'),
+      checkProjectPermission(db,projectId,session.user.id,'manpower.read','view'),
+      checkProjectPermission(db,projectId,session.user.id,'quality.read','view'),
+      checkProjectPermission(db,projectId,session.user.id,'finance.read','view'),
+      checkProjectPermission(db,projectId,session.user.id,'documents.read','view'),
+    ]);
+    const restricted = access.organization_role !== 'owner' && access.organization_role !== 'admin' && (access.access_level === 'assigned' || ['assigned','own'].includes(projectRead.scope||''));
     const memberId = access.actor_membership_id as string | null;
     const orgId = access.organization_id as string;
 
@@ -56,7 +67,7 @@ export async function POST(request: Request, context: { params: Promise<{ projec
     }
 
     const [tasks, packages, dependencies, milestones, metrics, approvals, procurement, manpower, quality, finance, documents] = await Promise.all([
-      db.query(
+      taskRead?.allowed ? db.query(
         `SELECT t.task_code,t.title,t.description,t.status,t.priority,t.progress_percent,t.target_quantity,t.actual_quantity,t.unit,
                 t.planned_start_date,t.planned_end_date,t.forecast_end_date,u.display_name AS owner
          FROM pm_tasks t
@@ -66,13 +77,13 @@ export async function POST(request: Request, context: { params: Promise<{ projec
          ORDER BY CASE WHEN t.status IN ('blocked','on_hold') THEN 0 ELSE 1 END,t.planned_end_date NULLS LAST
          LIMIT 100`,
         [orgId, projectId, restricted ? memberId : null],
-      ),
-      db.query(
+      ) : Promise.resolve({rows:[]}),
+      !restricted && taskRead?.allowed ? db.query(
         `SELECT package_code,name,description FROM pm_work_packages
          WHERE organization_id=$1 AND project_id=$2 ORDER BY sort_order,name LIMIT 80`,
         [orgId, projectId],
-      ),
-      db.query(
+      ) : Promise.resolve({rows:[]}),
+      !restricted && taskRead?.allowed ? db.query(
         `SELECT t.title AS task, predecessor.title AS depends_on,d.dependency_type,d.lag_days
          FROM pm_task_dependencies d
          JOIN pm_tasks t ON t.id=d.task_id AND t.organization_id=d.organization_id AND t.project_id=$2
@@ -80,7 +91,7 @@ export async function POST(request: Request, context: { params: Promise<{ projec
          WHERE d.organization_id=$1 AND ($3::uuid IS NULL OR t.owner_membership_id=$3 OR predecessor.owner_membership_id=$3)
          LIMIT 120`,
         [orgId, projectId, restricted ? memberId : null],
-      ),
+      ) : Promise.resolve({rows:[]}),
       db.query(
         `SELECT name,description,baseline_date,forecast_date,actual_date,status
          FROM pm_project_milestones WHERE organization_id=$1 AND project_id=$2
@@ -113,7 +124,7 @@ export async function POST(request: Request, context: { params: Promise<{ projec
          GROUP BY a.id ORDER BY a.requested_at DESC LIMIT 80`,
         [orgId, projectId, restricted ? memberId : null, session.user.id],
       ),
-      restricted ? Promise.resolve({ rows: [{ access: 'Not included for assigned-task access' }] }) : db.query(
+      restricted || !procurementRead?.allowed ? Promise.resolve({ rows: [{ access: 'Not included for this role or assigned-task scope' }] }) : db.query(
         `SELECT
            (SELECT COUNT(*)::int FROM pm_suppliers WHERE organization_id=$1 AND status='active') AS active_suppliers,
            (SELECT COUNT(*)::int FROM pm_purchase_orders WHERE organization_id=$1 AND project_id=$2) AS purchase_orders,
@@ -123,15 +134,15 @@ export async function POST(request: Request, context: { params: Promise<{ projec
            (SELECT COALESCE(SUM(gi.rejected_quantity),0) FROM pm_goods_receipt_items gi JOIN pm_goods_receipts g ON g.id=gi.receipt_id AND g.organization_id=gi.organization_id JOIN pm_purchase_orders p ON p.id=g.purchase_order_id AND p.organization_id=g.organization_id WHERE gi.organization_id=$1 AND p.project_id=$2) AS rejected_quantity`,
         [orgId, projectId],
       ),
-      db.query(
+      manpowerRead?.allowed ? db.query(
         `SELECT COUNT(*)::int AS assignments,
                 COUNT(*) FILTER (WHERE status IN ('planned','active'))::int AS active_assignments,
                 COALESCE(SUM(planned_hours),0) AS planned_hours,COALESCE(SUM(actual_hours),0) AS actual_hours
          FROM pm_workforce_assignments WHERE organization_id=$1 AND project_id=$2
            AND ($3::uuid IS NULL OR membership_id=$3)`,
         [orgId, projectId, restricted ? memberId : null],
-      ),
-      db.query(
+      ) : Promise.resolve({rows:[]}),
+      qualityRead?.allowed ? db.query(
         `SELECT
            (SELECT COUNT(*)::int FROM pm_quality_inspections WHERE organization_id=$1 AND project_id=$2 AND ($3::uuid IS NULL OR inspector_membership_id=$3)) AS inspections,
            (SELECT COUNT(*)::int FROM pm_quality_inspections WHERE organization_id=$1 AND project_id=$2 AND result='fail' AND ($3::uuid IS NULL OR inspector_membership_id=$3)) AS failed_inspections,
@@ -139,13 +150,13 @@ export async function POST(request: Request, context: { params: Promise<{ projec
            (SELECT COUNT(*)::int FROM pm_quality_nonconformities WHERE organization_id=$1 AND project_id=$2 AND status NOT IN ('closed','cancelled') AND ($3::uuid IS NULL OR assigned_to_membership_id=$3)) AS open_nonconformities,
            (SELECT COUNT(*)::int FROM pm_quality_actions a JOIN pm_quality_nonconformities n ON n.id=a.nonconformity_id AND n.organization_id=a.organization_id WHERE a.organization_id=$1 AND n.project_id=$2 AND a.status NOT IN ('completed','cancelled') AND ($3::uuid IS NULL OR a.owner_membership_id=$3)) AS open_corrective_actions`,
         [orgId, projectId, restricted ? memberId : null],
-      ),
-      restricted ? Promise.resolve({ rows: [{ access: 'Not included for assigned-task access' }] }) : db.query(
+      ) : Promise.resolve({rows:[]}),
+      restricted || !financeRead?.allowed ? Promise.resolve({ rows: [{ access: 'Not included for this role or assigned-task scope' }] }) : db.query(
         `SELECT b.budget_name,b.currency_code,b.baseline_amount,b.revised_amount,b.committed_amount,b.actual_amount,b.status
          FROM pm_project_budgets b WHERE b.organization_id=$1 AND b.project_id=$2 ORDER BY b.created_at LIMIT 40`,
         [orgId, projectId],
       ),
-      restricted ? Promise.resolve({ rows: [{ access: 'Not included for assigned-task access' }] }) : db.query(
+      restricted || !documentsRead?.allowed ? Promise.resolve({ rows: [{ access: 'Not included for this role or assigned-task scope' }] }) : db.query(
         `SELECT d.document_number,d.title,d.document_type,d.revision,d.status,d.updated_at
          FROM pm_documents d WHERE d.organization_id=$1 AND d.project_id=$2 ORDER BY d.updated_at DESC LIMIT 60`,
         [orgId, projectId],

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
+import { checkOrganizationPermission, checkProjectPermission } from '@/lib/server/project-permissions';
 import { recordOrganizationUsage } from '@/lib/server/organization-entitlements';
 
 export const runtime = 'nodejs';
@@ -82,13 +83,13 @@ export async function POST(request: Request) {
       `SELECT o.id,m.role
          FROM organization_accounts o
          JOIN organization_memberships m ON m.organization_id=o.id
-        WHERE o.id=$1 AND m.user_id=$2 AND m.status='active' AND o.status='active' AND m.role IN ('owner','admin')
+        WHERE o.id=$1 AND m.user_id=$2 AND m.status='active' AND o.status='active'
         FOR UPDATE OF o`,
       [input.organizationId, session.user.id],
     );
-    if (!membership.rows[0]) {
+    if (!membership.rows[0] || !await checkOrganizationPermission(client,input.organizationId,session.user.id,'projects.create','create')) {
       await client.query('ROLLBACK');
-      return NextResponse.json({ error: 'You do not have access to this organization.' }, { status: 403 });
+      return NextResponse.json({ error: 'Your organization role does not allow creating projects.' }, { status: 403 });
     }
 
     await client.query(
