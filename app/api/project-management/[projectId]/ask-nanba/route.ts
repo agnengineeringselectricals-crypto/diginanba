@@ -35,7 +35,7 @@ export async function POST(request: Request, context: { params: Promise<{ projec
        LEFT JOIN pm_project_members pmx ON pmx.project_id=p.id AND pmx.organization_id=p.organization_id
          AND pmx.membership_id=mine.id AND pmx.status='active'
        WHERE p.id=$1 AND p.status<>'archived' AND m.user_id=$2 AND m.status='active'
-         AND (m.role IN ('owner','admin') OR pmx.membership_id IS NOT NULL)
+         AND (m.role IN ('owner','admin') OR EXISTS (SELECT 1 FROM pm_memberships role_actor JOIN pm_role_permissions role_rp ON role_rp.organization_id=role_actor.organization_id AND role_rp.role_id=role_actor.role_id WHERE role_actor.organization_id=p.organization_id AND role_actor.user_id=$2 AND role_actor.status='active' AND role_rp.access_scope='organization') OR pmx.membership_id IS NOT NULL)
        LIMIT 1`,
       [projectId, session.user.id],
     );
