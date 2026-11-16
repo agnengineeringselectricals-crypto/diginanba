@@ -52,16 +52,16 @@ export async function GET() {
          JOIN organization_memberships m ON m.organization_id=o.id
          LEFT JOIN pm_tasks t ON t.project_id=p.id AND t.organization_id=p.organization_id
         WHERE m.user_id=$1 AND m.status='active' AND o.status='active'
-          AND (m.role IN ('owner','admin') OR EXISTS (
-            SELECT 1 FROM pm_project_members pmx JOIN pm_memberships mmx ON mmx.id=pmx.membership_id
-             WHERE pmx.project_id=p.id AND pmx.organization_id=p.organization_id AND pmx.status='active' AND mmx.user_id=$1 AND mmx.status='active'
-          ))
         GROUP BY p.id,o.name
         ORDER BY p.updated_at DESC
         LIMIT 200`,
       [session.user.id],
     );
-    return NextResponse.json({ organizations: organizations.rows, projects: projects.rows });
+    const authorizedProjects = await Promise.all(projects.rows.map(async (project) => {
+      const permission = await checkProjectPermission(db, project.id, session.user.id, 'projects.read', 'view');
+      return permission?.allowed ? project : null;
+    }));
+    return NextResponse.json({ organizations: organizations.rows, projects: authorizedProjects.filter(Boolean) });
   } catch (error) {
     console.error('Project Management workspace load failed', error);
     return NextResponse.json({ error: 'Project Management is temporarily unavailable. Please retry shortly.' }, { status: 503 });
