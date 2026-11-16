@@ -32,7 +32,7 @@ export async function GET(_request: Request, context: { params: Promise<{ projec
       `SELECT p.id,p.organization_id FROM pm_projects p
        JOIN organization_memberships m ON m.organization_id=p.organization_id
        WHERE p.id=$1 AND m.user_id=$2 AND m.status='active' AND p.status <> 'archived'
-         AND (m.role IN ('owner','admin') OR EXISTS (
+         AND (m.role IN ('owner','admin') OR EXISTS (SELECT 1 FROM pm_memberships role_actor JOIN pm_role_permissions role_rp ON role_rp.organization_id=role_actor.organization_id AND role_rp.role_id=role_actor.role_id WHERE role_actor.organization_id=p.organization_id AND role_actor.user_id=$2 AND role_actor.status='active' AND role_rp.access_scope='organization') OR EXISTS (
            SELECT 1 FROM pm_project_members pmx JOIN pm_memberships mmx ON mmx.id=pmx.membership_id
            WHERE pmx.project_id=p.id AND pmx.organization_id=p.organization_id AND pmx.status='active' AND mmx.user_id=$2 AND mmx.status='active'
          ))
@@ -74,7 +74,7 @@ export async function POST(request: Request, context: { params: Promise<{ projec
       `SELECT p.organization_id FROM pm_projects p
        JOIN organization_memberships m ON m.organization_id=p.organization_id
        WHERE p.id=$1 AND m.user_id=$2 AND m.status='active' AND p.status <> 'archived'
-         AND (m.role IN ('owner','admin') OR EXISTS (
+         AND (m.role IN ('owner','admin') OR EXISTS (SELECT 1 FROM pm_memberships role_actor JOIN pm_role_permissions role_rp ON role_rp.organization_id=role_actor.organization_id AND role_rp.role_id=role_actor.role_id WHERE role_actor.organization_id=p.organization_id AND role_actor.user_id=$2 AND role_actor.status='active' AND role_rp.access_scope='organization') OR EXISTS (
            SELECT 1 FROM pm_project_members pmx JOIN pm_memberships mmx ON mmx.id=pmx.membership_id
            WHERE pmx.project_id=p.id AND pmx.organization_id=p.organization_id AND pmx.status='active' AND mmx.user_id=$2 AND mmx.status='active'
          ))
@@ -176,7 +176,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ proje
               (SELECT id FROM pm_memberships WHERE organization_id=p.organization_id AND user_id=$2 AND status='active' LIMIT 1) AS actor_membership_id
        FROM pm_projects p JOIN organization_memberships m ON m.organization_id=p.organization_id
        WHERE p.id=$1 AND m.user_id=$2 AND m.status='active' AND p.status <> 'archived'
-         AND (m.role IN ('owner','admin') OR EXISTS (
+         AND (m.role IN ('owner','admin') OR EXISTS (SELECT 1 FROM pm_memberships role_actor JOIN pm_role_permissions role_rp ON role_rp.organization_id=role_actor.organization_id AND role_rp.role_id=role_actor.role_id WHERE role_actor.organization_id=p.organization_id AND role_actor.user_id=$2 AND role_actor.status='active' AND role_rp.access_scope='organization') OR EXISTS (
            SELECT 1 FROM pm_project_members pmx JOIN pm_memberships mmx ON mmx.id=pmx.membership_id
            WHERE pmx.project_id=p.id AND pmx.organization_id=p.organization_id AND pmx.status='active'
              AND mmx.user_id=$2 AND mmx.status='active'
