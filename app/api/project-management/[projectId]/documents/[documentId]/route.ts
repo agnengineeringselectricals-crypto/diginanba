@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { get } from '@vercel/blob';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
+import { checkProjectPermission } from '@/lib/server/project-permissions';
 import { getOrganizationModuleEntitlements } from '@/lib/server/organization-entitlements';
 
 export const runtime='nodejs';
@@ -11,7 +12,7 @@ export async function GET(request:Request,context:{params:Promise<{projectId:str
  if(!session?.user?.id)return NextResponse.json({error:'Sign in to download project documents.'},{status:401});
  const {projectId,documentId}=await context.params;
  const result=await db.query(
-  `SELECT d.organization_id,d.title,d.storage_key,d.mime_type,d.file_size_bytes,d.revision,v.storage_key AS version_storage_key,v.mime_type AS version_mime_type,v.file_size_bytes AS version_size,v.revision AS version_revision
+  `SELECT d.organization_id,d.uploaded_by,d.title,d.storage_key,d.mime_type,d.file_size_bytes,d.revision,v.storage_key AS version_storage_key,v.mime_type AS version_mime_type,v.file_size_bytes AS version_size,v.revision AS version_revision
      FROM pm_documents d
      JOIN pm_projects p ON p.id=d.project_id AND p.organization_id=d.organization_id
      JOIN organization_accounts org_active ON org_active.id=p.organization_id AND org_active.status='active'
@@ -31,7 +32,7 @@ export async function GET(request:Request,context:{params:Promise<{projectId:str
   [documentId,projectId,session.user.id,new URL(request.url).searchParams.get('revision')],
  );
  const doc=result.rows[0];
- if(doc){const entitlements=await getOrganizationModuleEntitlements(db,doc.organization_id);if(!entitlements.some(m=>m.module_code==='documents'&&m.has_access))return NextResponse.json({error:'The Documents module is not enabled for this organization.'},{status:403});}
+ if(doc){const permission=await checkProjectPermission(db,projectId,session.user.id,'documents.read','view');if(!permission?.allowed || (['assigned','own'].includes(permission.scope||'') && doc.uploaded_by!==session.user.id))return NextResponse.json({error:'Your organization role does not allow downloading this document.'},{status:403});const entitlements=await getOrganizationModuleEntitlements(db,doc.organization_id);if(!entitlements.some(m=>m.module_code==='documents'&&m.has_access))return NextResponse.json({error:'The Documents module is not enabled for this organization.'},{status:403});}
  if(!doc || (new URL(request.url).searchParams.has('revision') && !doc.version_storage_key))return NextResponse.json({error:'Document or requested revision not found, or access denied.'},{status:404});
  const pathname=doc.version_storage_key||doc.storage_key;
  if(!pathname||pathname==='pending-upload'||!pathname.startsWith('organizations/'+doc.organization_id+'/projects/'+projectId+'/documents/'))return NextResponse.json({error:'This document has no valid private storage object.'},{status:404});

@@ -3,6 +3,7 @@ import { del, put } from '@vercel/blob';
 import { z } from 'zod';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
+import { checkProjectPermission } from '@/lib/server/project-permissions';
 import { getOrganizationModuleEntitlements, recordOrganizationUsage } from '@/lib/server/organization-entitlements';
 
 export const runtime = 'nodejs';
@@ -53,7 +54,8 @@ export async function POST(request: Request, context: {params: Promise<{projectI
   const {projectId}=await context.params;
   if(!uuid.safeParse(projectId).success)return NextResponse.json({error:'Invalid project.'},{status:400});
   const access=await projectAccess(projectId,session.user.id,false);
-  if(!access)return NextResponse.json({error:'Only project managers and organization administrators can upload or revise controlled documents.'},{status:403});
+  if(!access)return NextResponse.json({error:'Project not found or access denied.'},{status:403});
+  const permission=await checkProjectPermission(db,projectId,session.user.id,'documents.create','create');if(!permission?.allowed)return NextResponse.json({error:'Your organization role does not allow document uploads or revisions.'},{status:403});
   const entitlements=await getOrganizationModuleEntitlements(db,access.organization_id);
   if(!entitlements.some(m=>m.module_code==='documents'&&m.has_access))return NextResponse.json({error:'The Documents module is not enabled for this organization.'},{status:403});
 

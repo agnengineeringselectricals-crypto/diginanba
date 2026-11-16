@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
+import { checkProjectPermission } from '@/lib/server/project-permissions';
 import { getOrganizationModuleEntitlements } from '@/lib/server/organization-entitlements';
 
 export const runtime = 'nodejs';
@@ -45,7 +46,11 @@ export async function GET(request: Request, context: {params: Promise<{projectId
   const org=access.organization_id;
   try {
     const moduleEntitlements=await getOrganizationModuleEntitlements(db,org);
-    const moduleAccess=Object.fromEntries(moduleEntitlements.map(m=>[m.module_code,m.has_access]));
+    const moduleAccess:any=Object.fromEntries(moduleEntitlements.map(m=>[m.module_code,m.has_access]));
+    const readPermissions:[string,string][]=[['procurement','procurement.read'],['people','manpower.read'],['resources','resources.read'],['quality','quality.read'],['finance','finance.read'],['documents','documents.read'],['crm_communications','crm_communications.read']];
+    const roleReads=await Promise.all(readPermissions.map(([module,code])=>checkProjectPermission(db,projectId,session.user.id,code,'view')));
+    readPermissions.forEach(([module],index)=>{moduleAccess[module]=Boolean(moduleAccess[module]&&roleReads[index]?.allowed)});
+    const taskRead=await checkProjectPermission(db,projectId,session.user.id,'tasks.read','view');
     const clients=moduleAccess.crm_communications?await db.query(`SELECT id,legal_name,status FROM pm_clients WHERE organization_id=$1 AND status='active' ORDER BY legal_name LIMIT 300`,[org]):{rows:[]};
     const [suppliers,indents,orders,receipts,receiptItems,purchaseOrderItems,resources,allocations,assignments,timesheets,inspections,ncs,qualityActions,budgets,entries,documents,documentVersions,members,tasks,indentItems,timesheetEntries]=await Promise.all([
       db.query(`SELECT id,supplier_code,legal_name,category,specializations,website_url,contact_name,email,phone,tax_registration_number,status FROM pm_suppliers WHERE organization_id=$1 ORDER BY legal_name LIMIT 300`,[org]),
@@ -71,7 +76,7 @@ export async function GET(request: Request, context: {params: Promise<{projectId
       db.query(`SELECT e.id,e.timesheet_id,e.work_date,e.hours,e.work_description,t.task_code,t.title AS task_title FROM pm_timesheet_entries e LEFT JOIN pm_tasks t ON t.id=e.task_id AND t.organization_id=e.organization_id WHERE e.organization_id=$1 AND e.project_id=$2 ORDER BY e.work_date DESC,e.created_at DESC LIMIT 2000`,[org,projectId]),
     ]);
     const canSubmit=Boolean(access.can_manage || access.project_access==='assigned');
-    return NextResponse.json({canManage:access.can_manage,canSubmit,currentMembershipId:access.actor_membership_id,modules:moduleEntitlements,clients:moduleAccess.crm_communications?clients.rows:[],suppliers:moduleAccess.procurement?suppliers.rows:[],indents:moduleAccess.procurement?indents.rows:[],purchaseOrders:moduleAccess.procurement?orders.rows:[],goodsReceipts:moduleAccess.procurement?receipts.rows:[],goodsReceiptItems:moduleAccess.procurement?receiptItems.rows:[],purchaseOrderItems:moduleAccess.procurement?purchaseOrderItems.rows:[],resources:moduleAccess.resources?resources.rows:[],allocations:moduleAccess.resources?allocations.rows:[],workforceAssignments:moduleAccess.people?assignments.rows:[],timesheets:moduleAccess.people?timesheets.rows:[],inspections:moduleAccess.quality?inspections.rows:[],nonconformities:moduleAccess.quality?ncs.rows:[],qualityActions:moduleAccess.quality?qualityActions.rows:[],budgets:moduleAccess.finance?budgets.rows:[],financialEntries:moduleAccess.finance?entries.rows:[],documents:moduleAccess.documents?documents.rows:[],documentVersions:moduleAccess.documents?documentVersions.rows:[],members:moduleAccess.people?members.rows:[],tasks:tasks.rows,indentItems:moduleAccess.procurement?indentItems.rows:[],timesheetEntries:moduleAccess.people?timesheetEntries.rows:[]});
+    return NextResponse.json({canManage:access.can_manage,canSubmit,currentMembershipId:access.actor_membership_id,modules:moduleEntitlements,clients:moduleAccess.crm_communications?clients.rows:[],suppliers:moduleAccess.procurement?suppliers.rows:[],indents:moduleAccess.procurement?indents.rows:[],purchaseOrders:moduleAccess.procurement?orders.rows:[],goodsReceipts:moduleAccess.procurement?receipts.rows:[],goodsReceiptItems:moduleAccess.procurement?receiptItems.rows:[],purchaseOrderItems:moduleAccess.procurement?purchaseOrderItems.rows:[],resources:moduleAccess.resources?resources.rows:[],allocations:moduleAccess.resources?allocations.rows:[],workforceAssignments:moduleAccess.people?assignments.rows:[],timesheets:moduleAccess.people?timesheets.rows:[],inspections:moduleAccess.quality?inspections.rows:[],nonconformities:moduleAccess.quality?ncs.rows:[],qualityActions:moduleAccess.quality?qualityActions.rows:[],budgets:moduleAccess.finance?budgets.rows:[],financialEntries:moduleAccess.finance?entries.rows:[],documents:moduleAccess.documents?documents.rows:[],documentVersions:moduleAccess.documents?documentVersions.rows:[],members:moduleAccess.people?members.rows:[],tasks:taskRead?.allowed?tasks.rows:[],indentItems:moduleAccess.procurement?indentItems.rows:[],timesheetEntries:moduleAccess.people?timesheetEntries.rows:[]});
   } catch(error) {
     console.error('Project operations load failed',error);
     return NextResponse.json({error:'Project operations could not be loaded.'},{status:503});
@@ -92,6 +97,9 @@ export async function POST(request: Request, context: {params: Promise<{projectI
   const org=access.organization_id;
   const action=String(input.action||'');
   const entitlementCode=input.module==='manpower'?(action==='resource'||action==='allocation'?'resources':'people'):input.module;
+  const permissionCode=input.module==='manpower'?(action==='resource'||action==='allocation'?'resources.create':'manpower.create'):input.module==='quality'?'quality.create':input.module==='finance'?'finance.create':input.module==='documents'?'documents.create':'procurement.create';
+  const rolePermission=await checkProjectPermission(db,projectId,session.user.id,permissionCode,'create');
+  if(!rolePermission?.allowed)return NextResponse.json({error:'Your organization role does not allow this operational action.'},{status:403});
   const entitlements=await getOrganizationModuleEntitlements(db,org);
   if(!entitlements.some(m=>m.module_code===entitlementCode&&m.has_access))return NextResponse.json({error:'This optional module is not enabled for the organization. Ask an organization administrator to activate it in Modules and access.'},{status:403});
   const client=await db.connect();
@@ -99,10 +107,6 @@ export async function POST(request: Request, context: {params: Promise<{projectI
     await client.query('BEGIN');
     let created:any;
     const module=input.module;
-    if(!access.can_manage){
-      const allowed=(module==='procurement'&&input.action==='indent')||(module==='manpower'&&input.action==='timesheet')||(module==='quality'&&(input.action==='inspection'||input.action==='nonconformity'||input.action==='quality_action'));
-      if(!allowed)throw new Error('This operational action requires project-manager permission.');
-    }
     if(module==='procurement') {
       const action=input.action;
       if(action==='supplier') {
@@ -250,9 +254,10 @@ export async function PATCH(request: Request, context: {params: Promise<{project
   };
   const config=maps[module]?.[kind];
   if(!config||!config[3].includes(status))return NextResponse.json({error:'Unsupported record type or status.'},{status:400});
-  const canUpdateOwnQualityAction=!access.can_manage&&module==='quality'&&kind==='quality_action'&&access.project_access==='assigned'&&['open','in_progress','completed'].includes(status);
-  if(!access.can_manage&&!canUpdateOwnQualityAction)return NextResponse.json({error:'Only project managers can update this operational status.'},{status:403});
-  if(decision==='approve'&&!access.can_manage)return NextResponse.json({error:'Approval requires project-manager permission.'},{status:403});
+  const permissionCode=decision==='approve'?(module==='procurement'?'procurement.approve':module==='manpower'?'manpower.approve':module==='quality'?'quality.approve':module==='finance'?'finance.approve':'documents.approve'):(module==='procurement'?'procurement.update':module==='manpower'?(kind==='resource'||kind==='allocation'?'resources.update':'manpower.update'):module==='quality'?'quality.update':module==='finance'?'finance.update':'documents.update');
+  const rolePermission=await checkProjectPermission(db,projectId,session.user.id,permissionCode,decision==='approve'?'approve':'update');
+  const canUpdateOwnQualityAction=Boolean(rolePermission?.allowed&&['assigned','own'].includes(rolePermission.scope||'')&&module==='quality'&&kind==='quality_action'&&['open','in_progress','completed'].includes(status));
+  if(!rolePermission?.allowed||(['assigned','own'].includes(rolePermission.scope||'')&&!canUpdateOwnQualityAction))return NextResponse.json({error:'Your organization role does not allow this operational status change.'},{status:403});
   if(decision==='approve'&&status!=='approved')return NextResponse.json({error:'Approval decisions must set the record status to approved.'},{status:400});
   if(decision==='reject'&&status!=='rejected')return NextResponse.json({error:'Rejection decisions must set the record status to rejected.'},{status:400});
   const [table,statusColumn,updatedColumn,allowed,scopeType,approvalMode]=config;
