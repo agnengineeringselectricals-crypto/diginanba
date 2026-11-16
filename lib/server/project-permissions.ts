@@ -70,7 +70,11 @@ export async function checkProjectPermission(
      LEFT JOIN pm_memberships manager ON manager.id=p.project_manager_membership_id
        AND manager.organization_id=p.organization_id
      WHERE p.id=$1 AND p.status<>'archived'
-       AND (om.role IN ('owner','admin') OR pmx.id IS NOT NULL)
+       AND (om.role IN ('owner','admin') OR pmx.id IS NOT NULL OR EXISTS(
+         SELECT 1 FROM pm_role_permissions org_rp JOIN pm_permissions org_perm ON org_perm.id=org_rp.permission_id
+         WHERE org_rp.organization_id=p.organization_id AND org_rp.role_id=actor.role_id
+           AND org_perm.code=$3 AND org_rp.access_scope='organization'
+       ))
      LIMIT 1`,
     [projectId,userId,permissionCode,action],
   );
