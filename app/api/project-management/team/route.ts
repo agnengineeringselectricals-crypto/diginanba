@@ -42,7 +42,7 @@ export async function GET(request:Request){
   if(!z.string().uuid().safeParse(orgId).success)return NextResponse.json({error:'Choose an organization.'},{status:400});
   try{
     const access=await db.query(
-      `SELECT role FROM organization_memberships WHERE organization_id=$1 AND user_id=$2 AND status='active' LIMIT 1`,
+      `SELECT m.role FROM organization_memberships m JOIN organization_accounts o ON o.id=m.organization_id AND o.status='active' WHERE m.organization_id=$1 AND m.user_id=$2 AND m.status='active' LIMIT 1`,
       [orgId,session.user.id]);
     if(!access.rows[0]||!['owner','admin'].includes(access.rows[0].role))return NextResponse.json({error:'Only organization owners and admins can manage the team.'},{status:403});
     const setup=await db.connect();
