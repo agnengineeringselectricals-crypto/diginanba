@@ -24,7 +24,7 @@ async function projectAccess(projectId: string, userId: string, write = false) {
        )) AS can_manage
      FROM pm_projects p JOIN organization_accounts org_active ON org_active.id=p.organization_id AND org_active.status='active' JOIN organization_memberships m ON m.organization_id=p.organization_id
      WHERE p.id=$1 AND p.status<>'archived' AND m.user_id=$2 AND m.status='active'
-       AND (m.role IN ('owner','admin') OR EXISTS (
+       AND (m.role IN ('owner','admin') OR EXISTS (SELECT 1 FROM pm_memberships role_actor JOIN pm_role_permissions role_rp ON role_rp.organization_id=role_actor.organization_id AND role_rp.role_id=role_actor.role_id WHERE role_actor.organization_id=p.organization_id AND role_actor.user_id=$2 AND role_actor.status='active' AND role_rp.access_scope='organization') OR EXISTS (
          SELECT 1 FROM pm_project_members x JOIN pm_memberships xm ON xm.id=x.membership_id
          WHERE x.project_id=p.id AND x.organization_id=p.organization_id AND x.status='active'
            AND xm.user_id=$2 AND xm.status='active'
