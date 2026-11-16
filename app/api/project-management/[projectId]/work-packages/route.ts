@@ -37,7 +37,7 @@ export async function GET(_request: Request, context: { params: Promise<{ projec
   try{
     const access=await getProjectAccess(projectId,session.user.id,false);
     if(!access.rows[0])return NextResponse.json({error:'Project not found or access denied.'},{status:404});
-    const permission=await checkProjectPermission(db,projectId,s.user.id,'tasks.read','view');if(!permission?.allowed||['assigned','own'].includes(permission.scope||''))return NextResponse.json({error:'Your organization role does not allow viewing work packages at this scope.'},{status:403});
+    const permission=await checkProjectPermission(db,projectId,session.user.id,'tasks.read','view');if(!permission?.allowed||['assigned','own'].includes(permission.scope||''))return NextResponse.json({error:'Your organization role does not allow viewing work packages at this scope.'},{status:403});
     const result=await db.query(
       `SELECT id,package_code,name,description,parent_package_id,sort_order,created_at
        FROM pm_work_packages WHERE organization_id=$1 AND project_id=$2
