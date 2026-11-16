@@ -245,10 +245,10 @@ export async function PATCH(request: Request, context: {params: Promise<{project
   if(decision==='approve'&&!access.can_manage)return NextResponse.json({error:'Approval requires project-manager permission.'},{status:403});
   if(decision==='approve'&&status!=='approved')return NextResponse.json({error:'Approval decisions must set the record status to approved.'},{status:400});
   if(decision==='reject'&&status!=='rejected')return NextResponse.json({error:'Rejection decisions must set the record status to rejected.'},{status:400});
+  const [table,statusColumn,updatedColumn,allowed,scopeType,approvalMode]=config;
   const approvalRequired=Boolean(approvalMode)&&(status==='approved'||status==='rejected');
   if(approvalRequired&&decision!==(status==='approved'?'approve':'reject'))return NextResponse.json({error:'An explicit approval or rejection decision is required.'},{status:400});
   if(decision&&!approvalMode)return NextResponse.json({error:'This record type does not use an approval decision.'},{status:400});
-  const [table,statusColumn,updatedColumn,allowed,scopeType,approvalMode]=config;
   const scope=scopeType==='project'?' AND project_id=$3':scopeType==='timesheet'?' AND EXISTS (SELECT 1 FROM pm_timesheet_entries te WHERE te.timesheet_id='+table+'.id AND te.organization_id='+table+'.organization_id AND te.project_id=$3)':scopeType==='purchase_order'?' AND EXISTS (SELECT 1 FROM pm_purchase_orders pox WHERE pox.id=pm_goods_receipts.purchase_order_id AND pox.organization_id=pm_goods_receipts.organization_id AND pox.project_id=$3)':scopeType==='quality_action'?' AND EXISTS (SELECT 1 FROM pm_quality_nonconformities qn WHERE qn.id=pm_quality_actions.nonconformity_id AND qn.organization_id=pm_quality_actions.organization_id AND qn.project_id=$3)':'';
   const values:any[]=[id,org];if(scope)values.push(projectId);
   const ownerScope=!access.can_manage&&kind==='quality_action'?' AND owner_membership_id=$'+(values.length+1):'';
