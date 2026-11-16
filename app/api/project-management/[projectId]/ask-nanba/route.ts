@@ -29,8 +29,7 @@ export async function POST(request: Request, context: { params: Promise<{ projec
               mine.id AS actor_membership_id,
               pmx.access_level,
               (m.role IN ('owner','admin') OR pmx.access_level='project_admin') AS can_manage
-       FROM pm_projects p
-       JOIN organization_memberships m ON m.organization_id=p.organization_id
+       FROM pm_projects p JOIN organization_accounts org_active ON org_active.id=p.organization_id AND org_active.status='active' JOIN organization_memberships m ON m.organization_id=p.organization_id
        LEFT JOIN pm_memberships mine ON mine.organization_id=p.organization_id AND mine.user_id=$2 AND mine.status='active'
        LEFT JOIN pm_project_members pmx ON pmx.project_id=p.id AND pmx.organization_id=p.organization_id
          AND pmx.membership_id=mine.id AND pmx.status='active'
