@@ -298,7 +298,7 @@ export async function PATCH(request: Request, context: {params: Promise<{project
     if(!current.rows[0]){await client.query('ROLLBACK');return NextResponse.json({error:'Record not found in this project.'},{status:404});}
     const currentStatus=String(current.rows[0].current_status);
     if(currentStatus===status){await client.query('ROLLBACK');return NextResponse.json({error:'The record already has that status.'},{status:409});}
-    if(!transitions[module]?.[kind]?.[currentStatus]?.includes(status))return NextResponse.json({error:`Invalid ${kind.replaceAll('_',' ')} status transition from ${currentStatus} to ${status}.`},{status:409});
+    if(!transitions[module]?.[kind]?.[currentStatus]?.includes(status)){await client.query('ROLLBACK');return NextResponse.json({error:`Invalid ${kind.replaceAll('_',' ')} status transition from ${currentStatus} to ${status}.`},{status:409});}
     const result=await client.query(`UPDATE ${table} SET ${statusColumn}=${values.length+1}${setUpdated} ${approval} WHERE id=$1 AND organization_id=$2 ${scope} ${ownerScope} RETURNING id,${statusColumn} AS status`,updateParams);
     if(!result.rows[0]){await client.query('ROLLBACK');return NextResponse.json({error:'Record not found in this project.'},{status:404});}
     if(module==='procurement' && kind==='goods_receipt'){
