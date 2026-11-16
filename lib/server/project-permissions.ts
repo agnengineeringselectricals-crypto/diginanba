@@ -98,3 +98,15 @@ export async function checkProjectPermission(
     isAdministrator:admin,
   };
 }
+
+export async function checkOrganizationPermission(executor:QueryExecutor,organizationId:string,userId:string,permissionCode:string,action:ProjectPermissionAction):Promise<boolean>{
+ const r=await executor.query(`SELECT CASE WHEN om.role IN ('owner','admin') THEN true ELSE COALESCE((
+  SELECT CASE $4::text WHEN 'view' THEN rp.can_view WHEN 'create' THEN rp.can_create WHEN 'update' THEN rp.can_update WHEN 'approve' THEN rp.can_approve WHEN 'delete' THEN rp.can_delete ELSE false END
+  FROM pm_role_permissions rp JOIN pm_permissions perm ON perm.id=rp.permission_id
+  WHERE rp.organization_id=o.id AND rp.role_id=pm.role_id AND perm.code=$3 AND rp.access_scope='organization' LIMIT 1
+ ),false) END AS allowed
+ FROM organization_accounts o JOIN organization_memberships om ON om.organization_id=o.id AND om.user_id=$2 AND om.status='active'
+ LEFT JOIN pm_memberships pm ON pm.organization_id=o.id AND pm.user_id=$2 AND pm.status='active'
+ WHERE o.id=$1 AND o.status='active' LIMIT 1`,[organizationId,userId,permissionCode,action]);
+ return r.rows[0]?.allowed===true;
+}

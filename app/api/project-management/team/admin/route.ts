@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { randomUUID } from 'node:crypto';
+import { checkOrganizationPermission } from '@/lib/server/project-permissions';
 
 export const runtime='nodejs';
 const uuid=z.string().uuid();
@@ -19,10 +20,8 @@ const patchSchema=z.discriminatedUnion('type',[
  z.object({organizationId:uuid,type:z.literal('role'),id:uuid,name:z.string().trim().min(2).max(100),description:z.string().max(1000),status:z.enum(['active','inactive']),permissions:z.array(permissionSchema).max(100)})
 ]);
 
-async function organizationAdmin(userId:string,organizationId:string,client:any){
- const r=await client.query(`SELECT o.id FROM organization_accounts o JOIN organization_memberships m ON m.organization_id=o.id
- WHERE o.id=$1 AND o.status='active' AND m.user_id=$2 AND m.status='active' AND m.role IN ('owner','admin') LIMIT 1`,[organizationId,userId]);
- return Boolean(r.rows[0]);
+async function organizationAdmin(userId:string,organizationId:string,client:any,code='organization.manage',action:'create'|'update'='update'){
+ return checkOrganizationPermission(client,organizationId,userId,code,action);
 }
 async function savePermissions(client:any,organizationId:string,roleId:string,permissions:z.infer<typeof permissionSchema>[]){
  await client.query('DELETE FROM pm_role_permissions WHERE organization_id=$1 AND role_id=$2',[organizationId,roleId]);
@@ -38,8 +37,8 @@ export async function GET(request:Request){
  const session=await auth();if(!session?.user?.id)return NextResponse.json({error:'Sign in to manage organization people.'},{status:401});
  const orgId=new URL(request.url).searchParams.get('organizationId')||'';if(!uuid.safeParse(orgId).success)return NextResponse.json({error:'Choose an organization.'},{status:400});
  try{
-  const access=await db.query(`SELECT 1 FROM organization_memberships m JOIN organization_accounts o ON o.id=m.organization_id AND o.status='active' WHERE m.organization_id=$1 AND m.user_id=$2 AND m.status='active' AND m.role IN ('owner','admin')`,[orgId,session.user.id]);
-  if(!access.rows[0])return NextResponse.json({error:'Only organization owners and admins can manage departments, employees and roles.'},{status:403});
+  const allowed=await checkOrganizationPermission(db,orgId,session.user.id,'organization.manage','view')||await checkOrganizationPermission(db,orgId,session.user.id,'roles.manage','view');
+  if(!allowed)return NextResponse.json({error:'Your organization role does not allow managing departments, employees or roles.'},{status:403});
   const [departments,designations,roles,permissions]=await Promise.all([
    db.query(`SELECT d.id,d.code,d.name,d.description,d.parent_department_id,d.status,d.sort_order,COUNT(m.id)::int AS employee_count
     FROM pm_departments d LEFT JOIN pm_memberships m ON m.organization_id=d.organization_id AND m.department_id=d.id AND m.status='active'
@@ -62,7 +61,7 @@ export async function POST(request:Request){
  const parsed=createSchema.safeParse(await request.json().catch(()=>null));if(!parsed.success)return NextResponse.json({error:parsed.error.issues[0]?.message||'Check the details.'},{status:400});
  const input=parsed.data,orgId=input.organizationId,client=await db.connect();
  try{
-  await client.query('BEGIN');if(!await organizationAdmin(session.user.id,orgId,client)){await client.query('ROLLBACK');return NextResponse.json({error:'Access denied.'},{status:403});}
+  await client.query('BEGIN');if(!await organizationAdmin(session.user.id,orgId,client,input.type==='role'?'roles.manage':'organization.manage','create')){await client.query('ROLLBACK');return NextResponse.json({error:'Access denied.'},{status:403});}
   let created:any;
   if(input.type==='department'){
    if(input.parentId){const p=await client.query(`SELECT id FROM pm_departments WHERE id=$1 AND organization_id=$2 AND status='active'`,[input.parentId,orgId]);if(!p.rows[0]){await client.query('ROLLBACK');return NextResponse.json({error:'Choose a valid parent department.'},{status:400});}}
@@ -87,7 +86,7 @@ export async function PATCH(request:Request){
  const parsed=patchSchema.safeParse(await request.json().catch(()=>null));if(!parsed.success)return NextResponse.json({error:parsed.error.issues[0]?.message||'Check the update.'},{status:400});
  const input=parsed.data,orgId=input.organizationId,client=await db.connect();
  try{
-  await client.query('BEGIN');if(!await organizationAdmin(session.user.id,orgId,client)){await client.query('ROLLBACK');return NextResponse.json({error:'Access denied.'},{status:403});}
+  await client.query('BEGIN');if(!await organizationAdmin(session.user.id,orgId,client,input.type==='role'?'roles.manage':'organization.manage','update')){await client.query('ROLLBACK');return NextResponse.json({error:'Access denied.'},{status:403});}
   if(input.type==='member'){
    const current=await client.query(`SELECT id,user_id FROM pm_memberships WHERE id=$1 AND organization_id=$2 FOR UPDATE`,[input.membershipId,orgId]);
    if(!current.rows[0]){await client.query('ROLLBACK');return NextResponse.json({error:'Employee not found.'},{status:404});}

@@ -71,7 +71,7 @@ export async function GET(request: Request, context: {params: Promise<{projectId
       db.query(`SELECT d.id,d.document_number,d.title,d.document_type,d.revision,d.mime_type,d.file_size_bytes,d.status,d.created_at,u.display_name AS uploader, (SELECT COUNT(*)::int FROM pm_document_versions v WHERE v.document_id=d.id AND v.organization_id=d.organization_id) AS version_count FROM pm_documents d JOIN users u ON u.id=d.uploaded_by WHERE d.organization_id=$1 AND d.project_id=$2 ORDER BY d.updated_at DESC LIMIT 200`,[org,projectId]),
       db.query(`SELECT v.id,v.document_id,v.revision,v.mime_type,v.file_size_bytes,v.change_summary,v.created_at,u.display_name AS uploader FROM pm_document_versions v JOIN pm_documents d ON d.id=v.document_id AND d.organization_id=v.organization_id JOIN users u ON u.id=v.uploaded_by WHERE v.organization_id=$1 AND d.project_id=$2 ORDER BY v.created_at DESC LIMIT 500`,[org,projectId]),
       db.query(`SELECT m.id AS membership_id,u.display_name,u.email FROM pm_memberships m JOIN users u ON u.id=m.user_id WHERE m.organization_id=$1 AND m.status='active' ORDER BY u.display_name LIMIT 500`,[org]),
-      db.query(`SELECT id,task_code,title,status,planned_start_date,planned_end_date FROM pm_tasks WHERE organization_id=$1 AND project_id=$2 ORDER BY title LIMIT 1000`,[org,projectId]),
+      db.query(`SELECT id,task_code,title,status,planned_start_date,planned_end_date FROM pm_tasks WHERE organization_id=$1 AND project_id=$2 AND ($3::text NOT IN ('assigned','own') OR owner_membership_id=$4) ORDER BY title LIMIT 1000`,[org,projectId,taskRead?.scope,taskRead?.membershipId]),
       db.query(`SELECT ii.id,ii.indent_id,ii.description,ii.specification,ii.unit,ii.target_quantity,ii.estimated_rate FROM pm_material_indent_items ii JOIN pm_material_indents i ON i.id=ii.indent_id AND i.organization_id=ii.organization_id WHERE ii.organization_id=$1 AND i.project_id=$2 ORDER BY i.created_at DESC,ii.id`,[org,projectId]),
       db.query(`SELECT e.id,e.timesheet_id,e.work_date,e.hours,e.work_description,t.task_code,t.title AS task_title FROM pm_timesheet_entries e LEFT JOIN pm_tasks t ON t.id=e.task_id AND t.organization_id=e.organization_id WHERE e.organization_id=$1 AND e.project_id=$2 ORDER BY e.work_date DESC,e.created_at DESC LIMIT 2000`,[org,projectId]),
     ]);
@@ -266,7 +266,51 @@ export async function PATCH(request: Request, context: {params: Promise<{project
   if(decision&&!approvalMode)return NextResponse.json({error:'This record type does not use an approval decision.'},{status:400});
   const scope=scopeType==='project'?' AND project_id=$3':scopeType==='timesheet'?' AND EXISTS (SELECT 1 FROM pm_timesheet_entries te WHERE te.timesheet_id='+table+'.id AND te.organization_id='+table+'.organization_id AND te.project_id=$3)':scopeType==='purchase_order'?' AND EXISTS (SELECT 1 FROM pm_purchase_orders pox WHERE pox.id=pm_goods_receipts.purchase_order_id AND pox.organization_id=pm_goods_receipts.organization_id AND pox.project_id=$3)':scopeType==='quality_action'?' AND EXISTS (SELECT 1 FROM pm_quality_nonconformities qn WHERE qn.id=pm_quality_actions.nonconformity_id AND qn.organization_id=pm_quality_actions.organization_id AND qn.project_id=$3)':'';
   const values:any[]=[id,org];if(scope)values.push(projectId);
-  const ownerScope=!access.can_manage&&kind==='quality_action'?' AND owner_membership_id=$'+(values.length+1):'';
+  const ownerScope=['assigned','own'].includes(rolePermission.scope||'')&&kind==='quality_action'?' AND owner_membership_id=
+  if(ownerScope)values.push(access.actor_membership_id);
+  const setUpdated=updatedColumn?`, ${updatedColumn}=now()`:'';
+  const approval=decision==='approve'&&approvalMode?',approved_by=$'+(values.length+2)+(approvalMode==='timestamp'?',approved_at=now()':''):'';
+  const updateParams:any[]=[...values,status];if(approval)updateParams.push(session.user.id);
+  const transitions:Record<string,Record<string,Record<string,string[]>>>={procurement:{supplier:{active:['inactive','blocked'],inactive:['active','blocked'],blocked:['active']},indent:{draft:['submitted','cancelled'],submitted:['approved','rejected','cancelled'],approved:['partially_ordered','ordered','cancelled'],partially_ordered:['ordered','closed'],ordered:['closed']},purchase_order:{draft:['submitted','cancelled'],submitted:['approved','cancelled'],approved:['sent','cancelled'],sent:['partially_received','received','closed'],partially_received:['received','closed'],received:['closed']},goods_receipt:{draft:['inspected'],inspected:['accepted','partially_accepted','rejected']}},manpower:{resource:{available:['allocated','maintenance','inactive'],allocated:['available','maintenance','inactive'],maintenance:['available','inactive'],inactive:['available']},allocation:{planned:['allocated','cancelled'],allocated:['released','cancelled']},assignment:{planned:['active','released','cancelled'],active:['completed','released','cancelled']},timesheet:{draft:['submitted'],submitted:['approved','rejected'],rejected:['draft'],approved:['locked']}},quality:{inspection:{pending:['pass','fail','conditional','rework'],fail:['rework'],conditional:['pass','fail','rework'],rework:['pass','fail']},nonconformity:{open:['contained','under_review','rejected'],contained:['under_review','corrective_action','rejected'],under_review:['corrective_action','verification','rejected'],corrective_action:['verification','rejected'],verification:['closed','corrective_action']},quality_action:{open:['in_progress','rejected'],in_progress:['completed','rejected'],completed:['verified','in_progress']}},finance:{budget:{draft:['submitted'],submitted:['approved'],approved:['locked']},entry:{draft:['submitted'],submitted:['approved','rejected'],rejected:['draft'],approved:['posted'],posted:['void']}},documents:{document:{draft:['in_review','archived'],in_review:['approved','draft','archived'],approved:['superseded','archived']}}};
+  const client=await db.connect();
+  try{
+    await client.query('BEGIN');
+    const current=await client.query(`SELECT ${statusColumn} AS current_status FROM ${table} WHERE id=$1 AND organization_id=$2 ${scope} ${ownerScope} FOR UPDATE`,values);
+    if(!current.rows[0]){await client.query('ROLLBACK');return NextResponse.json({error:'Record not found in this project.'},{status:404});}
+    const currentStatus=String(current.rows[0].current_status);
+    if(currentStatus===status){await client.query('ROLLBACK');return NextResponse.json({error:'The record already has that status.'},{status:409});}
+    if(!transitions[module]?.[kind]?.[currentStatus]?.includes(status)){await client.query('ROLLBACK');return NextResponse.json({error:'Invalid '+kind.replaceAll('_',' ')+' status transition from '+currentStatus+' to '+status+'.'},{status:409});}
+    const statusPlaceholder=String.fromCharCode(36)+(values.length+1);
+    const updateSql='UPDATE '+table+' SET '+statusColumn+'='+statusPlaceholder+setUpdated+approval+' WHERE id='+String.fromCharCode(36)+'1 AND organization_id='+String.fromCharCode(36)+'2 '+scope+ownerScope+' RETURNING id,'+statusColumn+' AS status';
+    const result=await client.query(updateSql,updateParams);
+    if(!result.rows[0]){await client.query('ROLLBACK');return NextResponse.json({error:'Record not found in this project.'},{status:404});}
+    if(module==='procurement' && kind==='goods_receipt'){
+      const lines=await client.query(`SELECT gi.purchase_order_item_id,gi.received_quantity,gi.accepted_quantity,gi.rejected_quantity FROM pm_goods_receipt_items gi WHERE gi.organization_id=$1 AND gi.receipt_id=$2 FOR UPDATE`,[org,id]);
+      if(!lines.rows.length)throw new Error('A goods receipt must contain at least one line.');
+      if(['accepted','partially_accepted','rejected'].includes(status)){
+        for(const line of lines.rows){
+          if(Number(line.accepted_quantity)+Number(line.rejected_quantity)!==Number(line.received_quantity))throw new Error('Before finalizing this receipt, accepted plus rejected quantities must equal the received quantity on every line.');
+          if(status==='accepted' && Number(line.rejected_quantity)>0)throw new Error('Use Partially accepted or Rejected when any quantity is rejected.');
+          if(status==='rejected' && Number(line.accepted_quantity)>0)throw new Error('Rejected receipts cannot contain accepted quantities.');
+        }
+      }
+      const poId=(await client.query('SELECT purchase_order_id FROM pm_goods_receipts WHERE id=$1 AND organization_id=$2',[id,org])).rows[0]?.purchase_order_id;
+      await client.query(`UPDATE pm_purchase_order_items poi SET received_quantity=COALESCE((SELECT SUM(gi.accepted_quantity) FROM pm_goods_receipt_items gi JOIN pm_goods_receipts gr ON gr.id=gi.receipt_id AND gr.organization_id=gi.organization_id WHERE gi.organization_id=poi.organization_id AND gi.purchase_order_item_id=poi.id AND gr.status IN ('accepted','partially_accepted')),0) WHERE poi.organization_id=$1 AND poi.purchase_order_id=$2`,[org,poId]);
+      await client.query(`UPDATE pm_purchase_orders po SET status=CASE WHEN NOT EXISTS(SELECT 1 FROM pm_purchase_order_items poi WHERE poi.organization_id=po.organization_id AND poi.purchase_order_id=po.id AND poi.received_quantity<poi.ordered_quantity) THEN 'received' WHEN EXISTS(SELECT 1 FROM pm_purchase_order_items poi WHERE poi.organization_id=po.organization_id AND poi.purchase_order_id=po.id AND poi.received_quantity>0) THEN 'partially_received' WHEN po.status IN ('received','partially_received') THEN 'approved' ELSE po.status END,updated_at=now() WHERE po.organization_id=$1 AND po.id=$2`,[org,poId]);
+    }
+    if(module==='manpower' && kind==='allocation'){
+      const resourceId=(await client.query('SELECT resource_id FROM pm_resource_allocations WHERE id=$1 AND organization_id=$2',[id,org])).rows[0]?.resource_id;
+      if(resourceId){
+        await client.query(`UPDATE pm_resources r SET status=CASE WHEN EXISTS(SELECT 1 FROM pm_resource_allocations a WHERE a.organization_id=r.organization_id AND a.resource_id=r.id AND a.status='allocated') THEN 'allocated' WHEN r.status='allocated' THEN 'available' ELSE r.status END,updated_at=now() WHERE r.organization_id=$1 AND r.id=$2`,[org,resourceId]);
+      }
+    }
+    await client.query(`INSERT INTO pm_audit_events(organization_id,actor_user_id,project_id,action,entity_type,entity_id,after_data) VALUES($1,$2,$3,$4,$5,$6,$7::jsonb)`,[org,session.user.id,projectId,'operations.'+module+'.status_changed',kind,id,JSON.stringify({status,decision:decision||null})]);
+    await client.query('COMMIT');
+    return NextResponse.json({record:result.rows[0]});
+  }catch(error){await client.query('ROLLBACK').catch(()=>undefined);console.error('Project operational status update failed',error);return NextResponse.json({error:'Could not update this record.'},{status:503});}
+  finally{client.release();}
+}
++(values.length+1):'';
   if(ownerScope)values.push(access.actor_membership_id);
   const setUpdated=updatedColumn?`, ${updatedColumn}=now()`:'';
   const approval=decision==='approve'&&approvalMode?',approved_by=$'+(values.length+2)+(approvalMode==='timestamp'?',approved_at=now()':''):'';

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
+import { checkOrganizationPermission } from '@/lib/server/project-permissions';
 
 export const runtime='nodejs';
 const inviteSchema=z.object({organizationId:z.string().uuid(),email:z.string().trim().email().max(254),roleId:z.string().uuid().optional(),roleCode:z.enum(['project_manager','engineer','viewer']).default('engineer'),departmentId:z.string().uuid().nullable().optional()});
@@ -41,10 +42,8 @@ export async function GET(request:Request){
   const orgId=new URL(request.url).searchParams.get('organizationId')||'';
   if(!z.string().uuid().safeParse(orgId).success)return NextResponse.json({error:'Choose an organization.'},{status:400});
   try{
-    const access=await db.query(
-      `SELECT m.role FROM organization_memberships m JOIN organization_accounts o ON o.id=m.organization_id AND o.status='active' WHERE m.organization_id=$1 AND m.user_id=$2 AND m.status='active' LIMIT 1`,
-      [orgId,session.user.id]);
-    if(!access.rows[0]||!['owner','admin'].includes(access.rows[0].role))return NextResponse.json({error:'Only organization owners and admins can manage the team.'},{status:403});
+    const allowed=await checkOrganizationPermission(db,orgId,session.user.id,'organization.manage','view');
+    if(!allowed)return NextResponse.json({error:'Your organization role does not allow viewing the team.'},{status:403});
     const setup=await db.connect();
     try{await setup.query('BEGIN');await ensureDefaultRoles(setup,orgId);await setup.query('COMMIT');}
     catch(error){await setup.query('ROLLBACK').catch(()=>undefined);throw error;}
@@ -82,9 +81,8 @@ export async function POST(request:Request){
        JOIN organization_memberships m ON m.organization_id=o.id
        WHERE o.id=$1 AND m.user_id=$2 AND m.status='active' AND o.status='active'
        FOR UPDATE OF o`,[input.organizationId,session.user.id]);
-    if(!access.rows[0]||!['owner','admin'].includes(access.rows[0].role)){
-      await client.query('ROLLBACK');return NextResponse.json({error:'Only organization owners and admins can invite team members.'},{status:403});
-    }
+    const canInvite=await checkOrganizationPermission(client,input.organizationId,session.user.id,'organization.manage','create');
+    if(!canInvite){await client.query('ROLLBACK');return NextResponse.json({error:'Your organization role does not allow inviting team members.'},{status:403});}
     const user=await client.query('SELECT id,email FROM users WHERE lower(email)=$1 AND status=\'active\' LIMIT 1',[email]);
     if(!user.rows[0]){await client.query('ROLLBACK');return NextResponse.json({error:'This engineer must create a DigiNanba account with this email first. Then send the invitation again.'},{status:404});}
     await ensureDefaultRoles(client,input.organizationId);

@@ -55,7 +55,7 @@ export async function POST(request: Request, context: {params: Promise<{projectI
   if(!uuid.safeParse(projectId).success)return NextResponse.json({error:'Invalid project.'},{status:400});
   const access=await projectAccess(projectId,session.user.id,false);
   if(!access)return NextResponse.json({error:'Project not found or access denied.'},{status:403});
-  const permission=await checkProjectPermission(db,projectId,session.user.id,'documents.create','create');if(!permission?.allowed)return NextResponse.json({error:'Your organization role does not allow document uploads or revisions.'},{status:403});
+  const permission=await checkProjectPermission(db,projectId,session.user.id,'documents.create','create');if(!permission?.allowed||['assigned','own'].includes(permission.scope||''))return NextResponse.json({error:'Your organization role does not allow document uploads at this scope.'},{status:403});
   const entitlements=await getOrganizationModuleEntitlements(db,access.organization_id);
   if(!entitlements.some(m=>m.module_code==='documents'&&m.has_access))return NextResponse.json({error:'The Documents module is not enabled for this organization.'},{status:403});
 
