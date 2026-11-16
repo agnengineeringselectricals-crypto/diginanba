@@ -18,7 +18,7 @@ const lineSchema = z.object({
 async function manager(userId:string) {
   const r=await db.query(
     `SELECT m.organization_id,m.role
-     FROM organization_memberships m
+     FROM organization_memberships m JOIN organization_accounts org_active ON org_active.id=m.organization_id AND org_active.status='active'
      WHERE m.user_id=$1 AND m.status='active' AND m.role IN ('owner','admin')
      ORDER BY CASE WHEN m.role='owner' THEN 0 ELSE 1 END,m.created_at DESC LIMIT 1`,
     [userId],
