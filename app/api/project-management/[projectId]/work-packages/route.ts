@@ -13,36 +13,19 @@ const schema = z.object({
   sortOrder: z.number().int().min(0).max(100000).default(0),
 });
 
-async function getProjectAccess(projectId: string, userId: string, write = false) {
-  return db.query(
-    `SELECT p.organization_id FROM pm_projects p JOIN organization_accounts org_active ON org_active.id=p.organization_id AND org_active.status='active' JOIN organization_memberships m ON m.organization_id=p.organization_id
-     WHERE p.id=$1 AND m.user_id=$2 AND m.status='active' AND p.status <> 'archived'
-       AND (m.role IN ('owner','admin') OR EXISTS (
-         SELECT 1 FROM pm_project_members pmx
-         JOIN pm_memberships mmx ON mmx.id=pmx.membership_id
-         WHERE pmx.project_id=p.id AND pmx.organization_id=p.organization_id
-           AND pmx.status='active' AND mmx.user_id=$2 AND mmx.status='active'
-           AND ($3::boolean=false OR pmx.access_level='project_admin')
-       ))
-     LIMIT 1`,
-    [projectId,userId,write],
-  );
-}
-
 export async function GET(_request: Request, context: { params: Promise<{ projectId: string }> }) {
   const session=await auth();
   if(!session?.user?.id)return NextResponse.json({error:'Sign in to view work packages.'},{status:401});
   const {projectId}=await context.params;
   if(!z.string().uuid().safeParse(projectId).success)return NextResponse.json({error:'Invalid project.'},{status:400});
   try{
-    const access=await getProjectAccess(projectId,session.user.id,false);
-    if(!access.rows[0])return NextResponse.json({error:'Project not found or access denied.'},{status:404});
-    const permission=await checkProjectPermission(db,projectId,session.user.id,'tasks.read','view');if(!permission?.allowed||['assigned','own'].includes(permission.scope||''))return NextResponse.json({error:'Your organization role does not allow viewing work packages at this scope.'},{status:403});
+    const permission=await checkProjectPermission(db,projectId,session.user.id,'tasks.read','view');
+    if(!permission?.allowed||['assigned','own'].includes(permission.scope||''))return NextResponse.json({error:'Project not found or your role does not allow viewing work packages.'},{status:404});
     const result=await db.query(
       `SELECT id,package_code,name,description,parent_package_id,sort_order,created_at
        FROM pm_work_packages WHERE organization_id=$1 AND project_id=$2
        ORDER BY sort_order,name LIMIT 1000`,
-      [access.rows[0].organization_id,projectId]);
+      [permission.organizationId,projectId]);
     return NextResponse.json({workPackages:result.rows});
   }catch(error){
     console.error('Work package list failed',error);
@@ -60,19 +43,9 @@ export async function POST(request:Request,context:{params:Promise<{projectId:st
   const input=parsed.data;const client=await db.connect();
   try{
     await client.query('BEGIN');
-    const access=await client.query(
-      `SELECT p.organization_id FROM pm_projects p
-       JOIN organization_memberships m ON m.organization_id=p.organization_id
-       WHERE p.id=$1 AND m.user_id=$2 AND m.status='active' AND p.status <> 'archived'
-         AND (m.role IN ('owner','admin') OR EXISTS (
-           SELECT 1 FROM pm_project_members pmx JOIN pm_memberships mmx ON mmx.id=pmx.membership_id
-           WHERE pmx.project_id=p.id AND pmx.organization_id=p.organization_id AND pmx.status='active'
-             AND mmx.user_id=$2 AND mmx.status='active'
-         ))
-       LIMIT 1 FOR UPDATE OF p`,[projectId,session.user.id]);
-    if(!access.rows[0]){await client.query('ROLLBACK');return NextResponse.json({error:'Project not found or access denied.'},{status:404});}
-    const permission=await checkProjectPermission(client,projectId,session.user.id,'tasks.create','create');if(!permission?.allowed||['assigned','own'].includes(permission.scope||'')){await client.query('ROLLBACK');return NextResponse.json({error:'Your organization role does not allow creating work packages at this scope.'},{status:403});}
-    const orgId=access.rows[0].organization_id as string;
+    const permission=await checkProjectPermission(client,projectId,session.user.id,'tasks.create','create');
+    if(!permission?.allowed||['assigned','own'].includes(permission.scope||'')){await client.query('ROLLBACK');return NextResponse.json({error:'Your organization role does not allow creating work packages at this scope.'},{status:403});}
+    const orgId=permission.organizationId;
     if(input.parentPackageId){
       const parent=await client.query('SELECT 1 FROM pm_work_packages WHERE id=$1 AND organization_id=$2 AND project_id=$3',[input.parentPackageId,orgId,projectId]);
       if(!parent.rows[0]){await client.query('ROLLBACK');return NextResponse.json({error:'Parent work package must belong to this project.'},{status:400});}
