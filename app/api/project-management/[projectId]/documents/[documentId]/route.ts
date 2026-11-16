@@ -14,6 +14,7 @@ export async function GET(request:Request,context:{params:Promise<{projectId:str
   `SELECT d.organization_id,d.title,d.storage_key,d.mime_type,d.file_size_bytes,d.revision,v.storage_key AS version_storage_key,v.mime_type AS version_mime_type,v.file_size_bytes AS version_size,v.revision AS version_revision
      FROM pm_documents d
      JOIN pm_projects p ON p.id=d.project_id AND p.organization_id=d.organization_id
+     JOIN organization_accounts org_active ON org_active.id=p.organization_id AND org_active.status='active'
      LEFT JOIN organization_memberships m ON m.organization_id=p.organization_id AND m.user_id=$3 AND m.status='active'
      LEFT JOIN pm_document_versions v ON v.organization_id=d.organization_id AND v.document_id=d.id AND v.revision=$4
     WHERE d.id=$1 AND d.project_id=$2 AND p.status<>'archived'
