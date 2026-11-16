@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
+import { getOrganizationModuleEntitlements } from '@/lib/server/organization-entitlements';
 
 export const runtime = 'nodejs';
 
@@ -43,7 +44,9 @@ export async function GET(request: Request, context: {params: Promise<{projectId
   if(!access) return NextResponse.json({error:'Project not found or access denied.'},{status:404});
   const org=access.organization_id;
   try {
-    const clients=await db.query(`SELECT id,legal_name,status FROM pm_clients WHERE organization_id=$1 AND status='active' ORDER BY legal_name LIMIT 300`,[org]);
+    const moduleEntitlements=await getOrganizationModuleEntitlements(db,org);
+    const moduleAccess=Object.fromEntries(moduleEntitlements.map(m=>[m.module_code,m.has_access]));
+    const clients=moduleAccess.crm_communications?await db.query(`SELECT id,legal_name,status FROM pm_clients WHERE organization_id=$1 AND status='active' ORDER BY legal_name LIMIT 300`,[org]):{rows:[]};
     const [suppliers,indents,orders,receipts,receiptItems,purchaseOrderItems,resources,allocations,assignments,timesheets,inspections,ncs,qualityActions,budgets,entries,documents,documentVersions,members,tasks,indentItems,timesheetEntries]=await Promise.all([
       db.query(`SELECT id,supplier_code,legal_name,category,specializations,website_url,contact_name,email,phone,tax_registration_number,status FROM pm_suppliers WHERE organization_id=$1 ORDER BY legal_name LIMIT 300`,[org]),
       db.query(`SELECT i.id,i.indent_number,i.required_by,i.status,i.purpose,i.created_at,u.display_name AS requester,COUNT(ii.id)::int AS line_count,COALESCE(SUM(ii.target_quantity*COALESCE(ii.estimated_rate,0)),0)::numeric AS estimated_total FROM pm_material_indents i LEFT JOIN users u ON u.id=i.requested_by LEFT JOIN pm_material_indent_items ii ON ii.indent_id=i.id AND ii.organization_id=i.organization_id WHERE i.organization_id=$1 AND i.project_id=$2 GROUP BY i.id,u.display_name ORDER BY i.created_at DESC LIMIT 100`,[org,projectId]),
@@ -68,7 +71,7 @@ export async function GET(request: Request, context: {params: Promise<{projectId
       db.query(`SELECT e.id,e.timesheet_id,e.work_date,e.hours,e.work_description,t.task_code,t.title AS task_title FROM pm_timesheet_entries e LEFT JOIN pm_tasks t ON t.id=e.task_id AND t.organization_id=e.organization_id WHERE e.organization_id=$1 AND e.project_id=$2 ORDER BY e.work_date DESC,e.created_at DESC LIMIT 2000`,[org,projectId]),
     ]);
     const canSubmit=Boolean(access.can_manage || access.project_access==='assigned');
-    return NextResponse.json({canManage:access.can_manage,canSubmit,currentMembershipId:access.actor_membership_id,clients:clients.rows,suppliers:suppliers.rows,indents:indents.rows,purchaseOrders:orders.rows,goodsReceipts:receipts.rows,goodsReceiptItems:receiptItems.rows,purchaseOrderItems:purchaseOrderItems.rows,resources:resources.rows,allocations:allocations.rows,workforceAssignments:assignments.rows,timesheets:timesheets.rows,inspections:inspections.rows,nonconformities:ncs.rows,qualityActions:qualityActions.rows,budgets:budgets.rows,financialEntries:entries.rows,documents:documents.rows,documentVersions:documentVersions.rows,members:members.rows,tasks:tasks.rows,indentItems:indentItems.rows,timesheetEntries:timesheetEntries.rows});
+    return NextResponse.json({canManage:access.can_manage,canSubmit,currentMembershipId:access.actor_membership_id,modules:moduleEntitlements,clients:moduleAccess.crm_communications?clients.rows:[],suppliers:moduleAccess.procurement?suppliers.rows:[],indents:moduleAccess.procurement?indents.rows:[],purchaseOrders:moduleAccess.procurement?orders.rows:[],goodsReceipts:moduleAccess.procurement?receipts.rows:[],goodsReceiptItems:moduleAccess.procurement?receiptItems.rows:[],purchaseOrderItems:moduleAccess.procurement?purchaseOrderItems.rows:[],resources:moduleAccess.resources?resources.rows:[],allocations:moduleAccess.resources?allocations.rows:[],workforceAssignments:moduleAccess.people?assignments.rows:[],timesheets:moduleAccess.people?timesheets.rows:[],inspections:moduleAccess.quality?inspections.rows:[],nonconformities:moduleAccess.quality?ncs.rows:[],qualityActions:moduleAccess.quality?qualityActions.rows:[],budgets:moduleAccess.finance?budgets.rows:[],financialEntries:moduleAccess.finance?entries.rows:[],documents:moduleAccess.documents?documents.rows:[],documentVersions:moduleAccess.documents?documentVersions.rows:[],members:moduleAccess.people?members.rows:[],tasks:tasks.rows,indentItems:moduleAccess.procurement?indentItems.rows:[],timesheetEntries:moduleAccess.people?timesheetEntries.rows:[]});
   } catch(error) {
     console.error('Project operations load failed',error);
     return NextResponse.json({error:'Project operations could not be loaded.'},{status:503});
@@ -87,6 +90,10 @@ export async function POST(request: Request, context: {params: Promise<{projectI
   const canSubmit=Boolean(access && (access.can_manage || access.project_access==='assigned'));
   if(!access || !canSubmit) return NextResponse.json({error:'You do not have permission to submit operational records in this project.'},{status:403});
   const org=access.organization_id;
+  const action=String(input.action||'');
+  const entitlementCode=input.module==='manpower'?(action==='resource'||action==='allocation'?'resources':'people'):input.module;
+  const entitlements=await getOrganizationModuleEntitlements(db,org);
+  if(!entitlements.some(m=>m.module_code===entitlementCode&&m.has_access))return NextResponse.json({error:'This optional module is not enabled for the organization. Ask an organization administrator to activate it in Modules and access.'},{status:403});
   const client=await db.connect();
   try {
     await client.query('BEGIN');
@@ -230,6 +237,10 @@ export async function PATCH(request: Request, context: {params: Promise<{project
   const access=await projectAccess(projectId,session.user.id);
   if(!access)return NextResponse.json({error:'Project not found or access denied.'},{status:404});
   const {module,id,status,decision}=p.data;const org=access.organization_id;
+  const kind=String((input as any).kind||'');
+  const entitlementCode=module==='manpower'?(kind==='resource'||kind==='allocation'?'resources':'people'):module;
+  const entitlements=await getOrganizationModuleEntitlements(db,org);
+  if(!entitlements.some(m=>m.module_code===entitlementCode&&m.has_access))return NextResponse.json({error:'This optional module is not enabled for the organization.'},{status:403});
   const maps:any={
     procurement:{supplier:['pm_suppliers','status','updated_at',['active','inactive','blocked'],'organization',false],indent:['pm_material_indents','status','updated_at',['draft','submitted','approved','rejected','partially_ordered','ordered','closed','cancelled'],'project','timestamp'],purchase_order:['pm_purchase_orders','status','updated_at',['draft','submitted','approved','sent','partially_received','received','closed','cancelled'],'project','user'],goods_receipt:['pm_goods_receipts','status',null,['draft','inspected','accepted','rejected','partially_accepted'],'purchase_order',false]},
     manpower:{resource:['pm_resources','status','updated_at',['available','allocated','maintenance','inactive'],'organization',false],allocation:['pm_resource_allocations','status','updated_at',['planned','allocated','released','cancelled'],'project',false],assignment:['pm_workforce_assignments','status','updated_at',['planned','active','completed','released','cancelled'],'project',false],timesheet:['pm_timesheets','status','updated_at',['draft','submitted','approved','rejected','locked'],'timesheet','timestamp']},
@@ -237,7 +248,6 @@ export async function PATCH(request: Request, context: {params: Promise<{project
     finance:{budget:['pm_project_budgets','status','updated_at',['draft','submitted','approved','locked'],'project','timestamp'],entry:['pm_financial_entries','status','updated_at',['draft','submitted','approved','posted','void'],'project','user']},
     documents:{document:['pm_documents','status','updated_at',['draft','in_review','approved','superseded','archived'],'project','user']}
   };
-  const kind=String((input as any).kind||'');
   const config=maps[module]?.[kind];
   if(!config||!config[3].includes(status))return NextResponse.json({error:'Unsupported record type or status.'},{status:400});
   const canUpdateOwnQualityAction=!access.can_manage&&module==='quality'&&kind==='quality_action'&&access.project_access==='assigned'&&['open','in_progress','completed'].includes(status);

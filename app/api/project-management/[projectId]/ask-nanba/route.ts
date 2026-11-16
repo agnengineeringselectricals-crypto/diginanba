@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
+import { recordOrganizationUsage } from '@/lib/server/organization-entitlements';
 
 export const runtime = 'nodejs';
 export const maxDuration = 30;
@@ -212,6 +213,9 @@ export async function POST(request: Request, context: { params: Promise<{ projec
        VALUES($1,$2,$3,$4,$5,$6,'succeeded')`,
       [orgId, projectId, session.user.id, model, inputTokens, outputTokens],
     );
+    await recordOrganizationUsage(db,{organizationId:orgId,meterCode:'ai_assistant_requests',quantity:1,unit:'request',idempotencyKey:'ai_request:'+crypto.randomUUID(),actorUserId:session.user.id,sourceType:'project_ai_assistant',sourceId:projectId,metadata:{model}});
+    if(inputTokens>0)await recordOrganizationUsage(db,{organizationId:orgId,meterCode:'ai_input_tokens',quantity:inputTokens,unit:'token',idempotencyKey:'ai_input:'+crypto.randomUUID(),actorUserId:session.user.id,sourceType:'project_ai_assistant',sourceId:projectId,metadata:{model}});
+    if(outputTokens>0)await recordOrganizationUsage(db,{organizationId:orgId,meterCode:'ai_output_tokens',quantity:outputTokens,unit:'token',idempotencyKey:'ai_output:'+crypto.randomUUID(),actorUserId:session.user.id,sourceType:'project_ai_assistant',sourceId:projectId,metadata:{model}});
     await db.query(
       `INSERT INTO pm_audit_events(organization_id,actor_user_id,project_id,action,entity_type,after_data)
        VALUES($1,$2,$3,'project.ai_assistant.asked','ai_assistant',$4::jsonb)`,

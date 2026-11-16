@@ -3,6 +3,7 @@ import { del, put } from '@vercel/blob';
 import { z } from 'zod';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
+import { getOrganizationModuleEntitlements, recordOrganizationUsage } from '@/lib/server/organization-entitlements';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -53,6 +54,8 @@ export async function POST(request: Request, context: {params: Promise<{projectI
   if(!uuid.safeParse(projectId).success)return NextResponse.json({error:'Invalid project.'},{status:400});
   const access=await projectAccess(projectId,session.user.id,true);
   if(!access)return NextResponse.json({error:'Only project managers and organization administrators can upload or revise controlled documents.'},{status:403});
+  const entitlements=await getOrganizationModuleEntitlements(db,access.organization_id);
+  if(!entitlements.some(m=>m.module_code==='documents'&&m.has_access))return NextResponse.json({error:'The Documents module is not enabled for this organization.'},{status:403});
 
   const form=await request.formData();
   const file=form.get('file');
@@ -94,6 +97,8 @@ export async function POST(request: Request, context: {params: Promise<{projectI
       await client.query(`UPDATE pm_documents SET storage_key=$3 WHERE organization_id=$1 AND id=$2`,[access.organization_id,id,uploadedPath]);
     }
     await client.query(`INSERT INTO pm_audit_events(organization_id,actor_user_id,project_id,action,entity_type,entity_id,after_data) VALUES($1,$2,$3,$4,'document',$5,$6::jsonb)`,[access.organization_id,session.user.id,projectId,documentId?'documents.revision_uploaded':'documents.uploaded',id,JSON.stringify({title,documentType,revision,fileSizeBytes:file.size,mimeType})]);
+    await recordOrganizationUsage(client,{organizationId:access.organization_id,meterCode:'document_versions_uploaded',quantity:1,unit:'version',idempotencyKey:'document_version:'+id+':'+revision,actorUserId:session.user.id,sourceType:'document',sourceId:id,metadata:{fileSizeBytes:file.size,mimeType}});
+    await recordOrganizationUsage(client,{organizationId:access.organization_id,meterCode:'document_storage_bytes',quantity:file.size,unit:'byte',idempotencyKey:'document_storage:'+id+':'+revision,actorUserId:session.user.id,sourceType:'document',sourceId:id,metadata:{revision}});
     await client.query('COMMIT');
     return NextResponse.json({document:{id,title,documentType,revision,fileSizeBytes:file.size,mimeType,downloadUrl:`/api/project-management/${projectId}/documents/${id}`}}, {status:documentId?200:201});
   }catch(error){

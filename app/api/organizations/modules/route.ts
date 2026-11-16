@@ -1,0 +1,24 @@
+import {NextResponse} from 'next/server';
+import {z} from 'zod';
+import {auth} from '@/lib/auth';
+import {db} from '@/lib/db';
+import {getOrganizationModuleEntitlements} from '@/lib/server/organization-entitlements';
+export const runtime='nodejs';
+const uuid=z.string().uuid();
+const bodySchema=z.object({organizationId:uuid,moduleCode:z.string().trim().min(2).max(80),enabled:z.boolean()});
+export async function GET(request:Request){
+ const session=await auth();if(!session?.user?.id)return NextResponse.json({error:'Sign in to view organization modules.'},{status:401});
+ const organizationId=new URL(request.url).searchParams.get('organizationId')||'';if(!uuid.safeParse(organizationId).success)return NextResponse.json({error:'Choose an organization.'},{status:400});
+ try{const access=await db.query('SELECT m.role,o.status FROM organization_memberships m JOIN organization_accounts o ON o.id=m.organization_id WHERE m.organization_id=$1 AND m.user_id=$2 AND m.status=\'active\' LIMIT 1',[organizationId,session.user.id]);if(!access.rows[0]||access.rows[0].status!=='active')return NextResponse.json({error:'Organization not found or access denied.'},{status:404});const modules=await getOrganizationModuleEntitlements(db,organizationId);return NextResponse.json({modules,canManage:['owner','admin'].includes(String(access.rows[0].role))})}catch(error){console.error('Organization module lookup failed',error);return NextResponse.json({error:'Organization modules are temporarily unavailable.'},{status:503})}
+}
+export async function POST(request:Request){
+ const session=await auth();if(!session?.user?.id)return NextResponse.json({error:'Sign in to manage organization modules.'},{status:401});
+ const parsed=bodySchema.safeParse(await request.json().catch(()=>null));if(!parsed.success)return NextResponse.json({error:'Choose a valid module and activation setting.'},{status:400});const input=parsed.data;const client=await db.connect();
+ try{await client.query('BEGIN');const access=await client.query('SELECT m.role,o.status FROM organization_memberships m JOIN organization_accounts o ON o.id=m.organization_id WHERE m.organization_id=$1 AND m.user_id=$2 AND m.status=\'active\' FOR UPDATE OF o',[input.organizationId,session.user.id]);if(!access.rows[0]||access.rows[0].status!=='active'||!['owner','admin'].includes(String(access.rows[0].role))){await client.query('ROLLBACK');return NextResponse.json({error:'Only active organization owners and admins can change modules.'},{status:403})}
+ const entitlement=await client.query('SELECT c.module_code,c.billing_mode,c.is_active,COALESCE(pe.included,c.billing_mode=\'included\') AS included,COALESCE(pe.optional_available,false) AS optional_available,s.status AS subscription_status FROM pm_module_catalog c LEFT JOIN organization_subscriptions s ON s.organization_id=$1 LEFT JOIN pm_plan_module_entitlements pe ON pe.plan_code=s.plan_code AND pe.module_code=c.module_code WHERE c.module_code=$2 LIMIT 1',[input.organizationId,input.moduleCode]);const module=entitlement.rows[0];if(!module||module.is_active!==true){await client.query('ROLLBACK');return NextResponse.json({error:'This module is not available.'},{status:404})}
+ if(module.included===true&&!input.enabled){await client.query('ROLLBACK');return NextResponse.json({error:'Core included modules cannot be disabled.'},{status:409})}
+ if(input.enabled&&module.included!==true&&(module.subscription_status!=='active'||module.optional_available!==true)){await client.query('ROLLBACK');return NextResponse.json({error:'An active organization subscription is required before enabling this optional module. No charge has been made.'},{status:402})}
+ await client.query('INSERT INTO pm_organization_modules(organization_id,module_code,enabled,enabled_at,enabled_by,updated_at) VALUES($1,$2,$3,CASE WHEN $3 THEN now() ELSE NULL END,CASE WHEN $3 THEN $4::uuid ELSE NULL END,now()) ON CONFLICT(organization_id,module_code) DO UPDATE SET enabled=EXCLUDED.enabled,enabled_at=CASE WHEN EXCLUDED.enabled THEN now() ELSE NULL END,enabled_by=CASE WHEN EXCLUDED.enabled THEN EXCLUDED.enabled_by ELSE NULL END,updated_at=now()',[input.organizationId,input.moduleCode,input.enabled,session.user.id]);
+ await client.query('INSERT INTO pm_audit_events(organization_id,actor_user_id,action,entity_type,after_data) VALUES($1,$2,$3,\'organization_module\',$4::jsonb)',[input.organizationId,session.user.id,input.enabled?'organization.module.enabled':'organization.module.disabled',JSON.stringify({moduleCode:input.moduleCode,enabled:input.enabled})]);await client.query('COMMIT');return NextResponse.json({ok:true,moduleCode:input.moduleCode,enabled:input.enabled});
+ }catch(error){await client.query('ROLLBACK').catch(()=>undefined);console.error('Organization module update failed',error);return NextResponse.json({error:'Could not update the organization module.'},{status:503})}finally{client.release()}
+}

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { get } from '@vercel/blob';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
+import { getOrganizationModuleEntitlements } from '@/lib/server/organization-entitlements';
 
 export const runtime='nodejs';
 
@@ -29,6 +30,7 @@ export async function GET(request:Request,context:{params:Promise<{projectId:str
   [documentId,projectId,session.user.id,new URL(request.url).searchParams.get('revision')],
  );
  const doc=result.rows[0];
+ if(doc){const entitlements=await getOrganizationModuleEntitlements(db,doc.organization_id);if(!entitlements.some(m=>m.module_code==='documents'&&m.has_access))return NextResponse.json({error:'The Documents module is not enabled for this organization.'},{status:403});}
  if(!doc || (new URL(request.url).searchParams.has('revision') && !doc.version_storage_key))return NextResponse.json({error:'Document or requested revision not found, or access denied.'},{status:404});
  const pathname=doc.version_storage_key||doc.storage_key;
  if(!pathname||pathname==='pending-upload'||!pathname.startsWith('organizations/'+doc.organization_id+'/projects/'+projectId+'/documents/'))return NextResponse.json({error:'This document has no valid private storage object.'},{status:404});
