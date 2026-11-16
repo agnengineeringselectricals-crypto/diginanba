@@ -131,7 +131,6 @@ export async function POST(request:Request) {
     if(error instanceof Error && (error.message.startsWith('Purchase order not found')||error.message.startsWith('Delivery cannot move'))) return NextResponse.json({error:error.message},{status:409});
     throw error;
    } finally { client.release(); }
-   return NextResponse.json({deliveryUpdate:update},{status:201});
   }
   if(body.action==='reply_message') {
    if(member.permissions?.communication===false) return NextResponse.json({error:'Your portal account does not have communication permission.'},{status:403});
@@ -155,7 +154,6 @@ export async function POST(request:Request) {
     if(error instanceof Error && error.message.startsWith('This conversation')) return NextResponse.json({error:error.message},{status:404});
     throw error;
    } finally { client.release(); }
-   return NextResponse.json({message},{status:201});
   }
   if(body.action==='send_message') {
    if(member.permissions?.communication===false) return NextResponse.json({error:'Your portal account does not have communication permission.'},{status:403});
