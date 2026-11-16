@@ -38,7 +38,7 @@ export async function GET(request:Request){
  const session=await auth();if(!session?.user?.id)return NextResponse.json({error:'Sign in to manage organization people.'},{status:401});
  const orgId=new URL(request.url).searchParams.get('organizationId')||'';if(!uuid.safeParse(orgId).success)return NextResponse.json({error:'Choose an organization.'},{status:400});
  try{
-  const access=await db.query(`SELECT 1 FROM organization_memberships WHERE organization_id=$1 AND user_id=$2 AND status='active' AND role IN ('owner','admin')`,[orgId,session.user.id]);
+  const access=await db.query(`SELECT 1 FROM organization_memberships m JOIN organization_accounts o ON o.id=m.organization_id AND o.status='active' WHERE m.organization_id=$1 AND m.user_id=$2 AND m.status='active' AND m.role IN ('owner','admin')`,[orgId,session.user.id]);
   if(!access.rows[0])return NextResponse.json({error:'Only organization owners and admins can manage departments, employees and roles.'},{status:403});
   const [departments,designations,roles,permissions]=await Promise.all([
    db.query(`SELECT d.id,d.code,d.name,d.description,d.parent_department_id,d.status,d.sort_order,COUNT(m.id)::int AS employee_count
