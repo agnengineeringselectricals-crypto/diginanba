@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
+import { recordOrganizationUsage } from '@/lib/server/organization-entitlements';
 
 export const runtime = 'nodejs';
 
@@ -128,6 +129,7 @@ export async function POST(request: Request) {
        VALUES($1,$2,$3,'project.created','project',$3,$4::jsonb)`,
       [input.organizationId, session.user.id, created.rows[0].id, JSON.stringify({ name: input.name, projectCode: codeResult.rows[0].code })],
     );
+    await recordOrganizationUsage(client,{organizationId:input.organizationId,meterCode:'projects_created',quantity:1,unit:'project',idempotencyKey:'project_created:'+created.rows[0].id,actorUserId:session.user.id,sourceType:'project',sourceId:created.rows[0].id});
     await client.query('COMMIT');
     return NextResponse.json({ project: created.rows[0] }, { status: 201 });
   } catch (error) {
