@@ -441,3 +441,178 @@ export async function PATCH(request: Request, context: {params: Promise<{project
   }catch(error){await client.query('ROLLBACK').catch(()=>undefined);console.error('Project operational status update failed',error);return NextResponse.json({error:'Could not update this record.'},{status:503});}
   finally{client.release();}
 }
++(values.length+1):'';
+  const setUpdated=updatedColumn?`, ${updatedColumn}=now()`:'';
+  const approval=decision==='approve'&&approvalMode?',approved_by=$'+(values.length+2)+(approvalMode==='timestamp'?',approved_at=now()':''):'';
+  const updateParams:any[]=[...values,status];if(approval)updateParams.push(session.user.id);
+  const transitions:Record<string,Record<string,Record<string,string[]>>>={procurement:{supplier:{active:['inactive','blocked'],inactive:['active','blocked'],blocked:['active']},indent:{draft:['submitted','cancelled'],submitted:['approved','rejected','cancelled'],approved:['partially_ordered','ordered','cancelled'],partially_ordered:['ordered','closed'],ordered:['closed']},purchase_order:{draft:['submitted','cancelled'],submitted:['approved','cancelled'],approved:['sent','cancelled'],sent:['partially_received','received','closed'],partially_received:['received','closed'],received:['closed']},goods_receipt:{draft:['inspected'],inspected:['accepted','partially_accepted','rejected']}},manpower:{resource:{available:['allocated','maintenance','inactive'],allocated:['available','maintenance','inactive'],maintenance:['available','inactive'],inactive:['available']},allocation:{planned:['allocated','cancelled'],allocated:['released','cancelled']},assignment:{planned:['active','released','cancelled'],active:['completed','released','cancelled']},timesheet:{draft:['submitted'],submitted:['approved','rejected'],rejected:['draft'],approved:['locked']}},quality:{inspection:{pending:['pass','fail','conditional','rework'],fail:['rework'],conditional:['pass','fail','rework'],rework:['pass','fail']},nonconformity:{open:['contained','under_review','rejected'],contained:['under_review','corrective_action','rejected'],under_review:['corrective_action','verification','rejected'],corrective_action:['verification','rejected'],verification:['closed','corrective_action']},quality_action:{open:['in_progress','rejected'],in_progress:['completed','rejected'],completed:['verified','in_progress']}},finance:{budget:{draft:['submitted'],submitted:['approved'],approved:['locked']},entry:{draft:['submitted'],submitted:['approved','rejected'],rejected:['draft'],approved:['posted'],posted:['void']}},documents:{document:{draft:['in_review','archived'],in_review:['approved','draft','archived'],approved:['superseded','archived']}}};
+  const client=await db.connect();
+  try{
+    await client.query('BEGIN');
+    const current=await client.query(`SELECT ${statusColumn} AS current_status FROM ${table} WHERE id=$1 AND organization_id=$2 ${scope} ${ownerScope} FOR UPDATE`,values);
+    if(!current.rows[0]){await client.query('ROLLBACK');return NextResponse.json({error:'Record not found in this project.'},{status:404});}
+    const currentStatus=String(current.rows[0].current_status);
+    if(currentStatus===status){await client.query('ROLLBACK');return NextResponse.json({error:'The record already has that status.'},{status:409});}
+    if(!transitions[module]?.[kind]?.[currentStatus]?.includes(status)){await client.query('ROLLBACK');return NextResponse.json({error:'Invalid '+kind.replaceAll('_',' ')+' status transition from '+currentStatus+' to '+status+'.'},{status:409});}
+    const statusPlaceholder=String.fromCharCode(36)+(values.length+1);
+    const updateSql='UPDATE '+table+' SET '+statusColumn+'='+statusPlaceholder+setUpdated+approval+' WHERE id='+String.fromCharCode(36)+'1 AND organization_id='+String.fromCharCode(36)+'2 '+scope+ownerScope+' RETURNING id,'+statusColumn+' AS status';
+    const result=await client.query(updateSql,updateParams);
+    if(!result.rows[0]){await client.query('ROLLBACK');return NextResponse.json({error:'Record not found in this project.'},{status:404});}
+    if(module==='procurement' && kind==='goods_receipt'){
+      const lines=await client.query(`SELECT gi.purchase_order_item_id,gi.received_quantity,gi.accepted_quantity,gi.rejected_quantity FROM pm_goods_receipt_items gi WHERE gi.organization_id=$1 AND gi.receipt_id=$2 FOR UPDATE`,[org,id]);
+      if(!lines.rows.length)throw new Error('A goods receipt must contain at least one line.');
+      if(['accepted','partially_accepted','rejected'].includes(status)){
+        for(const line of lines.rows){
+          if(Number(line.accepted_quantity)+Number(line.rejected_quantity)!==Number(line.received_quantity))throw new Error('Before finalizing this receipt, accepted plus rejected quantities must equal the received quantity on every line.');
+          if(status==='accepted' && Number(line.rejected_quantity)>0)throw new Error('Use Partially accepted or Rejected when any quantity is rejected.');
+          if(status==='rejected' && Number(line.accepted_quantity)>0)throw new Error('Rejected receipts cannot contain accepted quantities.');
+        }
+      }
+      const poId=(await client.query('SELECT purchase_order_id FROM pm_goods_receipts WHERE id=$1 AND organization_id=$2',[id,org])).rows[0]?.purchase_order_id;
+      await client.query(`UPDATE pm_purchase_order_items poi SET received_quantity=COALESCE((SELECT SUM(gi.accepted_quantity) FROM pm_goods_receipt_items gi JOIN pm_goods_receipts gr ON gr.id=gi.receipt_id AND gr.organization_id=gi.organization_id WHERE gi.organization_id=poi.organization_id AND gi.purchase_order_item_id=poi.id AND gr.status IN ('accepted','partially_accepted')),0) WHERE poi.organization_id=$1 AND poi.purchase_order_id=$2`,[org,poId]);
+      await client.query(`UPDATE pm_purchase_orders po SET status=CASE WHEN NOT EXISTS(SELECT 1 FROM pm_purchase_order_items poi WHERE poi.organization_id=po.organization_id AND poi.purchase_order_id=po.id AND poi.received_quantity<poi.ordered_quantity) THEN 'received' WHEN EXISTS(SELECT 1 FROM pm_purchase_order_items poi WHERE poi.organization_id=po.organization_id AND poi.purchase_order_id=po.id AND poi.received_quantity>0) THEN 'partially_received' WHEN po.status IN ('received','partially_received') THEN 'approved' ELSE po.status END,updated_at=now() WHERE po.organization_id=$1 AND po.id=$2`,[org,poId]);
+    }
+    if(module==='manpower' && kind==='allocation'){
+      const resourceId=(await client.query('SELECT resource_id FROM pm_resource_allocations WHERE id=$1 AND organization_id=$2',[id,org])).rows[0]?.resource_id;
+      if(resourceId){
+        await client.query(`UPDATE pm_resources r SET status=CASE WHEN EXISTS(SELECT 1 FROM pm_resource_allocations a WHERE a.organization_id=r.organization_id AND a.resource_id=r.id AND a.status='allocated') THEN 'allocated' WHEN r.status='allocated' THEN 'available' ELSE r.status END,updated_at=now() WHERE r.organization_id=$1 AND r.id=$2`,[org,resourceId]);
+      }
+    }
+    await client.query(`INSERT INTO pm_audit_events(organization_id,actor_user_id,project_id,action,entity_type,entity_id,after_data) VALUES($1,$2,$3,$4,$5,$6,$7::jsonb)`,[org,session.user.id,projectId,'operations.'+module+'.status_changed',kind,id,JSON.stringify({status,decision:decision||null})]);
+    await client.query('COMMIT');
+    return NextResponse.json({record:result.rows[0]});
+  }catch(error){await client.query('ROLLBACK').catch(()=>undefined);console.error('Project operational status update failed',error);return NextResponse.json({error:'Could not update this record.'},{status:503});}
+  finally{client.release();}
+}
++(values.length+1):'';
+  if(ownerScope)values.push(access.actor_membership_id);
+  const setUpdated=updatedColumn?`, ${updatedColumn}=now()`:'';
+  const approval=decision==='approve'&&approvalMode?',approved_by=$'+(values.length+2)+(approvalMode==='timestamp'?',approved_at=now()':''):'';
+  const updateParams:any[]=[...values,status];if(approval)updateParams.push(session.user.id);
+  const transitions:Record<string,Record<string,Record<string,string[]>>>={procurement:{supplier:{active:['inactive','blocked'],inactive:['active','blocked'],blocked:['active']},indent:{draft:['submitted','cancelled'],submitted:['approved','rejected','cancelled'],approved:['partially_ordered','ordered','cancelled'],partially_ordered:['ordered','closed'],ordered:['closed']},purchase_order:{draft:['submitted','cancelled'],submitted:['approved','cancelled'],approved:['sent','cancelled'],sent:['partially_received','received','closed'],partially_received:['received','closed'],received:['closed']},goods_receipt:{draft:['inspected'],inspected:['accepted','partially_accepted','rejected']}},manpower:{resource:{available:['allocated','maintenance','inactive'],allocated:['available','maintenance','inactive'],maintenance:['available','inactive'],inactive:['available']},allocation:{planned:['allocated','cancelled'],allocated:['released','cancelled']},assignment:{planned:['active','released','cancelled'],active:['completed','released','cancelled']},timesheet:{draft:['submitted'],submitted:['approved','rejected'],rejected:['draft'],approved:['locked']}},quality:{inspection:{pending:['pass','fail','conditional','rework'],fail:['rework'],conditional:['pass','fail','rework'],rework:['pass','fail']},nonconformity:{open:['contained','under_review','rejected'],contained:['under_review','corrective_action','rejected'],under_review:['corrective_action','verification','rejected'],corrective_action:['verification','rejected'],verification:['closed','corrective_action']},quality_action:{open:['in_progress','rejected'],in_progress:['completed','rejected'],completed:['verified','in_progress']}},finance:{budget:{draft:['submitted'],submitted:['approved'],approved:['locked']},entry:{draft:['submitted'],submitted:['approved','rejected'],rejected:['draft'],approved:['posted'],posted:['void']}},documents:{document:{draft:['in_review','archived'],in_review:['approved','draft','archived'],approved:['superseded','archived']}}};
+  const client=await db.connect();
+  try{
+    await client.query('BEGIN');
+    const current=await client.query(`SELECT ${statusColumn} AS current_status FROM ${table} WHERE id=$1 AND organization_id=$2 ${scope} ${ownerScope} FOR UPDATE`,values);
+    if(!current.rows[0]){await client.query('ROLLBACK');return NextResponse.json({error:'Record not found in this project.'},{status:404});}
+    const currentStatus=String(current.rows[0].current_status);
+    if(currentStatus===status){await client.query('ROLLBACK');return NextResponse.json({error:'The record already has that status.'},{status:409});}
+    if(!transitions[module]?.[kind]?.[currentStatus]?.includes(status)){await client.query('ROLLBACK');return NextResponse.json({error:'Invalid '+kind.replaceAll('_',' ')+' status transition from '+currentStatus+' to '+status+'.'},{status:409});}
+    const statusPlaceholder=String.fromCharCode(36)+(values.length+1);
+    const updateSql='UPDATE '+table+' SET '+statusColumn+'='+statusPlaceholder+setUpdated+approval+' WHERE id='+String.fromCharCode(36)+'1 AND organization_id='+String.fromCharCode(36)+'2 '+scope+ownerScope+' RETURNING id,'+statusColumn+' AS status';
+    const result=await client.query(updateSql,updateParams);
+    if(!result.rows[0]){await client.query('ROLLBACK');return NextResponse.json({error:'Record not found in this project.'},{status:404});}
+    if(module==='procurement' && kind==='goods_receipt'){
+      const lines=await client.query(`SELECT gi.purchase_order_item_id,gi.received_quantity,gi.accepted_quantity,gi.rejected_quantity FROM pm_goods_receipt_items gi WHERE gi.organization_id=$1 AND gi.receipt_id=$2 FOR UPDATE`,[org,id]);
+      if(!lines.rows.length)throw new Error('A goods receipt must contain at least one line.');
+      if(['accepted','partially_accepted','rejected'].includes(status)){
+        for(const line of lines.rows){
+          if(Number(line.accepted_quantity)+Number(line.rejected_quantity)!==Number(line.received_quantity))throw new Error('Before finalizing this receipt, accepted plus rejected quantities must equal the received quantity on every line.');
+          if(status==='accepted' && Number(line.rejected_quantity)>0)throw new Error('Use Partially accepted or Rejected when any quantity is rejected.');
+          if(status==='rejected' && Number(line.accepted_quantity)>0)throw new Error('Rejected receipts cannot contain accepted quantities.');
+        }
+      }
+      const poId=(await client.query('SELECT purchase_order_id FROM pm_goods_receipts WHERE id=$1 AND organization_id=$2',[id,org])).rows[0]?.purchase_order_id;
+      await client.query(`UPDATE pm_purchase_order_items poi SET received_quantity=COALESCE((SELECT SUM(gi.accepted_quantity) FROM pm_goods_receipt_items gi JOIN pm_goods_receipts gr ON gr.id=gi.receipt_id AND gr.organization_id=gi.organization_id WHERE gi.organization_id=poi.organization_id AND gi.purchase_order_item_id=poi.id AND gr.status IN ('accepted','partially_accepted')),0) WHERE poi.organization_id=$1 AND poi.purchase_order_id=$2`,[org,poId]);
+      await client.query(`UPDATE pm_purchase_orders po SET status=CASE WHEN NOT EXISTS(SELECT 1 FROM pm_purchase_order_items poi WHERE poi.organization_id=po.organization_id AND poi.purchase_order_id=po.id AND poi.received_quantity<poi.ordered_quantity) THEN 'received' WHEN EXISTS(SELECT 1 FROM pm_purchase_order_items poi WHERE poi.organization_id=po.organization_id AND poi.purchase_order_id=po.id AND poi.received_quantity>0) THEN 'partially_received' WHEN po.status IN ('received','partially_received') THEN 'approved' ELSE po.status END,updated_at=now() WHERE po.organization_id=$1 AND po.id=$2`,[org,poId]);
+    }
+    if(module==='manpower' && kind==='allocation'){
+      const resourceId=(await client.query('SELECT resource_id FROM pm_resource_allocations WHERE id=$1 AND organization_id=$2',[id,org])).rows[0]?.resource_id;
+      if(resourceId){
+        await client.query(`UPDATE pm_resources r SET status=CASE WHEN EXISTS(SELECT 1 FROM pm_resource_allocations a WHERE a.organization_id=r.organization_id AND a.resource_id=r.id AND a.status='allocated') THEN 'allocated' WHEN r.status='allocated' THEN 'available' ELSE r.status END,updated_at=now() WHERE r.organization_id=$1 AND r.id=$2`,[org,resourceId]);
+      }
+    }
+    await client.query(`INSERT INTO pm_audit_events(organization_id,actor_user_id,project_id,action,entity_type,entity_id,after_data) VALUES($1,$2,$3,$4,$5,$6,$7::jsonb)`,[org,session.user.id,projectId,'operations.'+module+'.status_changed',kind,id,JSON.stringify({status,decision:decision||null})]);
+    await client.query('COMMIT');
+    return NextResponse.json({record:result.rows[0]});
+  }catch(error){await client.query('ROLLBACK').catch(()=>undefined);console.error('Project operational status update failed',error);return NextResponse.json({error:'Could not update this record.'},{status:503});}
+  finally{client.release();}
+}
++(values.length+1):'';
+  if(ownerScope)values.push(access.actor_membership_id);
+  const setUpdated=updatedColumn?`, ${updatedColumn}=now()`:'';
+  const approval=decision==='approve'&&approvalMode?',approved_by=$'+(values.length+2)+(approvalMode==='timestamp'?',approved_at=now()':''):'';
+  const updateParams:any[]=[...values,status];if(approval)updateParams.push(session.user.id);
+  const transitions:Record<string,Record<string,Record<string,string[]>>>={procurement:{supplier:{active:['inactive','blocked'],inactive:['active','blocked'],blocked:['active']},indent:{draft:['submitted','cancelled'],submitted:['approved','rejected','cancelled'],approved:['partially_ordered','ordered','cancelled'],partially_ordered:['ordered','closed'],ordered:['closed']},purchase_order:{draft:['submitted','cancelled'],submitted:['approved','cancelled'],approved:['sent','cancelled'],sent:['partially_received','received','closed'],partially_received:['received','closed'],received:['closed']},goods_receipt:{draft:['inspected'],inspected:['accepted','partially_accepted','rejected']}},manpower:{resource:{available:['allocated','maintenance','inactive'],allocated:['available','maintenance','inactive'],maintenance:['available','inactive'],inactive:['available']},allocation:{planned:['allocated','cancelled'],allocated:['released','cancelled']},assignment:{planned:['active','released','cancelled'],active:['completed','released','cancelled']},timesheet:{draft:['submitted'],submitted:['approved','rejected'],rejected:['draft'],approved:['locked']}},quality:{inspection:{pending:['pass','fail','conditional','rework'],fail:['rework'],conditional:['pass','fail','rework'],rework:['pass','fail']},nonconformity:{open:['contained','under_review','rejected'],contained:['under_review','corrective_action','rejected'],under_review:['corrective_action','verification','rejected'],corrective_action:['verification','rejected'],verification:['closed','corrective_action']},quality_action:{open:['in_progress','rejected'],in_progress:['completed','rejected'],completed:['verified','in_progress']}},finance:{budget:{draft:['submitted'],submitted:['approved'],approved:['locked']},entry:{draft:['submitted'],submitted:['approved','rejected'],rejected:['draft'],approved:['posted'],posted:['void']}},documents:{document:{draft:['in_review','archived'],in_review:['approved','draft','archived'],approved:['superseded','archived']}}};
+  const client=await db.connect();
+  try{
+    await client.query('BEGIN');
+    const current=await client.query(`SELECT ${statusColumn} AS current_status FROM ${table} WHERE id=$1 AND organization_id=$2 ${scope} ${ownerScope} FOR UPDATE`,values);
+    if(!current.rows[0]){await client.query('ROLLBACK');return NextResponse.json({error:'Record not found in this project.'},{status:404});}
+    const currentStatus=String(current.rows[0].current_status);
+    if(currentStatus===status){await client.query('ROLLBACK');return NextResponse.json({error:'The record already has that status.'},{status:409});}
+    if(!transitions[module]?.[kind]?.[currentStatus]?.includes(status)){await client.query('ROLLBACK');return NextResponse.json({error:'Invalid '+kind.replaceAll('_',' ')+' status transition from '+currentStatus+' to '+status+'.'},{status:409});}
+    const statusPlaceholder=String.fromCharCode(36)+(values.length+1);
+    const updateSql='UPDATE '+table+' SET '+statusColumn+'='+statusPlaceholder+setUpdated+approval+' WHERE id='+String.fromCharCode(36)+'1 AND organization_id='+String.fromCharCode(36)+'2 '+scope+ownerScope+' RETURNING id,'+statusColumn+' AS status';
+    const result=await client.query(updateSql,updateParams);
+    if(!result.rows[0]){await client.query('ROLLBACK');return NextResponse.json({error:'Record not found in this project.'},{status:404});}
+    if(module==='procurement' && kind==='goods_receipt'){
+      const lines=await client.query(`SELECT gi.purchase_order_item_id,gi.received_quantity,gi.accepted_quantity,gi.rejected_quantity FROM pm_goods_receipt_items gi WHERE gi.organization_id=$1 AND gi.receipt_id=$2 FOR UPDATE`,[org,id]);
+      if(!lines.rows.length)throw new Error('A goods receipt must contain at least one line.');
+      if(['accepted','partially_accepted','rejected'].includes(status)){
+        for(const line of lines.rows){
+          if(Number(line.accepted_quantity)+Number(line.rejected_quantity)!==Number(line.received_quantity))throw new Error('Before finalizing this receipt, accepted plus rejected quantities must equal the received quantity on every line.');
+          if(status==='accepted' && Number(line.rejected_quantity)>0)throw new Error('Use Partially accepted or Rejected when any quantity is rejected.');
+          if(status==='rejected' && Number(line.accepted_quantity)>0)throw new Error('Rejected receipts cannot contain accepted quantities.');
+        }
+      }
+      const poId=(await client.query('SELECT purchase_order_id FROM pm_goods_receipts WHERE id=$1 AND organization_id=$2',[id,org])).rows[0]?.purchase_order_id;
+      await client.query(`UPDATE pm_purchase_order_items poi SET received_quantity=COALESCE((SELECT SUM(gi.accepted_quantity) FROM pm_goods_receipt_items gi JOIN pm_goods_receipts gr ON gr.id=gi.receipt_id AND gr.organization_id=gi.organization_id WHERE gi.organization_id=poi.organization_id AND gi.purchase_order_item_id=poi.id AND gr.status IN ('accepted','partially_accepted')),0) WHERE poi.organization_id=$1 AND poi.purchase_order_id=$2`,[org,poId]);
+      await client.query(`UPDATE pm_purchase_orders po SET status=CASE WHEN NOT EXISTS(SELECT 1 FROM pm_purchase_order_items poi WHERE poi.organization_id=po.organization_id AND poi.purchase_order_id=po.id AND poi.received_quantity<poi.ordered_quantity) THEN 'received' WHEN EXISTS(SELECT 1 FROM pm_purchase_order_items poi WHERE poi.organization_id=po.organization_id AND poi.purchase_order_id=po.id AND poi.received_quantity>0) THEN 'partially_received' WHEN po.status IN ('received','partially_received') THEN 'approved' ELSE po.status END,updated_at=now() WHERE po.organization_id=$1 AND po.id=$2`,[org,poId]);
+    }
+    if(module==='manpower' && kind==='allocation'){
+      const resourceId=(await client.query('SELECT resource_id FROM pm_resource_allocations WHERE id=$1 AND organization_id=$2',[id,org])).rows[0]?.resource_id;
+      if(resourceId){
+        await client.query(`UPDATE pm_resources r SET status=CASE WHEN EXISTS(SELECT 1 FROM pm_resource_allocations a WHERE a.organization_id=r.organization_id AND a.resource_id=r.id AND a.status='allocated') THEN 'allocated' WHEN r.status='allocated' THEN 'available' ELSE r.status END,updated_at=now() WHERE r.organization_id=$1 AND r.id=$2`,[org,resourceId]);
+      }
+    }
+    await client.query(`INSERT INTO pm_audit_events(organization_id,actor_user_id,project_id,action,entity_type,entity_id,after_data) VALUES($1,$2,$3,$4,$5,$6,$7::jsonb)`,[org,session.user.id,projectId,'operations.'+module+'.status_changed',kind,id,JSON.stringify({status,decision:decision||null})]);
+    await client.query('COMMIT');
+    return NextResponse.json({record:result.rows[0]});
+  }catch(error){await client.query('ROLLBACK').catch(()=>undefined);console.error('Project operational status update failed',error);return NextResponse.json({error:'Could not update this record.'},{status:503});}
+  finally{client.release();}
+}
++(values.length+1):'';
+  if(ownerScope)values.push(access.actor_membership_id);
+  const setUpdated=updatedColumn?`, ${updatedColumn}=now()`:'';
+  const approval=decision==='approve'&&approvalMode?',approved_by=$'+(values.length+2)+(approvalMode==='timestamp'?',approved_at=now()':''):'';
+  const updateParams:any[]=[...values,status];if(approval)updateParams.push(session.user.id);
+  const transitions:Record<string,Record<string,Record<string,string[]>>>={procurement:{supplier:{active:['inactive','blocked'],inactive:['active','blocked'],blocked:['active']},indent:{draft:['submitted','cancelled'],submitted:['approved','rejected','cancelled'],approved:['partially_ordered','ordered','cancelled'],partially_ordered:['ordered','closed'],ordered:['closed']},purchase_order:{draft:['submitted','cancelled'],submitted:['approved','cancelled'],approved:['sent','cancelled'],sent:['partially_received','received','closed'],partially_received:['received','closed'],received:['closed']},goods_receipt:{draft:['inspected'],inspected:['accepted','partially_accepted','rejected']}},manpower:{resource:{available:['allocated','maintenance','inactive'],allocated:['available','maintenance','inactive'],maintenance:['available','inactive'],inactive:['available']},allocation:{planned:['allocated','cancelled'],allocated:['released','cancelled']},assignment:{planned:['active','released','cancelled'],active:['completed','released','cancelled']},timesheet:{draft:['submitted'],submitted:['approved','rejected'],rejected:['draft'],approved:['locked']}},quality:{inspection:{pending:['pass','fail','conditional','rework'],fail:['rework'],conditional:['pass','fail','rework'],rework:['pass','fail']},nonconformity:{open:['contained','under_review','rejected'],contained:['under_review','corrective_action','rejected'],under_review:['corrective_action','verification','rejected'],corrective_action:['verification','rejected'],verification:['closed','corrective_action']},quality_action:{open:['in_progress','rejected'],in_progress:['completed','rejected'],completed:['verified','in_progress']}},finance:{budget:{draft:['submitted'],submitted:['approved'],approved:['locked']},entry:{draft:['submitted'],submitted:['approved','rejected'],rejected:['draft'],approved:['posted'],posted:['void']}},documents:{document:{draft:['in_review','archived'],in_review:['approved','draft','archived'],approved:['superseded','archived']}}};
+  const client=await db.connect();
+  try{
+    await client.query('BEGIN');
+    const current=await client.query(`SELECT ${statusColumn} AS current_status FROM ${table} WHERE id=$1 AND organization_id=$2 ${scope} ${ownerScope} FOR UPDATE`,values);
+    if(!current.rows[0]){await client.query('ROLLBACK');return NextResponse.json({error:'Record not found in this project.'},{status:404});}
+    const currentStatus=String(current.rows[0].current_status);
+    if(currentStatus===status){await client.query('ROLLBACK');return NextResponse.json({error:'The record already has that status.'},{status:409});}
+    if(!transitions[module]?.[kind]?.[currentStatus]?.includes(status)){await client.query('ROLLBACK');return NextResponse.json({error:'Invalid '+kind.replaceAll('_',' ')+' status transition from '+currentStatus+' to '+status+'.'},{status:409});}
+    const statusPlaceholder=String.fromCharCode(36)+(values.length+1);
+    const updateSql='UPDATE '+table+' SET '+statusColumn+'='+statusPlaceholder+setUpdated+approval+' WHERE id='+String.fromCharCode(36)+'1 AND organization_id='+String.fromCharCode(36)+'2 '+scope+ownerScope+' RETURNING id,'+statusColumn+' AS status';
+    const result=await client.query(updateSql,updateParams);
+    if(!result.rows[0]){await client.query('ROLLBACK');return NextResponse.json({error:'Record not found in this project.'},{status:404});}
+    if(module==='procurement' && kind==='goods_receipt'){
+      const lines=await client.query(`SELECT gi.purchase_order_item_id,gi.received_quantity,gi.accepted_quantity,gi.rejected_quantity FROM pm_goods_receipt_items gi WHERE gi.organization_id=$1 AND gi.receipt_id=$2 FOR UPDATE`,[org,id]);
+      if(!lines.rows.length)throw new Error('A goods receipt must contain at least one line.');
+      if(['accepted','partially_accepted','rejected'].includes(status)){
+        for(const line of lines.rows){
+          if(Number(line.accepted_quantity)+Number(line.rejected_quantity)!==Number(line.received_quantity))throw new Error('Before finalizing this receipt, accepted plus rejected quantities must equal the received quantity on every line.');
+          if(status==='accepted' && Number(line.rejected_quantity)>0)throw new Error('Use Partially accepted or Rejected when any quantity is rejected.');
+          if(status==='rejected' && Number(line.accepted_quantity)>0)throw new Error('Rejected receipts cannot contain accepted quantities.');
+        }
+      }
+      const poId=(await client.query('SELECT purchase_order_id FROM pm_goods_receipts WHERE id=$1 AND organization_id=$2',[id,org])).rows[0]?.purchase_order_id;
+      await client.query(`UPDATE pm_purchase_order_items poi SET received_quantity=COALESCE((SELECT SUM(gi.accepted_quantity) FROM pm_goods_receipt_items gi JOIN pm_goods_receipts gr ON gr.id=gi.receipt_id AND gr.organization_id=gi.organization_id WHERE gi.organization_id=poi.organization_id AND gi.purchase_order_item_id=poi.id AND gr.status IN ('accepted','partially_accepted')),0) WHERE poi.organization_id=$1 AND poi.purchase_order_id=$2`,[org,poId]);
+      await client.query(`UPDATE pm_purchase_orders po SET status=CASE WHEN NOT EXISTS(SELECT 1 FROM pm_purchase_order_items poi WHERE poi.organization_id=po.organization_id AND poi.purchase_order_id=po.id AND poi.received_quantity<poi.ordered_quantity) THEN 'received' WHEN EXISTS(SELECT 1 FROM pm_purchase_order_items poi WHERE poi.organization_id=po.organization_id AND poi.purchase_order_id=po.id AND poi.received_quantity>0) THEN 'partially_received' WHEN po.status IN ('received','partially_received') THEN 'approved' ELSE po.status END,updated_at=now() WHERE po.organization_id=$1 AND po.id=$2`,[org,poId]);
+    }
+    if(module==='manpower' && kind==='allocation'){
+      const resourceId=(await client.query('SELECT resource_id FROM pm_resource_allocations WHERE id=$1 AND organization_id=$2',[id,org])).rows[0]?.resource_id;
+      if(resourceId){
+        await client.query(`UPDATE pm_resources r SET status=CASE WHEN EXISTS(SELECT 1 FROM pm_resource_allocations a WHERE a.organization_id=r.organization_id AND a.resource_id=r.id AND a.status='allocated') THEN 'allocated' WHEN r.status='allocated' THEN 'available' ELSE r.status END,updated_at=now() WHERE r.organization_id=$1 AND r.id=$2`,[org,resourceId]);
+      }
+    }
+    await client.query(`INSERT INTO pm_audit_events(organization_id,actor_user_id,project_id,action,entity_type,entity_id,after_data) VALUES($1,$2,$3,$4,$5,$6,$7::jsonb)`,[org,session.user.id,projectId,'operations.'+module+'.status_changed',kind,id,JSON.stringify({status,decision:decision||null})]);
+    await client.query('COMMIT');
+    return NextResponse.json({record:result.rows[0]});
+  }catch(error){await client.query('ROLLBACK').catch(()=>undefined);console.error('Project operational status update failed',error);return NextResponse.json({error:'Could not update this record.'},{status:503});}
+  finally{client.release();}
+}
