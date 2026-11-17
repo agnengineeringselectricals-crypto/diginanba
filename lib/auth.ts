@@ -22,15 +22,32 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       async authorize(credentials, request) {
         const email = String(credentials?.email ?? '').trim().toLowerCase();
         const password = String(credentials?.password ?? '');
-        if (!email || !password) return null;
+        if (!email || !password) {
+          console.warn('[auth] Credentials sign-in rejected: missing email or password.');
+          return null;
+        }
         const result = await db.query(
           'SELECT id, email, display_name, status, password_hash FROM users WHERE email = $1 LIMIT 1',
           [email],
         );
         const user = result.rows[0];
-        if (!user || user.status !== 'active' || !user.password_hash) return null;
+        if (!user) {
+          console.warn('[auth] Credentials sign-in rejected: account not found.');
+          return null;
+        }
+        if (user.status !== 'active') {
+          console.warn('[auth] Credentials sign-in rejected: account is not active.');
+          return null;
+        }
+        if (!user.password_hash) {
+          console.warn('[auth] Credentials sign-in rejected: account has no password hash.');
+          return null;
+        }
         const ok = await compare(password, user.password_hash);
-        if (!ok) return null;
+        if (!ok) {
+          console.warn('[auth] Credentials sign-in rejected: password hash comparison did not match.');
+          return null;
+        }
 
         // Record successful sign-ins from each device/network. Edge headers provide best-effort IP geolocation.
         try {
