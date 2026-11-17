@@ -94,20 +94,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async session({ session, token }) {
       if (session.user) {
         if (token.userId) session.user.id = String(token.userId);
-        let displayName = token.name || session.user.name;
-        // Recover the canonical profile name when an older JWT was created without it.
-        if ((!displayName || !displayName.trim()) && token.userId) {
-          try {
-            const profile = await db.query(
-              'SELECT display_name, email FROM users WHERE id = $1 LIMIT 1',
-              [String(token.userId)],
-            );
-            displayName = profile.rows[0]?.display_name || profile.rows[0]?.email || '';
-          } catch (error) {
-            console.error('[auth] Unable to load profile name for session.', error);
-          }
-        }
-        session.user.name = displayName || session.user.email || 'DigiNanba user';
+        session.user.name = token.name || session.user.name || session.user.email || 'DigiNanba user';
       }
       return session;
     },
