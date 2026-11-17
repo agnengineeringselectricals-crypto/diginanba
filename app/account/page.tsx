@@ -21,11 +21,16 @@ export default async function AccountPage() {
   const session = await auth();
   if (!session?.user) redirect('/login');
   let publicId = '';
+  let profileName = session.user.name || '';
   let connectedShops: { id: string; business_name: string; public_id: string | null; city: string | null; region: string | null; is_pinned: boolean }[] = [];
-  try { const result = await db.query('SELECT public_id FROM users WHERE id = $1 LIMIT 1', [session.user.id]); publicId = result.rows[0]?.public_id ?? ''; } catch (error) { console.error('Unable to load account public ID', error); }
+  try {
+    const result = await db.query('SELECT public_id, display_name, email FROM users WHERE id = $1 LIMIT 1', [session.user.id]);
+    publicId = result.rows[0]?.public_id ?? '';
+    profileName = result.rows[0]?.display_name || result.rows[0]?.email || profileName;
+  } catch (error) { console.error('Unable to load account profile', error); }
   try { const result = await db.query('SELECT b.id,b.business_name,b.public_id,b.city,b.region,c.is_pinned FROM marketplace_customer_workspace_connections c JOIN marketplace_customer_accounts a ON a.id=c.workspace_account_id JOIN marketplace_businesses b ON b.id=a.workspace_ref WHERE c.customer_user_id=$1 AND c.status=\'connected\' AND a.status=\'active\' ORDER BY c.is_pinned DESC,c.connected_at DESC LIMIT 20', [session.user.id]); connectedShops = result.rows; } catch (error) { console.error('Unable to load connected shops', error); }
-  const firstName = (session.user.name || session.user.email || 'Customer').split(' ')[0];
-  const initial = (session.user.name || session.user.email || 'D').slice(0,1).toUpperCase();
+  const firstName = (profileName || session.user.email || 'Customer').split(' ')[0];
+  const initial = (profileName || session.user.email || 'D').slice(0,1).toUpperCase();
   return <main className="dn-account-page">
     <div className="dn-account-breadcrumb"><Link href="/">Home</Link><span>›</span><span>My account</span></div>
     <section className="dn-account-welcome"><div><span className="dn-account-eyebrow">YOUR DIGINANBA</span><h1>Welcome back, {firstName}.</h1><p>Your digital products, purchases and preferences—together in one place.</p><span className="dn-account-email"><MaskedSensitiveValue value={session.user.email || ''} kind="email" label="Email address" /></span>{publicId && <p style={{marginTop:10,fontWeight:700}}>DigiNanba ID: <MaskedSensitiveValue value={publicId} kind="id" label="Permanent DigiNanba ID" /></p>}</div><div className="dn-account-welcome-actions"><AccountSignOut /><div className="dn-account-avatar" aria-hidden="true">{initial}</div></div></section>
