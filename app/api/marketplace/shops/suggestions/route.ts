@@ -189,19 +189,15 @@ export async function GET(request: Request) {
                          ) THEN 3
                          ELSE 4 END AS rank_order
              FROM marketplace_location_search
-             WHERE (country_code = $2 OR length($1) >= 3)
+             WHERE country_code = $2
+               AND location_type NOT IN ('road', 'street')
                AND (
                  normalized_name % $1
-                 OR search_document % $1
-                 OR $1 = ANY(normalized_aliases)
-                 OR EXISTS (
-                   SELECT 1 FROM unnest(normalized_aliases) a
-                   WHERE a LIKE '%' || $1 || '%'
-                 )
-                 OR normalized_name ILIKE '%' || $1 || '%'
+                 OR normalized_aliases @> ARRAY[$1]::text[]
+                 OR normalized_name LIKE $1 || '%'
                )
              ORDER BY country_rank, rank_order,
-                      greatest(similarity(normalized_name, $1), similarity(search_document, $1)) DESC,
+                      similarity(normalized_name, $1) DESC,
                       name
              LIMIT 80
            )
