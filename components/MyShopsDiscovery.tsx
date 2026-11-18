@@ -13,6 +13,7 @@ export default function MyShopsDiscovery() {
   const [productSuggestions,setProductSuggestions]=useState<{title:string;category:string}[]>([]);
   const [shopSuggestions,setShopSuggestions]=useState<{business_name:string;public_id:string|null;city:string|null;district:string|null;region:string|null}[]>([]);
   const [locationSuggestions,setLocationSuggestions]=useState<{value:string;kind:string;city:string|null;town:string|null;village:string|null;district:string|null;state:string|null;country:string|null;region:string|null}[]>([]);
+  const [selectedLocationContext,setSelectedLocationContext]=useState('');
   const [productSuggestionsOpen,setProductSuggestionsOpen]=useState(false);
   const [locationSuggestionsOpen,setLocationSuggestionsOpen]=useState(false);
   const [selectedProduct,setSelectedProduct]=useState('');
@@ -88,6 +89,7 @@ export default function MyShopsDiscovery() {
       const params=new URLSearchParams();
       if(query.trim())params.set('q',query.trim());
       if(city.trim())params.set('city',city.trim());
+      if(selectedLocationContext)params.set('cityContext',selectedLocationContext);
       if(category)params.set('category',category);
       try{
         const response=await fetch('/api/marketplace/shops?'+params.toString());
@@ -98,7 +100,7 @@ export default function MyShopsDiscovery() {
       finally{if(!cancelled)setLoading(false);}
     },220);
     return()=>{cancelled=true;clearTimeout(timer);};
-  },[query,city,category]);
+  },[query,city,category,selectedLocationContext]);
 
   async function inviteShop(){
     const contact=inviteContact.trim();
@@ -203,9 +205,9 @@ export default function MyShopsDiscovery() {
           </div>:null}
         </div>
         <div style={{position:'relative'}}>
-          <input aria-label="City, town, village, street or local area" value={city} onFocus={()=>{if(city.trim().length>=2)setLocationSuggestionsOpen(true);}} onChange={e=>{setSelectedLocation('');setCity(e.target.value);}} placeholder="City, village or area (e.g. Sai Nagar, Puttaparthi)" style={field}/>
+          <input aria-label="City, town, village, street or local area" value={city} onFocus={()=>{if(city.trim().length>=2)setLocationSuggestionsOpen(true);}} onChange={e=>{setSelectedLocation('');setSelectedLocationContext('');setCity(e.target.value);}} placeholder="City, village or area (e.g. Sai Nagar, Puttaparthi)" style={field}/>
           {locationSuggestionsOpen&&locationSuggestions.length>0?<div role="listbox" aria-label="Matching locations" style={suggestionPanel}>
-            {locationSuggestions.map((item,index)=><button type="button" role="option" aria-selected="false" key={item.kind+'-'+item.value+'-'+index} onClick={()=>{setSelectedLocation(item.value);setCity(item.value);setLocationSuggestions([]);setLocationSuggestionsOpen(false);}} style={suggestionButton}>
+            {locationSuggestions.map((item,index)=><button type="button" role="option" aria-selected="false" key={item.kind+'-'+item.value+'-'+index} onClick={()=>{setSelectedLocation(item.value);setCity(item.value);setSelectedLocationContext(['Neighbourhood','Locality','Suburb','Hamlet'].some(type=>item.kind?.startsWith(type))?(item.town||item.city||item.village||item.district||''):'');setLocationSuggestions([]);setLocationSuggestionsOpen(false);}} style={suggestionButton}>
               <span style={{fontWeight:700,color:'#172033'}}>{item.value}</span><span style={{fontSize:11,color:'#667085'}}>{[
                 item.kind,
                 item.city ? item.city+' (City)' : null,
