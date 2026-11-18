@@ -192,9 +192,34 @@ export async function GET(request: Request) {
              WHERE country_code = $2
                AND location_type NOT IN ('road', 'street')
                AND (
-                 normalized_name % $1
-                 OR normalized_aliases @> ARRAY[$1]::text[]
+                 normalized_name = $1
                  OR normalized_name LIKE $1 || '%'
+                 OR normalized_aliases @> ARRAY[$1]::text[]
+                 OR (
+                   normalized_name % $1
+                   AND NOT EXISTS (
+                     SELECT 1
+                     FROM marketplace_location_search exact_match
+                     WHERE exact_match.country_code = $2
+                       AND exact_match.location_type NOT IN ('road', 'street')
+                       AND (
+                         exact_match.normalized_name = $1
+                         OR exact_match.normalized_name LIKE $1 || '%'
+                         OR exact_match.normalized_aliases @> ARRAY[$1]::text[]
+                       )
+                   )
+                 )
+               )
+               AND NOT (
+                 city IS NULL AND district IS NULL AND state IS NULL AND country IS NULL
+                 AND EXISTS (
+                   SELECT 1
+                   FROM marketplace_location_search richer
+                   WHERE richer.country_code = $2
+                     AND richer.normalized_name = marketplace_location_search.normalized_name
+                     AND richer.location_type = marketplace_location_search.location_type
+                     AND (richer.city IS NOT NULL OR richer.district IS NOT NULL OR richer.state IS NOT NULL OR richer.country IS NOT NULL)
+                 )
                )
              ORDER BY country_rank, rank_order,
                       similarity(normalized_name, $1) DESC,
