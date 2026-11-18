@@ -51,7 +51,7 @@ async function userId(){const s=await auth();return s?.user?.id||null;}
 export async function GET(request:Request, context:{params:Promise<{kind:string}>}) {
  const {kind}=await context.params;if(!kinds.has(kind as Kind))return NextResponse.json({error:'Unknown marketplace area.'},{status:404});
  const user=await userId();const url=new URL(request.url);const q=(url.searchParams.get('q')||'').trim().slice(0,100);
- const category=(url.searchParams.get('category')||'').trim().slice(0,100);const city=(url.searchParams.get('city')||'').trim().slice(0,120);const publicIdQuery=q.toUpperCase().replace(/[^A-Z0-9]/g,'');const identifierDigits=q.replace(/\D/g,'');const identifierText=q.toUpperCase().replace(/[^A-Z0-9]/g,'');
+ const category=(url.searchParams.get('category')||'').trim().slice(0,100);const city=(url.searchParams.get('city')||'').trim().slice(0,120);const cityContext=(url.searchParams.get('cityContext')||'').trim().slice(0,120);const publicIdQuery=q.toUpperCase().replace(/[^A-Z0-9]/g,'');const identifierDigits=q.replace(/\D/g,'');const identifierText=q.toUpperCase().replace(/[^A-Z0-9]/g,'');
  try {
   if(kind==='shops'||kind==='services'||kind==='professionals'){
    const type=kind==='shops'?'shop':kind==='services'?'service':'professional';
@@ -62,7 +62,8 @@ export async function GET(request:Request, context:{params:Promise<{kind:string}
     AND ($2='' OR b.business_name ILIKE '%'||$2||'%' OR b.description ILIKE '%'||$2||'%' OR l.title ILIKE '%'||$2||'%' OR l.category ILIKE '%'||$2||'%' OR replace(upper(COALESCE(b.public_id,'')),'-','')=$5 OR ($7<>'' AND (regexp_replace(COALESCE(b.phone,''),'[^0-9]','','g')=$7 OR regexp_replace(COALESCE(b.whatsapp_phone,''),'[^0-9]','','g')=$7)) OR ($8<>'' AND regexp_replace(upper(COALESCE(b.gst_number,'')),'[^A-Z0-9]','','g')=$8))
     AND ($3='' OR EXISTS (SELECT 1 FROM marketplace_listings lc WHERE lc.business_id=b.id AND lc.listing_status='published' AND (lc.category ILIKE '%'||$3||'%' OR lc.title ILIKE '%'||$3||'%')))
     AND ($4='' OR COALESCE(b.city,'') ILIKE '%'||$4||'%' OR COALESCE(b.locality,'') ILIKE '%'||$4||'%' OR COALESCE(b.district,'') ILIKE '%'||$4||'%' OR COALESCE(b.region,'') ILIKE '%'||$4||'%' OR COALESCE(b.address_line,'') ILIKE '%'||$4||'%' OR COALESCE(b.postal_code,'') ILIKE '%'||$4||'%')
-    GROUP BY b.id ORDER BY b.created_at DESC LIMIT 50`,[type,q,category,city,publicIdQuery,kind==='shops',identifierDigits,identifierText]);
+    AND ($9='' OR COALESCE(b.city,'') ILIKE '%'||$9||'%' OR COALESCE(b.district,'') ILIKE '%'||$9||'%' OR COALESCE(b.region,'') ILIKE '%'||$9||'%' OR COALESCE(b.address_line,'') ILIKE '%'||$9||'%')
+    GROUP BY b.id ORDER BY b.created_at DESC LIMIT 50`,[type,q,category,city,publicIdQuery,kind==='shops',identifierDigits,identifierText,cityContext]);
    let regularShops: unknown[] = [];
    if(kind==='shops' && user) {
     const saved=await db.query(`SELECT b.id,b.public_id,b.business_name,b.city,b.locality,b.average_rating,b.rating_count
