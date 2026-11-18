@@ -177,6 +177,7 @@ export async function GET(request: Request) {
           `WITH matched AS (
              SELECT location_id AS id, name, location_type, normalized_name,
                     normalized_aliases AS aliases, postal_code, latitude, longitude,
+                    city, town, village, district, state, country,
                     country_code,
                     CASE WHEN country_code = $2 THEN 0 ELSE 1 END AS country_rank,
                     CASE WHEN normalized_name = $1 THEN 0
