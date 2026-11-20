@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
-"""Safely enrich orphaned OSM place records from matching GeoNames hierarchy.
+"""Safely enrich orphaned OpenStreetMap place records from GeoNames hierarchy.
 
 Default mode is read-only and reports eligible matches. Pass --apply to attach
-an OSM record to a GeoNames parent only when its normalized name has exactly
-one GeoNames match in the same country within the configured distance.
+an OSM place to its uniquely matched GeoNames place only when the normalized
+name and country match exactly, both points are within the configured distance
+in metres, and the GeoNames place already has a verified parent.
 
-This deliberately does not guess hierarchy from names alone, and never changes
-records that already have a parent. Run with NEON_DATABASE_URL set.
+The matched GeoNames place itself becomes the OSM record's parent. Its own
+parent chain then supplies town/city, district, state/region and country in
+marketplace_location_search. Existing parent links are never overwritten.
+Run with NEON_DATABASE_URL set.
 """
 from __future__ import annotations
 
@@ -24,7 +27,8 @@ WITH matches AS (
         osm.country_code,
         osm.location_type,
         geo.id AS geonames_id,
-        geo.parent_id AS inherited_parent_id,
+        geo.parent_id AS geonames_parent_id,
+        ST_Distance(osm.geom::geography, geo.geom::geography) AS distance_m,
         COUNT(*) OVER (PARTITION BY osm.id) AS candidate_count
     FROM marketplace_locations AS osm
     JOIN marketplace_locations AS geo
@@ -33,33 +37,38 @@ WITH matches AS (
      AND geo.country_code = osm.country_code
      AND geo.normalized_name = osm.normalized_name
      AND geo.geom IS NOT NULL
-     AND ST_DWithin(osm.geom, geo.geom, %(max_distance_m)s)
+     AND ST_DWithin(
+           osm.geom::geography,
+           geo.geom::geography,
+           %(max_distance_m)s
+         )
     WHERE osm.is_active
       AND osm.source_name = 'OpenStreetMap'
       AND osm.parent_id IS NULL
       AND osm.geom IS NOT NULL
       AND osm.location_type IN (
           'village', 'hamlet', 'town', 'city',
-          'locality', 'neighbourhood', 'suburb'
+          'locality', 'neighbourhood', 'neighborhood', 'suburb'
       )
 ),
 safe_matches AS (
-    SELECT osm_id, country_code, location_type, inherited_parent_id
+    SELECT osm_id, country_code, location_type, geonames_id, distance_m
     FROM matches
     WHERE candidate_count = 1
-      AND inherited_parent_id IS NOT NULL
+      AND geonames_parent_id IS NOT NULL
 )
 """
+
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--max-distance-m", type=int, default=1000,
-        help="Maximum distance between exact-name OSM and GeoNames points (default: 1000m).",
+        help="Maximum distance between exact-name OSM and GeoNames points in metres (default: 1000).",
     )
     parser.add_argument(
         "--apply", action="store_true",
-        help="Apply the uniquely matched parent links. Without this flag, no data is changed.",
+        help="Apply uniquely matched parent links. Without this flag, no data is changed.",
     )
     args = parser.parse_args()
 
@@ -73,7 +82,9 @@ def main() -> int:
 
     params = {"max_distance_m": args.max_distance_m}
     summary_sql = MATCH_CTE + """
-    SELECT country_code, location_type, COUNT(*)::bigint AS eligible_records
+    SELECT country_code, location_type, COUNT(*)::bigint AS eligible_records,
+           ROUND(AVG(distance_m))::bigint AS average_distance_m,
+           MAX(ROUND(distance_m))::bigint AS maximum_distance_m
     FROM safe_matches
     GROUP BY country_code, location_type
     ORDER BY eligible_records DESC, country_code, location_type
@@ -84,7 +95,7 @@ def main() -> int:
     """
     apply_sql = MATCH_CTE + """
     UPDATE marketplace_locations AS osm
-       SET parent_id = safe.inherited_parent_id,
+       SET parent_id = safe.geonames_id,
            updated_at = now()
       FROM safe_matches AS safe
      WHERE osm.id = safe.osm_id
@@ -94,18 +105,23 @@ def main() -> int:
 
     with psycopg.connect(database_url, row_factory=dict_row) as conn:
         total = conn.execute(total_sql, params).fetchone()["eligible_records"]
-        print(f"Unique exact-name matches within {args.max_distance_m}m: {total:,}")
+        print(f"Unique exact-name matches within {args.max_distance_m} metres: {total:,}")
         for row in conn.execute(summary_sql, params).fetchall():
-            print(f"  {row['country_code']} / {row['location_type']}: {row['eligible_records']:,}")
+            print(
+                f"  {row['country_code']} / {row['location_type']}: "
+                f"{row['eligible_records']:,} "
+                f"(average {row['average_distance_m']}m; "
+                f"maximum {row['maximum_distance_m']}m)"
+            )
 
         if not args.apply:
-            print("DRY RUN ONLY — no database records were changed. Re-run with --apply to attach these parent links.")
+            print("DRY RUN ONLY — no database records were changed.")
             return 0
 
         with conn.transaction():
             changed = conn.execute(apply_sql, params).fetchall()
         print(f"Applied parent links: {len(changed):,}")
-        print("The existing projection-sync trigger updates the search hierarchy for each changed location.")
+        print("The existing projection-sync trigger refreshes the complete parent hierarchy.")
     return 0
 
 
