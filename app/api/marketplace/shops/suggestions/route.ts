@@ -135,7 +135,7 @@ export async function GET(request: Request) {
         .map((item) => ({
           value: item.value,
           kind: item.value === 'Tiruchirappalli' && ['trichy','tiruchy','tiruchi'].includes(normalized)
-            ? 'City / town · Trichy' : 'City / town',
+            ? 'City · Trichy' : 'City',
           city: item.value,
           district: null,
           region: item.region,
@@ -216,7 +216,8 @@ export async function GET(request: Request) {
                  OR normalized_name LIKE $1 || '%'
                  OR normalized_aliases @> ARRAY[$1]::text[]
                  OR (
-                   normalized_name % $1
+                   char_length($1) >= 6
+                   AND normalized_name % $1
                    AND similarity(normalized_name, $1) >= 0.68
                    AND NOT EXISTS (
                      SELECT 1
@@ -265,8 +266,8 @@ export async function GET(request: Request) {
                   CASE m.location_type
                     WHEN 'state' THEN 'State'
                     WHEN 'district' THEN 'District'
-                    WHEN 'city' THEN 'City / town'
-                    WHEN 'town' THEN 'City / town'
+                    WHEN 'city' THEN 'City'
+                    WHEN 'town' THEN 'Town'
                     WHEN 'village' THEN 'Village'
                     WHEN 'hamlet' THEN 'Hamlet'
                     WHEN 'locality' THEN 'Locality'
@@ -291,16 +292,31 @@ export async function GET(request: Request) {
            FROM matched m
            ORDER BY m.country_rank, context_rank, m.rank_order,
                     CASE m.location_type
-                      WHEN 'neighbourhood' THEN 0 WHEN 'locality' THEN 1 WHEN 'suburb' THEN 2
-                      WHEN 'village' THEN 3 WHEN 'hamlet' THEN 4 WHEN 'town' THEN 5
-                      WHEN 'city' THEN 6 WHEN 'street' THEN 7 WHEN 'road' THEN 8 ELSE 9 END,
+                      WHEN 'city' THEN 0 WHEN 'village' THEN 1 WHEN 'hamlet' THEN 2
+                      WHEN 'locality' THEN 3 WHEN 'neighbourhood' THEN 4 WHEN 'suburb' THEN 5
+                      WHEN 'town' THEN 6 WHEN 'street' THEN 7 WHEN 'road' THEN 8 ELSE 9 END,
                     m.city NULLS LAST, m.district NULLS LAST, m.name, m.id
            LIMIT 20`,
 
           [canonicalQuery, countryCode, contextQuery]
         )
       ]);
-      const result = { rows: [...geographicResult.rows, ...shopLocationResult.rows] };
+      // Promote a matching Indian directory city using the richer geographic
+      // row when available, so a long list of similarly named towns cannot hide it.
+      const promotedCities = cityMatches.map((item) => {
+        const matchingPlace = geographicResult.rows.find((place) =>
+          String(place.value).toLocaleLowerCase('en-IN') === item.value.toLocaleLowerCase('en-IN')
+        );
+        return matchingPlace || item;
+      });
+      const promotedKeys = new Set(promotedCities.map((item) => String(item.value).toLocaleLowerCase('en-IN')));
+      const orderedGeography = [
+        ...promotedCities,
+        ...geographicResult.rows.filter((item) =>
+          !promotedKeys.has(String(item.value).toLocaleLowerCase('en-IN'))
+        ),
+      ];
+      const result = { rows: [...orderedGeography, ...shopLocationResult.rows] };
       const merged = new Map<string, (typeof cityMatches)[number] | (typeof result.rows)[number]>();
       // Preserve distinct places that share a name. A locality's full ancestry
       // is part of its identity; name + type alone incorrectly collapsed every
@@ -308,11 +324,11 @@ export async function GET(request: Request) {
       const locationKey = (item: Record<string, unknown>) => [
         item.value, item.state || item.region, item.district, item.country_code || countryCode,
       ].map((part) => String(part || '').trim().toLocaleLowerCase('en-IN')).join('|');
-      for (const item of geographicResult.rows) {
+      for (const item of orderedGeography) {
         const key = locationKey(item as Record<string, unknown>);
         if (!merged.has(key)) merged.set(key, item);
       }
-      for (const item of cityMatches) {
+      for (const item of []) {
         const key = locationKey(item as Record<string, unknown>);
         if (!merged.has(key)) merged.set(key, item);
       }
