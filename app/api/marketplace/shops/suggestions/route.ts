@@ -289,7 +289,7 @@ export async function GET(request: Request) {
       // is part of its identity; name + type alone incorrectly collapsed every
       // "Sai Nagar" into a single suggestion.
       const locationKey = (item: Record<string, unknown>) => [
-        item.value, item.state, item.district, item.country_code,
+        item.value, item.state || item.region, item.district, item.country_code || countryCode,
       ].map((part) => String(part || '').trim().toLocaleLowerCase('en-IN')).join('|');
       for (const item of geographicResult.rows) {
         const key = locationKey(item as Record<string, unknown>);
