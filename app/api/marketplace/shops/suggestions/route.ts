@@ -197,6 +197,7 @@ export async function GET(request: Request) {
                  OR normalized_aliases @> ARRAY[$1]::text[]
                  OR (
                    normalized_name % $1
+                   AND similarity(normalized_name, $1) >= 0.68
                    AND NOT EXISTS (
                      SELECT 1
                      FROM marketplace_location_search exact_match
@@ -268,7 +269,7 @@ export async function GET(request: Request) {
       // is part of its identity; name + type alone incorrectly collapsed every
       // "Sai Nagar" into a single suggestion.
       const locationKey = (item: Record<string, unknown>) => [
-        item.location_id || item.value, item.kind, item.country, item.state, item.district,
+        item.value, item.country, item.state, item.district,
         item.city, item.town, item.village, item.country_code,
       ].map((part) => String(part || '').trim().toLocaleLowerCase('en-IN')).join('|');
       for (const item of geographicResult.rows) {
