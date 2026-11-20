@@ -231,16 +231,30 @@ export async function GET(request: Request) {
                    )
                  )
                )
-               AND NOT (
-                 city IS NULL AND district IS NULL AND state IS NULL AND country IS NULL
-                 AND EXISTS (
-                   SELECT 1
-                   FROM marketplace_location_search richer
-                   WHERE richer.country_code = $2
-                     AND richer.normalized_name = marketplace_location_search.normalized_name
-                     AND richer.location_type = marketplace_location_search.location_type
-                     AND (richer.city IS NOT NULL OR richer.district IS NOT NULL OR richer.state IS NOT NULL OR richer.country IS NOT NULL)
-                 )
+               AND NOT EXISTS (
+                 SELECT 1
+                 FROM marketplace_location_search preferred
+                 WHERE preferred.country_code = $2
+                   AND preferred.normalized_name = marketplace_location_search.normalized_name
+                   AND COALESCE(preferred.district, '') = COALESCE(marketplace_location_search.district, '')
+                   AND COALESCE(preferred.state, '') = COALESCE(marketplace_location_search.state, '')
+                   AND COALESCE(preferred.country, '') = COALESCE(marketplace_location_search.country, '')
+                   AND preferred.location_id <> marketplace_location_search.location_id
+                   AND (
+                     (
+                       (preferred.district IS NOT NULL OR preferred.state IS NOT NULL OR preferred.country IS NOT NULL)
+                       AND (marketplace_location_search.district IS NULL AND marketplace_location_search.state IS NULL AND marketplace_location_search.country IS NULL)
+                     )
+                     OR CASE preferred.location_type
+                          WHEN 'city' THEN 0 WHEN 'town' THEN 1 WHEN 'village' THEN 2
+                          WHEN 'hamlet' THEN 3 WHEN 'locality' THEN 4 WHEN 'suburb' THEN 5 ELSE 9
+                        END
+                        <
+                        CASE marketplace_location_search.location_type
+                          WHEN 'city' THEN 0 WHEN 'town' THEN 1 WHEN 'village' THEN 2
+                          WHEN 'hamlet' THEN 3 WHEN 'locality' THEN 4 WHEN 'suburb' THEN 5 ELSE 9
+                        END
+                   )
                )
              ORDER BY country_rank, rank_order,
                       similarity(normalized_name, $1) DESC,
@@ -262,7 +276,10 @@ export async function GET(request: Request) {
                     WHEN 'road' THEN 'Road'
                     WHEN 'postal_code' THEN 'PIN code'
                     ELSE 'Place' END AS kind,
-                  m.city, m.town, m.village, m.district, m.state,
+                  CASE WHEN lower(COALESCE(m.city, '')) = m.normalized_name THEN NULL ELSE m.city END AS city,
+                  CASE WHEN lower(COALESCE(m.town, '')) = m.normalized_name THEN NULL ELSE m.town END AS town,
+                  CASE WHEN lower(COALESCE(m.village, '')) = m.normalized_name THEN NULL ELSE m.village END AS village,
+                  m.district, m.state,
                   m.state AS region, m.country, m.postal_code,
                   m.latitude, m.longitude,
                   CASE WHEN $3 <> '' AND NOT EXISTS (
