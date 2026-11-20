@@ -165,7 +165,8 @@ export async function GET(request: Request) {
                city, district, region
              FROM location_values
              WHERE COALESCE(value,'') <> ''
-               AND (value ILIKE '%' || $1 || '%'
+               AND ((kind = 'Street / address' AND value ILIKE $1 || '%')
+                 OR (kind <> 'Street / address' AND value ILIKE '%' || $1 || '%')
                  OR (lower($1) IN ('trichy','tiruchy','tiruchi')
                      AND lower(COALESCE(city,'')) LIKE '%tiruchirappalli%'))
            ) matches
@@ -191,6 +192,25 @@ export async function GET(request: Request) {
              FROM marketplace_location_search
              WHERE country_code = $2
                AND location_type NOT IN ('road', 'street')
+               AND NOT (
+                 location_type = 'district'
+                 AND EXISTS (
+                   SELECT 1 FROM marketplace_location_search preferred_place
+                   WHERE preferred_place.country_code = $2
+                     AND preferred_place.normalized_name = marketplace_location_search.normalized_name
+                     AND preferred_place.location_type IN ('city', 'town')
+                 )
+               )
+               AND NOT (
+                 location_type = 'city'
+                 AND EXISTS (
+                   SELECT 1 FROM marketplace_location_search preferred_town
+                   WHERE preferred_town.country_code = $2
+                     AND preferred_town.normalized_name = marketplace_location_search.normalized_name
+                     AND preferred_town.location_type = 'town'
+                     AND (preferred_town.district IS NOT NULL OR preferred_town.state IS NOT NULL)
+                 )
+               )
                AND (
                  normalized_name = $1
                  OR normalized_name LIKE $1 || '%'
@@ -231,8 +251,8 @@ export async function GET(request: Request) {
                   CASE m.location_type
                     WHEN 'state' THEN 'State'
                     WHEN 'district' THEN 'District'
-                    WHEN 'city' THEN 'City'
-                    WHEN 'town' THEN 'Town'
+                    WHEN 'city' THEN 'City / town'
+                    WHEN 'town' THEN 'City / town'
                     WHEN 'village' THEN 'Village'
                     WHEN 'hamlet' THEN 'Hamlet'
                     WHEN 'locality' THEN 'Locality'
@@ -269,8 +289,7 @@ export async function GET(request: Request) {
       // is part of its identity; name + type alone incorrectly collapsed every
       // "Sai Nagar" into a single suggestion.
       const locationKey = (item: Record<string, unknown>) => [
-        item.value, item.country, item.state, item.district,
-        item.city, item.town, item.village, item.country_code,
+        item.value, item.state, item.district, item.country_code,
       ].map((part) => String(part || '').trim().toLocaleLowerCase('en-IN')).join('|');
       for (const item of geographicResult.rows) {
         const key = locationKey(item as Record<string, unknown>);
