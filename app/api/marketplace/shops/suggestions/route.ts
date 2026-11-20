@@ -307,7 +307,10 @@ export async function GET(request: Request) {
         const matchingPlace = geographicResult.rows.find((place) =>
           String(place.value).toLocaleLowerCase('en-IN') === item.value.toLocaleLowerCase('en-IN')
         );
-        return matchingPlace || item;
+        // The built-in directory is the canonical city classification. A
+        // same-name geographic Town row may provide the verified hierarchy,
+        // but must not downgrade the city suggestion back to "Town".
+        return matchingPlace ? { ...matchingPlace, kind: item.kind } : item;
       });
       const promotedGeographyRows = new Set(
         promotedCities.filter((item) => geographicResult.rows.includes(item))
