@@ -309,12 +309,12 @@ export async function GET(request: Request) {
         );
         return matchingPlace || item;
       });
-      const promotedKeys = new Set(promotedCities.map((item) => String(item.value).toLocaleLowerCase('en-IN')));
+      const promotedGeographyRows = new Set(
+        promotedCities.filter((item) => geographicResult.rows.includes(item))
+      );
       const orderedGeography = [
         ...promotedCities,
-        ...geographicResult.rows.filter((item) =>
-          !promotedKeys.has(String(item.value).toLocaleLowerCase('en-IN'))
-        ),
+        ...geographicResult.rows.filter((item) => !promotedGeographyRows.has(item)),
       ];
       const result = { rows: [...orderedGeography, ...shopLocationResult.rows] };
       const merged = new Map<string, (typeof cityMatches)[number] | (typeof result.rows)[number]>();
