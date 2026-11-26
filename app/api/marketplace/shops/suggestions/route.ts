@@ -256,7 +256,7 @@ export async function GET(request: Request) {
       // Common exonyms, historic names and regional nicknames. These map
       // search terms to canonical directory names without changing stored data.
       const aliases: Record<string, string> = {
-        trichy: 'tiruchirappalli', tiruchy: 'tiruchirappalli', tiruchi: 'tiruchirappalli',
+        trichy: 'tiruchirappalli', tiruchy: 'tiruchirappalli', tiruchi: 'tiruchirappalli', tiruchirapalli: 'tiruchirappalli', tiruchirappally: 'tiruchirappalli',
         kovai: 'coimbatore', koyamuthur: 'coimbatore',
         nellai: 'tirunelveli', tanjore: 'thanjavur',
         tuticorin: 'thoothukudi', kayalpatnam: 'thoothukudi',
@@ -474,20 +474,24 @@ export async function GET(request: Request) {
                           ), 0)
                         ) AS match_score
                  FROM place_candidates p
-                 WHERE EXISTS (
-                   SELECT 1 FROM unnest($1::text[]) AS term
-                   WHERE p.normalized = term
-                      OR p.normalized LIKE term || '%'
-                      OR similarity(p.normalized, term) >= 0.32
-                      OR word_similarity(term, p.normalized) >= 0.50
-                      OR EXISTS (
-                        SELECT 1 FROM unnest(p.aliases) AS alias
-                        WHERE alias = term
-                           OR alias LIKE term || '%'
-                           OR alias ILIKE '%' || term || '%'
-                           OR similarity(alias, term) >= 0.32
-                           OR word_similarity(term, alias) >= 0.50
-                      )
+                 WHERE (
+                   EXISTS (
+                     SELECT 1 FROM unnest($1::text[]) AS term
+                     WHERE p.normalized = term
+                        OR p.normalized LIKE term || '%'
+                        OR similarity(p.normalized, term) >= 0.32
+                        OR word_similarity(term, p.normalized) >= 0.50
+                        OR EXISTS (
+                          SELECT 1 FROM unnest(p.aliases) AS alias
+                          WHERE alias = term
+                             OR alias LIKE term || '%'
+                             OR alias ILIKE '%' || term || '%'
+                             OR similarity(alias, term) >= 0.32
+                             OR word_similarity(term, alias) >= 0.50
+                        )
+                   )
+                   OR ($2 <> '' AND lower(COALESCE(p.district, '')) LIKE '%' || lower($2) || '%'
+                       AND p.kind IN ('Village', 'Post Office', 'Postal locality'))
                  )
                )
                SELECT value, kind, NULL::text AS city, town, village, district,
