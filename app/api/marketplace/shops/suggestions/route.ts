@@ -340,7 +340,7 @@ export async function GET(request: Request) {
              ranked AS (
                SELECT *,
                       ROW_NUMBER() OVER (
-                        PARTITION BY normalized_name
+                        PARTITION BY normalized_name, COALESCE(district, ''), COALESCE(state, ''), COALESCE(country, '')
                         ORDER BY
                           (district IS NOT NULL OR state IS NOT NULL OR country IS NOT NULL) DESC,
                           match_score DESC,
