@@ -127,10 +127,10 @@ export async function GET(request: Request) {
       const candidatePins = q.length === 6 ? [q] : Array.from({ length: 10 }, (_, digit) => q + digit);
       const postalResults = await Promise.allSettled(candidatePins.map(async (pin) => {
         const postalResponse = await fetch(
-          \`https://api.postalpincode.in/pincode/\${encodeURIComponent(pin)}\`,
+          `https://api.postalpincode.in/pincode/${encodeURIComponent(pin)}`,
           { signal: AbortSignal.timeout(6000), next: { revalidate: 86400 } }
         );
-        if (!postalResponse.ok) throw new Error(\`Postal lookup returned HTTP \${postalResponse.status}\`);
+        if (!postalResponse.ok) throw new Error(`Postal lookup returned HTTP ${postalResponse.status}`);
         return await postalResponse.json() as Array<{
           Status?: string;
           PostOffice?: Array<{
@@ -182,7 +182,7 @@ export async function GET(request: Request) {
       }
       const suggestions = Array.from(uniqueOffices.values()).slice(0, 30).map((office) => ({
         value: office.Name || '',
-        kind: office.BranchType ? \`Locality · Post office · \${office.BranchType}\` : 'Locality · Post office',
+        kind: office.BranchType ? `Locality · Post office · ${office.BranchType}` : 'Locality · Post office',
         city: office.Block || null,
         town: office.Block || null,
         village: null,
