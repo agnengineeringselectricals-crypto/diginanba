@@ -164,7 +164,7 @@ export async function GET(request: Request) {
       }
       const suggestions = Array.from(uniqueOffices.values()).map((office) => ({
         value: office.Name || '',
-        kind: office.BranchType ? `Post office · ${office.BranchType}` : 'Post office / locality',
+        kind: office.BranchType ? `Locality · Post office · ${office.BranchType}` : 'Locality · Post office',
         city: office.Block || null,
         town: office.Block || null,
         village: null,
