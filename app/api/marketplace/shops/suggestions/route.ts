@@ -336,19 +336,11 @@ export async function GET(request: Request) {
                           WHEN village_name_normalized LIKE $1 || '%' THEN 1
                           ELSE 2
                         END AS match_rank,
-                        GREATEST(
-                          (SELECT MAX(similarity(village_name_normalized, term))
-                           FROM unnest($2::text[]) AS term),
-                          similarity(village_name_normalized, $1)
-                        ) AS match_score
+                        similarity(village_name_normalized, $1) AS match_score
                  FROM location_test.tamilnadu_official_villages
                  WHERE village_name_normalized = $1
                     OR village_name_normalized LIKE $1 || '%'
-                    OR EXISTS (
-                      SELECT 1
-                      FROM unnest($2::text[]) AS term
-                      WHERE village_name_normalized % term
-                    )
+                    OR village_name_normalized % $1
                )
                SELECT village_name AS value,
                       'Village · TN test' AS kind,
@@ -361,7 +353,7 @@ export async function GET(request: Request) {
                       'IN'::text AS country_code,
                       NULL::text AS region
                FROM scored
-               WHERE match_rank < 2 OR match_score >= 0.42
+               WHERE match_rank < 2 OR match_score >= 0.55
                ORDER BY match_rank, match_score DESC, village_name
                LIMIT 12`,
               [canonicalQuery, fuzzySearchTerms]
