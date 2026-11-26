@@ -315,7 +315,44 @@ export async function GET(request: Request) {
       // broad GIN scan on every keystroke.
       const fuzzyGeographyRows = geographicResult.rows.length === 0 && canonicalQuery.length >= 6
         ? (await db.query(
-            `SELECT location_id AS location_id, name AS value, country_code,
+            `WITH candidates AS (
+               SELECT location_id, name, location_type, normalized_name,
+                      normalized_aliases, city, town, village, district, state,
+                      country, postal_code, latitude, longitude,
+                      GREATEST(
+                        similarity(normalized_name, $1),
+                        COALESCE((
+                          SELECT MAX(similarity(alias, $1))
+                          FROM unnest(normalized_aliases) AS alias
+                        ), 0)
+                      ) AS match_score
+               FROM marketplace_location_search
+               WHERE country_code = $2
+                 AND location_type NOT IN ('road', 'street')
+                 AND (
+                   normalized_name % $1
+                   OR EXISTS (
+                     SELECT 1 FROM unnest(normalized_aliases) AS alias
+                     WHERE alias % $1
+                   )
+                 )
+             ),
+             ranked AS (
+               SELECT *,
+                      ROW_NUMBER() OVER (
+                        PARTITION BY normalized_name
+                        ORDER BY
+                          (district IS NOT NULL OR state IS NOT NULL OR country IS NOT NULL) DESC,
+                          match_score DESC,
+                          CASE location_type
+                            WHEN 'city' THEN 0 WHEN 'town' THEN 1 WHEN 'village' THEN 2
+                            WHEN 'hamlet' THEN 3 WHEN 'locality' THEN 4 WHEN 'suburb' THEN 5 ELSE 9
+                          END
+                      ) AS duplicate_rank
+               FROM candidates
+               WHERE match_score >= 0.55
+             )
+             SELECT location_id AS location_id, name AS value, country_code,
                     CASE location_type
                       WHEN 'state' THEN 'State'
                       WHEN 'district' THEN 'District'
@@ -329,12 +366,9 @@ export async function GET(request: Request) {
                       ELSE 'Place' END AS kind,
                     city, town, village, district, state, state AS region,
                     country, postal_code, latitude, longitude, 1 AS context_rank
-             FROM marketplace_location_search
-             WHERE country_code = $2
-               AND location_type NOT IN ('road', 'street')
-               AND normalized_name % $1
-               AND similarity(normalized_name, $1) >= 0.68
-             ORDER BY similarity(normalized_name, $1) DESC, name
+             FROM ranked
+             WHERE duplicate_rank = 1
+             ORDER BY match_score DESC, name
              LIMIT 20`,
             [canonicalQuery, countryCode]
           )).rows
