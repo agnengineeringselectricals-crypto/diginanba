@@ -387,7 +387,7 @@ export async function GET(request: Request) {
                           END
                       ) AS duplicate_rank
                FROM candidates
-               WHERE match_score >= 0.55
+               WHERE match_score >= 0.62
              )
              SELECT location_id AS location_id, name AS value, country_code,
                     CASE location_type
