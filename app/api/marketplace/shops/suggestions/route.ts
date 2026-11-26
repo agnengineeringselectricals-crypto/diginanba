@@ -154,13 +154,19 @@ export async function GET(request: Request) {
       // search terms to canonical directory names without changing stored data.
       const aliases: Record<string, string> = {
         trichy: 'tiruchirappalli', tiruchy: 'tiruchirappalli', tiruchi: 'tiruchirappalli',
+        // Common phonetic spelling used for Tiruverumbur; include the longer
+        // form so the partial prefix "tiruvare" can resolve while typing.
+        tiruvarembur: 'tiruverumbur',
         kovai: 'coimbatore', koyamuthur: 'coimbatore',
         nellai: 'tirunelveli', tanjore: 'thanjavur',
         tuticorin: 'thoothukudi', kayalpatnam: 'thoothukudi',
         pondicherry: 'puducherry', madras: 'chennai',
         bangalore: 'bengaluru', bombay: 'mumbai', calcutta: 'kolkata',
       };
-      const canonicalQuery = aliases[nameQuery] || nameQuery;
+      const partialAlias = nameQuery.length >= 7
+        ? Object.entries(aliases).find(([alias]) => alias.startsWith(nameQuery))?.[1]
+        : undefined;
+      const canonicalQuery = aliases[nameQuery] || partialAlias || nameQuery;
       const fuzzySearchTerms = romanizedLocationVariants(canonicalQuery);
       const cityMatches = (countryCode === 'IN' ? INDIAN_CITIES : [])
         .filter((item) => item.value.toLocaleLowerCase('en-IN').includes(canonicalQuery)
