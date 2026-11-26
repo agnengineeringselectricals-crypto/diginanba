@@ -140,7 +140,7 @@ export async function GET(request: Request) {
           district: null,
           region: item.region,
         }));
-      const [shopLocationResult, geographicResult, tamilNaduTestResult] = await Promise.all([
+      const [shopLocationResult, geographicResult] = await Promise.all([
         db.query(
           `WITH location_values AS (
              SELECT city AS value, 'City / town' AS kind, city, district, region FROM marketplace_businesses WHERE business_type='shop' AND listing_status='published'
