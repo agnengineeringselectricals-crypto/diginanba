@@ -334,35 +334,47 @@ export async function GET(request: Request) {
         ),
         countryCode === 'IN'
           ? db.query(
-              `WITH scored AS (
-                 SELECT village_name, village_name_normalized,
-                        district_name, subdistrict_name, state_name,
+              `WITH place_candidates AS (
+                 SELECT village_name AS value, village_name_normalized AS normalized,
+                        district_name AS district, subdistrict_name AS town,
+                        village_name AS village, 'Village'::text AS kind
+                 FROM location_test.tamilnadu_official_villages
+                 UNION
+                 SELECT DISTINCT subdistrict_name AS value,
+                        lower(regexp_replace(subdistrict_name, '[^a-zA-Z0-9]+', ' ', 'g')) AS normalized,
+                        district_name AS district, subdistrict_name AS town,
+                        NULL::text AS village, 'Town / subdistrict'::text AS kind
+                 FROM location_test.tamilnadu_official_villages
+               ),
+               scored AS (
+                 SELECT p.*,
                         CASE
-                          WHEN village_name_normalized = $1 THEN 0
-                          WHEN village_name_normalized LIKE $1 || '%' THEN 1
+                          WHEN p.normalized = ANY($2::text[]) THEN 0
+                          WHEN EXISTS (SELECT 1 FROM unnest($2::text[]) t WHERE p.normalized LIKE t || '%') THEN 1
                           ELSE 2
                         END AS match_rank,
-                        similarity(village_name_normalized, $1) AS match_score
-                 FROM location_test.tamilnadu_official_villages
-                 WHERE village_name_normalized = $1
-                    OR village_name_normalized LIKE $1 || '%'
-                    OR village_name_normalized % $1
+                        GREATEST(
+                          (SELECT MAX(GREATEST(similarity(p.normalized, term), word_similarity(term, p.normalized)))
+                           FROM unnest($2::text[]) AS term),
+                          0
+                        ) AS match_score
+                 FROM place_candidates p
+                 WHERE EXISTS (
+                   SELECT 1 FROM unnest($2::text[]) AS term
+                   WHERE p.normalized = term
+                      OR p.normalized LIKE term || '%'
+                      OR similarity(p.normalized, term) >= 0.32
+                      OR word_similarity(term, p.normalized) >= 0.50
+                 )
                )
-               SELECT village_name AS value,
-                      'Village · TN test' AS kind,
-                      NULL::text AS city,
-                      subdistrict_name AS town,
-                      village_name AS village,
-                      district_name AS district,
-                      state_name AS state,
-                      'India'::text AS country,
-                      'IN'::text AS country_code,
-                      NULL::text AS region
+               SELECT value, kind, NULL::text AS city, town, village, district,
+                      'Tamil Nadu'::text AS state, 'India'::text AS country,
+                      'IN'::text AS country_code, NULL::text AS region
                FROM scored
-               WHERE match_rank < 2 OR match_score >= 0.55
-               ORDER BY match_rank, match_score DESC, village_name
-               LIMIT 12`,
-              [canonicalQuery]
+               WHERE match_rank < 2 OR match_score >= 0.50
+               ORDER BY match_rank, match_score DESC, value
+               LIMIT 20`,
+              [canonicalQuery, fuzzySearchTerms]
             )
           : Promise.resolve({ rows: [] }),
       ]);
