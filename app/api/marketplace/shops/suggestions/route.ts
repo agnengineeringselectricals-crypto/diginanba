@@ -502,7 +502,7 @@ export async function GET(request: Request) {
                WHERE match_rank < 2 OR match_score >= 0.50
                ORDER BY match_rank, match_score DESC, value
                LIMIT 20`,
-              [fuzzySearchTerms]
+              [fuzzySearchTerms, canonicalQuery]
             )
           : Promise.resolve({ rows: [] }),
       ]);
