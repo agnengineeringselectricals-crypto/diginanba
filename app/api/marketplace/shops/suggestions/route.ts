@@ -356,7 +356,7 @@ export async function GET(request: Request) {
                WHERE match_rank < 2 OR match_score >= 0.55
                ORDER BY match_rank, match_score DESC, village_name
                LIMIT 12`,
-              [canonicalQuery, fuzzySearchTerms]
+              [canonicalQuery]
             )
           : Promise.resolve({ rows: [] }),
       ]);
