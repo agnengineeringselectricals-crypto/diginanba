@@ -18,6 +18,13 @@ function romanizedLocationVariants(value: string): string[] {
     [/oo/g, 'u'],
     [/ou/g, 'au'],
     [/w/g, 'v'],
+    // Common vowel substitutions in phonetic spellings. Applying these
+    // incrementally lets a partial query such as "tiruvare" also try
+    // "tiruveru", without maintaining a place-by-place alias list.
+    [/a/g, 'e'],
+    [/e/g, 'u'],
+    [/o/g, 'u'],
+    [/u/g, 'o'],
   ];
 
   for (const [pattern, replacement] of rules) {
