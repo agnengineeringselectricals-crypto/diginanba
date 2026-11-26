@@ -140,7 +140,7 @@ export async function GET(request: Request) {
           district: null,
           region: item.region,
         }));
-      const [shopLocationResult, geographicResult] = await Promise.all([
+      const [shopLocationResult, geographicResult, tamilNaduTestResult] = await Promise.all([
         db.query(
           `WITH location_values AS (
              SELECT city AS value, 'City / town' AS kind, city, district, region FROM marketplace_businesses WHERE business_type='shop' AND listing_status='published'
@@ -215,22 +215,7 @@ export async function GET(request: Request) {
                  normalized_name = $1
                  OR normalized_name LIKE $1 || '%'
                  OR normalized_aliases @> ARRAY[$1]::text[]
-                 OR (
-                   char_length($1) >= 6
-                   AND normalized_name % $1
-                   AND similarity(normalized_name, $1) >= 0.68
-                   AND NOT EXISTS (
-                     SELECT 1
-                     FROM marketplace_location_search exact_match
-                     WHERE exact_match.country_code = $2
-                       AND exact_match.location_type NOT IN ('road', 'street')
-                       AND (
-                         exact_match.normalized_name = $1
-                         OR exact_match.normalized_name LIKE $1 || '%'
-                         OR exact_match.normalized_aliases @> ARRAY[$1]::text[]
-                       )
-                   )
-                 )
+
                )
                AND NOT EXISTS (
                  SELECT 1
@@ -299,37 +284,66 @@ export async function GET(request: Request) {
            LIMIT 20`,
 
           [canonicalQuery, countryCode, contextQuery]
-        )
+        ),
+        countryCode === 'IN'
+          ? db.query(
+              `SELECT village_name AS value,
+                      'Village · TN test' AS kind,
+                      NULL::text AS city,
+                      subdistrict_name AS town,
+                      village_name AS village,
+                      district_name AS district,
+                      state_name AS state,
+                      'India'::text AS country,
+                      'IN'::text AS country_code,
+                      NULL::text AS region
+               FROM location_test.tamilnadu_official_villages
+               WHERE village_name_normalized = $1
+                  OR village_name_normalized LIKE $1 || '%'
+               ORDER BY CASE WHEN village_name_normalized = $1 THEN 0 ELSE 1 END,
+                        village_name
+               LIMIT 12`,
+              [canonicalQuery]
+            )
+          : Promise.resolve({ rows: [] }),
       ]);
-      // Temporary test-only source: surface the imported official Tamil Nadu
-      // village hierarchy in the live autocomplete without modifying production
-      // marketplace location tables. The label makes test-source results visible.
-      const tamilNaduTestRows = countryCode === 'IN'
+      // TN test data is fetched in parallel with the production sources.
+      const tamilNaduTestRows = tamilNaduTestResult.rows;
+
+      // Only run typo-tolerant matching when exact/prefix/alias lookup found
+      // nothing. Keeping trigram similarity out of the common path avoids a
+      // broad GIN scan on every keystroke.
+      const fuzzyGeographyRows = geographicResult.rows.length === 0 && canonicalQuery.length >= 6
         ? (await db.query(
-            `SELECT village_name AS value,
-                    'Village · TN test' AS kind,
-                    NULL::text AS city,
-                    subdistrict_name AS town,
-                    village_name AS village,
-                    district_name AS district,
-                    state_name AS state,
-                    'India'::text AS country,
-                    'IN'::text AS country_code,
-                    NULL::text AS region
-             FROM location_test.tamilnadu_official_villages
-             WHERE village_name_normalized = $1
-                OR village_name_normalized LIKE $1 || '%'
-             ORDER BY CASE WHEN village_name_normalized = $1 THEN 0 ELSE 1 END,
-                      village_name
-             LIMIT 12`,
-            [canonicalQuery]
+            `SELECT location_id AS location_id, name AS value, country_code,
+                    CASE location_type
+                      WHEN 'state' THEN 'State'
+                      WHEN 'district' THEN 'District'
+                      WHEN 'city' THEN 'City'
+                      WHEN 'town' THEN 'Town'
+                      WHEN 'village' THEN 'Village'
+                      WHEN 'hamlet' THEN 'Hamlet'
+                      WHEN 'locality' THEN 'Locality'
+                      WHEN 'neighbourhood' THEN 'Neighbourhood'
+                      WHEN 'suburb' THEN 'Suburb'
+                      ELSE 'Place' END AS kind,
+                    city, town, village, district, state, state AS region,
+                    country, postal_code, latitude, longitude, 1 AS context_rank
+             FROM marketplace_location_search
+             WHERE country_code = $2
+               AND location_type NOT IN ('road', 'street')
+               AND normalized_name % $1
+               AND similarity(normalized_name, $1) >= 0.68
+             ORDER BY similarity(normalized_name, $1) DESC, name
+             LIMIT 20`,
+            [canonicalQuery, countryCode]
           )).rows
         : [];
-
+      const geographyRows = geographicResult.rows.length ? geographicResult.rows : fuzzyGeographyRows;
       // Promote a matching Indian directory city using the richer geographic
       // row when available, so a long list of similarly named towns cannot hide it.
       const promotedCities = cityMatches.map((item) => {
-        const matchingPlace = geographicResult.rows.find((place) =>
+        const matchingPlace = geographyRows.find((place) =>
           String(place.value).toLocaleLowerCase('en-IN') === item.value.toLocaleLowerCase('en-IN')
         );
         // The built-in directory is the canonical city classification. A
@@ -338,12 +352,12 @@ export async function GET(request: Request) {
         return matchingPlace ? { ...matchingPlace, kind: item.kind } : item;
       });
       const promotedGeographyRows = new Set(
-        promotedCities.filter((item) => geographicResult.rows.includes(item))
+        promotedCities.filter((item) => geographyRows.includes(item))
       );
       const orderedGeography = [
         ...promotedCities,
         ...tamilNaduTestRows,
-        ...geographicResult.rows.filter((item) => !promotedGeographyRows.has(item)),
+        ...geographyRows.filter((item) => !promotedGeographyRows.has(item)),
       ];
       const result = { rows: [...orderedGeography, ...shopLocationResult.rows] };
       const merged = new Map<string, (typeof cityMatches)[number] | (typeof result.rows)[number]>();
@@ -354,10 +368,6 @@ export async function GET(request: Request) {
         item.value, item.state || item.region, item.district, item.country_code || countryCode,
       ].map((part) => String(part || '').trim().toLocaleLowerCase('en-IN')).join('|');
       for (const item of orderedGeography) {
-        const key = locationKey(item as Record<string, unknown>);
-        if (!merged.has(key)) merged.set(key, item);
-      }
-      for (const item of []) {
         const key = locationKey(item as Record<string, unknown>);
         if (!merged.has(key)) merged.set(key, item);
       }
