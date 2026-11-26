@@ -3,6 +3,34 @@ import { db } from '@/lib/db';
 
 export const runtime = 'nodejs';
 
+
+// Expand common English spellings of Tamil names into a small set of
+// phonetic variants. This is deliberately conservative: fuzzy candidates are
+// still ranked and thresholded in PostgreSQL, never blindly substituted.
+function romanizedLocationVariants(value: string): string[] {
+  const variants = new Set<string>([value]);
+  const rules: Array<[RegExp, string]> = [
+    [/th(?=[aeiou])/g, 't'],
+    [/zh/g, 'l'],
+    [/zh/g, 'z'],
+    [/aa/g, 'a'],
+    [/ee/g, 'i'],
+    [/oo/g, 'u'],
+    [/ou/g, 'au'],
+    [/w/g, 'v'],
+    [/([bcdfghjklmnpqrstvwxyz])\\1+/g, '$1'],
+  ];
+
+  for (const [pattern, replacement] of rules) {
+    for (const current of Array.from(variants)) {
+      const candidate = current.replace(pattern, replacement);
+      if (candidate.length >= 3) variants.add(candidate);
+      if (variants.size >= 10) return Array.from(variants);
+    }
+  }
+  return Array.from(variants);
+}
+
 // Built-in Indian city directory keeps city discovery independent of registered shops.
 // Extend this with a maintained global geodata source as marketplace coverage expands.
 const INDIAN_CITIES: Array<{ value: string; region: string }> = [
@@ -123,11 +151,18 @@ export async function GET(request: Request) {
       const contextQuery = commaParts.length > 1
         ? commaParts.slice(1).join(' ')
         : words.length >= 3 ? words[words.length - 1] : '';
+      // Common exonyms, historic names and regional nicknames. These map
+      // search terms to canonical directory names without changing stored data.
       const aliases: Record<string, string> = {
         trichy: 'tiruchirappalli', tiruchy: 'tiruchirappalli', tiruchi: 'tiruchirappalli',
-        madras: 'chennai', bangalore: 'bengaluru', bombay: 'mumbai', calcutta: 'kolkata',
+        kovai: 'coimbatore', koyamuthur: 'coimbatore',
+        nellai: 'tirunelveli', tanjore: 'thanjavur',
+        tuticorin: 'thoothukudi', kayalpatnam: 'thoothukudi',
+        pondicherry: 'puducherry', madras: 'chennai',
+        bangalore: 'bengaluru', bombay: 'mumbai', calcutta: 'kolkata',
       };
       const canonicalQuery = aliases[nameQuery] || nameQuery;
+      const fuzzySearchTerms = romanizedLocationVariants(canonicalQuery);
       const cityMatches = (countryCode === 'IN' ? INDIAN_CITIES : [])
         .filter((item) => item.value.toLocaleLowerCase('en-IN').includes(canonicalQuery)
           || item.value.toLocaleLowerCase('en-IN').startsWith(canonicalQuery))
@@ -320,20 +355,23 @@ export async function GET(request: Request) {
                       normalized_aliases, city, town, village, district, state,
                       country, postal_code, latitude, longitude,
                       GREATEST(
-                        similarity(normalized_name, $1),
+                        (SELECT MAX(similarity(normalized_name, term))
+                         FROM unnest($3::text[]) AS term),
                         COALESCE((
-                          SELECT MAX(similarity(alias, $1))
+                          SELECT MAX(similarity(alias, term))
                           FROM unnest(normalized_aliases) AS alias
+                          CROSS JOIN unnest($3::text[]) AS term
                         ), 0)
                       ) AS match_score
                FROM marketplace_location_search
                WHERE country_code = $2
                  AND location_type NOT IN ('road', 'street')
                  AND (
-                   normalized_name % $1
+                   normalized_name % ANY($3::text[])
                    OR EXISTS (
-                     SELECT 1 FROM unnest(normalized_aliases) AS alias
-                     WHERE alias % $1
+                     SELECT 1
+                     FROM unnest(normalized_aliases) AS alias
+                     WHERE alias % ANY($3::text[])
                    )
                  )
              ),
@@ -370,7 +408,7 @@ export async function GET(request: Request) {
              WHERE duplicate_rank = 1
              ORDER BY match_score DESC, name
              LIMIT 20`,
-            [canonicalQuery, countryCode]
+            [canonicalQuery, countryCode, fuzzySearchTerms]
           )).rows
         : [];
       const geographyRows = geographicResult.rows.length ? geographicResult.rows : fuzzyGeographyRows;
