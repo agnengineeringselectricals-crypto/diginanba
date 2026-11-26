@@ -9,6 +9,12 @@ export const runtime = 'nodejs';
 // still ranked and thresholded in PostgreSQL, never blindly substituted.
 function romanizedLocationVariants(value: string): string[] {
   const variants = new Set<string>([value]);
+  // Handle common Tamil romanisation where two adjacent vowel sounds are
+  // represented differently by non-local users (e.g. tiruvarembur ->
+  // tiruverumbur). Apply both substitutions in one pass so a newly-created
+  // "e" is not accidentally transformed a second time.
+  const shiftedVowels = value.replace(/[ae]/g, (letter) => letter === 'a' ? 'e' : 'u');
+  if (shiftedVowels.length >= 3 && shiftedVowels !== value) variants.add(shiftedVowels);
   const rules: Array<[RegExp, string]> = [
     [/th(?=[aeiou])/g, 't'],
     [/zh/g, 'l'],
