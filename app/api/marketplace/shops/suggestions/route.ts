@@ -119,35 +119,53 @@ export async function GET(request: Request) {
   const requestedCountry = (url.searchParams.get('country') || 'IN').trim().toUpperCase();
   const countryCode = /^[A-Z]{2}$/.test(requestedCountry) ? requestedCountry : 'IN';
   // Indian PIN-code lookup is intentionally restricted to Tamil Nadu while
-  // the state-level staging rollout is being validated. India Post may return
-  // several post offices for one PIN; preserve every distinct office/locality.
-  if (type === 'locations' && countryCode === 'IN' && /^\d{6}$/.test(q)) {
+  // the state-level staging rollout is being validated. Start suggestions at
+  // five digits: India Post exposes exact six-digit lookup, so expand a
+  // five-digit prefix into its ten possible final digits and merge the offices.
+  if (type === 'locations' && countryCode === 'IN' && /^\d{5,6}$/.test(q)) {
     try {
-      const postalResponse = await fetch(
-        `https://api.postalpincode.in/pincode/${encodeURIComponent(q)}`,
-        { signal: AbortSignal.timeout(6000), next: { revalidate: 86400 } }
+      const candidatePins = q.length === 6 ? [q] : Array.from({ length: 10 }, (_, digit) => q + digit);
+      const postalResults = await Promise.allSettled(candidatePins.map(async (pin) => {
+        const postalResponse = await fetch(
+          \`https://api.postalpincode.in/pincode/\${encodeURIComponent(pin)}\`,
+          { signal: AbortSignal.timeout(6000), next: { revalidate: 86400 } }
+        );
+        if (!postalResponse.ok) throw new Error(\`Postal lookup returned HTTP \${postalResponse.status}\`);
+        return await postalResponse.json() as Array<{
+          Status?: string;
+          PostOffice?: Array<{
+            Name?: string | null;
+            District?: string | null;
+            State?: string | null;
+            Pincode?: string | null;
+            Block?: string | null;
+            BranchType?: string | null;
+            DeliveryStatus?: string | null;
+          }> | null;
+        }>;
+      }));
+      const successfulResults = postalResults.filter(
+        (result): result is PromiseFulfilledResult<Array<{
+          Status?: string;
+          PostOffice?: Array<{
+            Name?: string | null;
+            District?: string | null;
+            State?: string | null;
+            Pincode?: string | null;
+            Block?: string | null;
+            BranchType?: string | null;
+            DeliveryStatus?: string | null;
+          }> | null;
+        }>> => result.status === 'fulfilled'
       );
-      if (!postalResponse.ok) {
-        throw new Error(`Postal lookup returned HTTP ${postalResponse.status}`);
-      }
-      const postalPayload = await postalResponse.json() as Array<{
-        Status?: string;
-        PostOffice?: Array<{
-          Name?: string | null;
-          District?: string | null;
-          State?: string | null;
-          Pincode?: string | null;
-          Block?: string | null;
-          BranchType?: string | null;
-          DeliveryStatus?: string | null;
-        }> | null;
-      }>;
-      const postalRecord = Array.isArray(postalPayload) ? postalPayload[0] : undefined;
-      const allOffices = postalRecord?.Status === 'Success' && Array.isArray(postalRecord.PostOffice)
-        ? postalRecord.PostOffice
-        : [];
+      if (successfulResults.length === 0) throw new Error('All India Post prefix lookups failed');
+      const allOffices = successfulResults.flatMap((result) => {
+        const record = Array.isArray(result.value) ? result.value[0] : undefined;
+        return record?.Status === 'Success' && Array.isArray(record.PostOffice) ? record.PostOffice : [];
+      });
       const tamilNaduOffices = allOffices.filter((office) =>
         (office.State || '').trim().toLocaleLowerCase('en-IN') === 'tamil nadu'
+        && (office.Pincode || '').startsWith(q)
       );
       if (allOffices.length > 0 && tamilNaduOffices.length === 0) {
         return NextResponse.json({
@@ -162,9 +180,9 @@ export async function GET(request: Request) {
         ].map((part) => (part || '').trim().toLocaleLowerCase('en-IN')).join('|');
         if (office.Name && !uniqueOffices.has(key)) uniqueOffices.set(key, office);
       }
-      const suggestions = Array.from(uniqueOffices.values()).map((office) => ({
+      const suggestions = Array.from(uniqueOffices.values()).slice(0, 30).map((office) => ({
         value: office.Name || '',
-        kind: office.BranchType ? `Locality · Post office · ${office.BranchType}` : 'Locality · Post office',
+        kind: office.BranchType ? \`Locality · Post office · \${office.BranchType}\` : 'Locality · Post office',
         city: office.Block || null,
         town: office.Block || null,
         village: null,
@@ -176,7 +194,12 @@ export async function GET(request: Request) {
         postal_code: office.Pincode || q,
         delivery_status: office.DeliveryStatus || null,
       }));
-      return NextResponse.json({ suggestions, postal_code: q, staging_state: 'Tamil Nadu' });
+      return NextResponse.json({
+        suggestions,
+        postal_code: q.length === 6 ? q : undefined,
+        postal_code_prefix: q.length === 5 ? q : undefined,
+        staging_state: 'Tamil Nadu',
+      });
     } catch (postalError) {
       console.error('Tamil Nadu PIN-code lookup failed', postalError);
       return NextResponse.json({
