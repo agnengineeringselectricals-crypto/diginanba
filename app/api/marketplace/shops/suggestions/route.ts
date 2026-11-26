@@ -121,7 +121,7 @@ export async function GET(request: Request) {
   // Indian PIN-code lookup is intentionally restricted to Tamil Nadu while
   // the state-level staging rollout is being validated. India Post may return
   // several post offices for one PIN; preserve every distinct office/locality.
-  if (type === 'locations' && countryCode === 'IN' && /^\\d{6}$/.test(q)) {
+  if (type === 'locations' && countryCode === 'IN' && /^\d{6}$/.test(q)) {
     try {
       const postalResponse = await fetch(
         `https://api.postalpincode.in/pincode/${encodeURIComponent(q)}`,
