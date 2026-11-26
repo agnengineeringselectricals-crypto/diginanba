@@ -249,10 +249,10 @@ export async function GET(request: Request) {
       const words = normalized.split(/\s+/).filter(Boolean);
       const nameQuery = commaParts.length > 1
         ? commaParts[0]
-        : words.length >= 3 ? words.slice(0, -1).join(' ') : normalized;
+        : words.length >= 2 ? words.slice(0, -1).join(' ') : normalized;
       const contextQuery = commaParts.length > 1
         ? commaParts.slice(1).join(' ')
-        : words.length >= 3 ? words[words.length - 1] : '';
+        : words.length >= 2 ? words[words.length - 1] : '';
       // Common exonyms, historic names and regional nicknames. These map
       // search terms to canonical directory names without changing stored data.
       const aliases: Record<string, string> = {
@@ -475,23 +475,35 @@ export async function GET(request: Request) {
                         ) AS match_score
                  FROM place_candidates p
                  WHERE (
-                   EXISTS (
-                     SELECT 1 FROM unnest($1::text[]) AS term
-                     WHERE p.normalized = term
-                        OR p.normalized LIKE term || '%'
-                        OR similarity(p.normalized, term) >= 0.32
-                        OR word_similarity(term, p.normalized) >= 0.50
-                        OR EXISTS (
-                          SELECT 1 FROM unnest(p.aliases) AS alias
-                          WHERE alias = term
-                             OR alias LIKE term || '%'
-                             OR alias ILIKE '%' || term || '%'
-                             OR similarity(alias, term) >= 0.32
-                             OR word_similarity(term, alias) >= 0.50
-                        )
+                   (
+                     EXISTS (
+                       SELECT 1 FROM unnest($1::text[]) AS term
+                       WHERE p.normalized = term
+                          OR p.normalized LIKE term || '%'
+                          OR similarity(p.normalized, term) >= 0.32
+                          OR word_similarity(term, p.normalized) >= 0.50
+                          OR EXISTS (
+                            SELECT 1 FROM unnest(p.aliases) AS alias
+                            WHERE alias = term
+                               OR alias LIKE term || '%'
+                               OR alias ILIKE '%' || term || '%'
+                               OR similarity(alias, term) >= 0.32
+                               OR word_similarity(term, alias) >= 0.50
+                          )
+                     )
+                     AND (
+                       $2 = ''
+                       OR lower(COALESCE(p.district, '')) LIKE '%' || lower($2) || '%'
+                     )
                    )
-                   OR ($2 <> '' AND lower(COALESCE(p.district, '')) LIKE '%' || lower($2) || '%'
-                       AND p.kind IN ('Village', 'Post Office', 'Postal locality'))
+                   OR (
+                     $2 = ''
+                     AND p.kind IN ('Village', 'Post Office', 'Postal locality')
+                     AND EXISTS (
+                       SELECT 1 FROM unnest($1::text[]) AS district_term
+                       WHERE lower(COALESCE(p.district, '')) LIKE '%' || lower(district_term) || '%'
+                     )
+                   )
                  )
                )
                SELECT value, kind, NULL::text AS city, town, village, district,
@@ -502,7 +514,7 @@ export async function GET(request: Request) {
                WHERE match_rank < 2 OR match_score >= 0.50
                ORDER BY match_rank, match_score DESC, value
                LIMIT 20`,
-              [fuzzySearchTerms, canonicalQuery]
+              [fuzzySearchTerms, contextQuery]
             )
           : Promise.resolve({ rows: [] }),
       ]);
