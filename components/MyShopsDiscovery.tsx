@@ -12,7 +12,7 @@ export default function MyShopsDiscovery() {
   const [category,setCategory]=useState('');
   const [productSuggestions,setProductSuggestions]=useState<{title:string;category:string}[]>([]);
   const [shopSuggestions,setShopSuggestions]=useState<{business_name:string;public_id:string|null;city:string|null;district:string|null;region:string|null}[]>([]);
-  const [locationSuggestions,setLocationSuggestions]=useState<{value:string;kind:string;city:string|null;town:string|null;village:string|null;district:string|null;state:string|null;country:string|null;region:string|null;postal_code?:string|null;delivery_status?:string|null}[]>([]);
+  const [locationSuggestions,setLocationSuggestions]=useState<{value:string;kind:string;city:string|null;town:string|null;village:string|null;district:string|null;state:string|null;country:string|null;region:string|null;postal_code?:string|null;post_office_name?:string|null;delivery_status?:string|null}[]>([]);
   const [selectedLocationContext,setSelectedLocationContext]=useState('');
   const [productSuggestionsOpen,setProductSuggestionsOpen]=useState(false);
   const [locationSuggestionsOpen,setLocationSuggestionsOpen]=useState(false);
@@ -235,6 +235,7 @@ export default function MyShopsDiscovery() {
               <span style={{fontWeight:700,color:'#172033'}}>{item.value}</span><span style={{fontSize:11,color:'#667085'}}>{[
                 item.kind,
                 item.postal_code ? 'PIN '+item.postal_code : null,
+                item.post_office_name ? 'Served by '+item.post_office_name : null,
                 item.delivery_status ? item.delivery_status+' delivery' : null,
                 item.city ? item.city+' (City)' : null,
                 item.town ? item.town+' (Town)' : null,
