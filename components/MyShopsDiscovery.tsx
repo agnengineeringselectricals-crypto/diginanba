@@ -16,6 +16,8 @@ export default function MyShopsDiscovery() {
   const [selectedLocationContext,setSelectedLocationContext]=useState('');
   const [productSuggestionsOpen,setProductSuggestionsOpen]=useState(false);
   const [locationSuggestionsOpen,setLocationSuggestionsOpen]=useState(false);
+  const [locationLoading,setLocationLoading]=useState(false);
+  const [locationSuggestionError,setLocationSuggestionError]=useState('');
   const [selectedProduct,setSelectedProduct]=useState('');
   const [selectedLocation,setSelectedLocation]=useState('');
   const [items,setItems]=useState<Shop[]>([]);
@@ -64,15 +66,34 @@ export default function MyShopsDiscovery() {
     let cancelled=false;
     const controller=new AbortController();
     const term=city.trim();
-    if(term.length<2||term===selectedLocation){setLocationSuggestions([]);setLocationSuggestionsOpen(false);return;}
+    if(term.length<2||term===selectedLocation){
+      setLocationSuggestions([]);
+      setLocationSuggestionsOpen(false);
+      setLocationLoading(false);
+      setLocationSuggestionError('');
+      return;
+    }
     const timer=setTimeout(async()=>{
+      setLocationLoading(true);
+      setLocationSuggestionError('');
+      setLocationSuggestionsOpen(true);
       try{
-        const response=await fetch('/api/marketplace/shops/suggestions?type=locations&country='+encodeURIComponent(countryCode)+'&q='+encodeURIComponent(term),{signal:controller.signal});
-        if(!response.ok)throw new Error('Location suggestions unavailable');
+        const response=await fetch('/api/marketplace/shops/suggestions?type=locations&country='+encodeURIComponent(countryCode)+'&q='+encodeURIComponent(term),{signal:controller.signal,cache:'no-store'});
+        if(!response.ok)throw new Error('Location suggestions are temporarily unavailable (HTTP '+response.status+').');
         const data=await response.json();
-        if(!cancelled){setLocationSuggestions(data.suggestions||[]);setLocationSuggestionsOpen(true);}
-      }catch(e){if(!cancelled&&!(e instanceof Error&&e.name==='AbortError'))setLocationSuggestions([]);}
-    },300);
+        if(!cancelled){
+          setLocationSuggestions(Array.isArray(data.suggestions)?data.suggestions:[]);
+          if(data.error)throw new Error(data.error);
+        }
+      }catch(e){
+        if(!cancelled&&!(e instanceof Error&&e.name==='AbortError')){
+          setLocationSuggestions([]);
+          setLocationSuggestionError(e instanceof Error?e.message:'Could not load location suggestions.');
+        }
+      }finally{
+        if(!cancelled)setLocationLoading(false);
+      }
+    },250);
     return()=>{cancelled=true;clearTimeout(timer);controller.abort();};
   },[city,selectedLocation,countryCode]);
 
@@ -205,8 +226,11 @@ export default function MyShopsDiscovery() {
           </div>:null}
         </div>
         <div style={{position:'relative'}}>
-          <input aria-label="City, town, village, street or local area" value={city} onFocus={()=>{if(city.trim().length>=2)setLocationSuggestionsOpen(true);}} onChange={e=>{setSelectedLocation('');setSelectedLocationContext('');setCity(e.target.value);}} placeholder="City, village or area (e.g. Sai Nagar, Puttaparthi)" style={field}/>
-          {locationSuggestionsOpen&&locationSuggestions.length>0?<div role="listbox" aria-label="Matching locations" style={suggestionPanel}>
+          <input aria-label="City, town, village, street or local area" value={city} onFocus={()=>{if(city.trim().length>=2)setLocationSuggestionsOpen(true);}} onChange={e=>{setSelectedLocation('');setSelectedLocationContext('');setCity(e.target.value);setLocationSuggestionsOpen(e.target.value.trim().length>=2);}} placeholder="City, village or area (e.g. Sai Nagar, Puttaparthi)" style={field}/>
+          {locationSuggestionsOpen&&(locationLoading||locationSuggestionError||locationSuggestions.length>0||city.trim().length>=2)?<div role="listbox" aria-label="Matching locations" style={suggestionPanel}>
+            {locationLoading?<div role="status" style={{padding:'11px 13px',fontSize:12,color:'#667085'}}>Searching locations…</div>:null}
+            {locationSuggestionError?<div role="alert" style={{padding:'11px 13px',fontSize:12,color:'#b42318'}}>{locationSuggestionError}</div>:null}
+            {!locationLoading&&!locationSuggestionError&&locationSuggestions.length===0?<div style={{padding:'11px 13px',fontSize:12,color:'#667085'}}>No matching places found. Try a shorter spelling or add the town / district.</div>:null}
             {locationSuggestions.map((item,index)=><button type="button" role="option" aria-selected="false" key={item.kind+'-'+item.value+'-'+index} onClick={()=>{setSelectedLocation(item.value);setCity(item.value);setSelectedLocationContext(['Neighbourhood','Locality','Suburb','Hamlet'].some(type=>item.kind?.startsWith(type))?(item.town||item.city||item.village||item.district||''):'');setLocationSuggestions([]);setLocationSuggestionsOpen(false);}} style={suggestionButton}>
               <span style={{fontWeight:700,color:'#172033'}}>{item.value}</span><span style={{fontSize:11,color:'#667085'}}>{[
                 item.kind,
