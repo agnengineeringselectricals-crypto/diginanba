@@ -221,7 +221,7 @@ export async function GET(request: Request) {
            LIMIT 12`,
           [q]
         ),
-        db.query(
+        countryCode === 'IN' ? Promise.resolve({ rows: [] }) : db.query(
           `WITH matched AS (
              SELECT location_id AS id, name, location_type, normalized_name,
                     normalized_aliases AS aliases, postal_code, latitude, longitude,
@@ -375,7 +375,7 @@ export async function GET(request: Request) {
       // prevent the intended typo-tolerant result from ever being considered.
       // pg_trgm similarity handles misspellings; word_similarity also handles
       // a correctly typed beginning of a longer place name.
-      const fuzzyGeographyRows = canonicalQuery.length >= 5
+      const fuzzyGeographyRows = countryCode !== 'IN' && canonicalQuery.length >= 5
         ? (await db.query(
             `WITH candidates AS (
                SELECT location_id, name, location_type, normalized_name,
