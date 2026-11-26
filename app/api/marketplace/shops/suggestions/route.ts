@@ -118,6 +118,73 @@ export async function GET(request: Request) {
   const q = (url.searchParams.get('q') || '').trim().slice(0, 100);
   const requestedCountry = (url.searchParams.get('country') || 'IN').trim().toUpperCase();
   const countryCode = /^[A-Z]{2}$/.test(requestedCountry) ? requestedCountry : 'IN';
+  // Indian PIN-code lookup is intentionally restricted to Tamil Nadu while
+  // the state-level staging rollout is being validated. India Post may return
+  // several post offices for one PIN; preserve every distinct office/locality.
+  if (type === 'locations' && countryCode === 'IN' && /^\\d{6}$/.test(q)) {
+    try {
+      const postalResponse = await fetch(
+        `https://api.postalpincode.in/pincode/${encodeURIComponent(q)}`,
+        { signal: AbortSignal.timeout(6000), next: { revalidate: 86400 } }
+      );
+      if (!postalResponse.ok) {
+        throw new Error(`Postal lookup returned HTTP ${postalResponse.status}`);
+      }
+      const postalPayload = await postalResponse.json() as Array<{
+        Status?: string;
+        PostOffice?: Array<{
+          Name?: string | null;
+          District?: string | null;
+          State?: string | null;
+          Pincode?: string | null;
+          Block?: string | null;
+          BranchType?: string | null;
+          DeliveryStatus?: string | null;
+        }> | null;
+      }>;
+      const postalRecord = Array.isArray(postalPayload) ? postalPayload[0] : undefined;
+      const allOffices = postalRecord?.Status === 'Success' && Array.isArray(postalRecord.PostOffice)
+        ? postalRecord.PostOffice
+        : [];
+      const tamilNaduOffices = allOffices.filter((office) =>
+        (office.State || '').trim().toLocaleLowerCase('en-IN') === 'tamil nadu'
+      );
+      if (allOffices.length > 0 && tamilNaduOffices.length === 0) {
+        return NextResponse.json({
+          suggestions: [],
+          error: 'This PIN code is outside the Tamil Nadu staging dataset. Other Indian states will be enabled after Tamil Nadu validation.',
+        });
+      }
+      const uniqueOffices = new Map<string, (typeof tamilNaduOffices)[number]>();
+      for (const office of tamilNaduOffices) {
+        const key = [
+          office.Name, office.District, office.Block, office.Pincode,
+        ].map((part) => (part || '').trim().toLocaleLowerCase('en-IN')).join('|');
+        if (office.Name && !uniqueOffices.has(key)) uniqueOffices.set(key, office);
+      }
+      const suggestions = Array.from(uniqueOffices.values()).map((office) => ({
+        value: office.Name || '',
+        kind: office.BranchType ? `Post office · ${office.BranchType}` : 'Post office / locality',
+        city: office.Block || null,
+        town: office.Block || null,
+        village: null,
+        district: office.District || null,
+        state: 'Tamil Nadu',
+        region: 'Tamil Nadu',
+        country: 'India',
+        country_code: 'IN',
+        postal_code: office.Pincode || q,
+        delivery_status: office.DeliveryStatus || null,
+      }));
+      return NextResponse.json({ suggestions, postal_code: q, staging_state: 'Tamil Nadu' });
+    } catch (postalError) {
+      console.error('Tamil Nadu PIN-code lookup failed', postalError);
+      return NextResponse.json({
+        error: 'PIN-code lookup is temporarily unavailable. You can still search by locality or village name.',
+        suggestions: [],
+      }, { status: 503 });
+    }
+  }
   if (q.length < 2) return NextResponse.json({ suggestions: [] });
   try {
     if (type === 'shops') {
