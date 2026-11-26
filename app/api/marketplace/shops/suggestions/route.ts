@@ -18,7 +18,6 @@ function romanizedLocationVariants(value: string): string[] {
     [/oo/g, 'u'],
     [/ou/g, 'au'],
     [/w/g, 'v'],
-    [/([bcdfghjklmnpqrstvwxyz])\\1+/g, '$1'],
   ];
 
   for (const [pattern, replacement] of rules) {
