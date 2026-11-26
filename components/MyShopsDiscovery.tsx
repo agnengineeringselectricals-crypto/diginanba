@@ -12,7 +12,7 @@ export default function MyShopsDiscovery() {
   const [category,setCategory]=useState('');
   const [productSuggestions,setProductSuggestions]=useState<{title:string;category:string}[]>([]);
   const [shopSuggestions,setShopSuggestions]=useState<{business_name:string;public_id:string|null;city:string|null;district:string|null;region:string|null}[]>([]);
-  const [locationSuggestions,setLocationSuggestions]=useState<{value:string;kind:string;city:string|null;town:string|null;village:string|null;district:string|null;state:string|null;country:string|null;region:string|null}[]>([]);
+  const [locationSuggestions,setLocationSuggestions]=useState<{value:string;kind:string;city:string|null;town:string|null;village:string|null;district:string|null;state:string|null;country:string|null;region:string|null;postal_code?:string|null;delivery_status?:string|null}[]>([]);
   const [selectedLocationContext,setSelectedLocationContext]=useState('');
   const [productSuggestionsOpen,setProductSuggestionsOpen]=useState(false);
   const [locationSuggestionsOpen,setLocationSuggestionsOpen]=useState(false);
@@ -234,6 +234,8 @@ export default function MyShopsDiscovery() {
             {locationSuggestions.map((item,index)=><button type="button" role="option" aria-selected="false" key={item.kind+'-'+item.value+'-'+index} onClick={()=>{setSelectedLocation(item.value);setCity(item.value);setSelectedLocationContext(['Neighbourhood','Locality','Suburb','Hamlet'].some(type=>item.kind?.startsWith(type))?(item.town||item.city||item.village||item.district||''):'');setLocationSuggestions([]);setLocationSuggestionsOpen(false);}} style={suggestionButton}>
               <span style={{fontWeight:700,color:'#172033'}}>{item.value}</span><span style={{fontSize:11,color:'#667085'}}>{[
                 item.kind,
+                item.postal_code ? 'PIN '+item.postal_code : null,
+                item.delivery_status ? item.delivery_status+' delivery' : null,
                 item.city ? item.city+' (City)' : null,
                 item.town ? item.town+' (Town)' : null,
                 item.village ? item.village+' (Village)' : null,
