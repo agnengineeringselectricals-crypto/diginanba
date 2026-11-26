@@ -154,19 +154,13 @@ export async function GET(request: Request) {
       // search terms to canonical directory names without changing stored data.
       const aliases: Record<string, string> = {
         trichy: 'tiruchirappalli', tiruchy: 'tiruchirappalli', tiruchi: 'tiruchirappalli',
-        // Common phonetic spelling used for Tiruverumbur; include the longer
-        // form so the partial prefix "tiruvare" can resolve while typing.
-        tiruvarembur: 'tiruverumbur',
         kovai: 'coimbatore', koyamuthur: 'coimbatore',
         nellai: 'tirunelveli', tanjore: 'thanjavur',
         tuticorin: 'thoothukudi', kayalpatnam: 'thoothukudi',
         pondicherry: 'puducherry', madras: 'chennai',
         bangalore: 'bengaluru', bombay: 'mumbai', calcutta: 'kolkata',
       };
-      const partialAlias = nameQuery.length >= 7
-        ? Object.entries(aliases).find(([alias]) => alias.startsWith(nameQuery))?.[1]
-        : undefined;
-      const canonicalQuery = aliases[nameQuery] || partialAlias || nameQuery;
+      const canonicalQuery = aliases[nameQuery] || nameQuery;
       const fuzzySearchTerms = romanizedLocationVariants(canonicalQuery);
       const cityMatches = (countryCode === 'IN' ? INDIAN_CITIES : [])
         .filter((item) => item.value.toLocaleLowerCase('en-IN').includes(canonicalQuery)
@@ -350,20 +344,28 @@ export async function GET(request: Request) {
       // TN test data is fetched in parallel with the production sources.
       const tamilNaduTestRows = tamilNaduTestResult.rows;
 
-      // Only run typo-tolerant matching when exact/prefix/alias lookup found
-      // nothing. Keeping trigram similarity out of the common path avoids a
-      // broad GIN scan on every keystroke.
-      const fuzzyGeographyRows = geographicResult.rows.length === 0 && canonicalQuery.length >= 6
+      // Run bounded typo-tolerant matching for every location query once it
+      // is long enough to be meaningful. This runs alongside prefix matching,
+      // because a partial prefix may return unrelated places and otherwise
+      // prevent the intended typo-tolerant result from ever being considered.
+      // pg_trgm similarity handles misspellings; word_similarity also handles
+      // a correctly typed beginning of a longer place name.
+      const fuzzyGeographyRows = canonicalQuery.length >= 5
         ? (await db.query(
             `WITH candidates AS (
                SELECT location_id, name, location_type, normalized_name,
                       normalized_aliases, city, town, village, district, state,
                       country, postal_code, latitude, longitude,
                       GREATEST(
-                        (SELECT MAX(similarity(normalized_name, term))
-                         FROM unnest($3::text[]) AS term),
+                        (SELECT MAX(GREATEST(
+                           similarity(normalized_name, term),
+                           word_similarity(term, normalized_name)
+                         )) FROM unnest($3::text[]) AS term),
                         COALESCE((
-                          SELECT MAX(similarity(alias, term))
+                          SELECT MAX(GREATEST(
+                            similarity(alias, term),
+                            word_similarity(term, alias)
+                          ))
                           FROM unnest(normalized_aliases) AS alias
                           CROSS JOIN unnest($3::text[]) AS term
                         ), 0)
@@ -374,9 +376,17 @@ export async function GET(request: Request) {
                  AND (
                    normalized_name % ANY($3::text[])
                    OR EXISTS (
+                     SELECT 1 FROM unnest($3::text[]) AS term
+                     WHERE term <% normalized_name
+                   )
+                   OR EXISTS (
                      SELECT 1
                      FROM unnest(normalized_aliases) AS alias
                      WHERE alias % ANY($3::text[])
+                        OR EXISTS (
+                          SELECT 1 FROM unnest($3::text[]) AS term
+                          WHERE term <% alias
+                        )
                    )
                  )
              ),
@@ -393,7 +403,7 @@ export async function GET(request: Request) {
                           END
                       ) AS duplicate_rank
                FROM candidates
-               WHERE match_score >= 0.62
+               WHERE match_score >= 0.50
              )
              SELECT location_id AS location_id, name AS value, country_code,
                     CASE location_type
@@ -416,7 +426,25 @@ export async function GET(request: Request) {
             [canonicalQuery, countryCode, fuzzySearchTerms]
           )).rows
         : [];
-      const geographyRows = geographicResult.rows.length ? geographicResult.rows : fuzzyGeographyRows;
+      // Keep exact matches first, then introduce fuzzy matches before the
+      // potentially noisy tail of prefix results. Existing location identity
+      // de-duplication below still preserves same-name places in different areas.
+      const exactGeographyRows = geographicResult.rows.filter((place) =>
+        String(place.value).toLocaleLowerCase('en-IN') === canonicalQuery
+      );
+      const fuzzyKeys = new Set(fuzzyGeographyRows.map((place) =>
+        [place.value, place.state || place.region, place.district, place.country_code]
+          .map((part) => String(part || '').trim().toLocaleLowerCase('en-IN')).join('|')
+      ));
+      const geographyRows = [
+        ...exactGeographyRows,
+        ...fuzzyGeographyRows,
+        ...geographicResult.rows.filter((place) =>
+          !exactGeographyRows.includes(place)
+          && !fuzzyKeys.has([place.value, place.state || place.region, place.district, place.country_code]
+            .map((part) => String(part || '').trim().toLocaleLowerCase('en-IN')).join('|'))
+        ),
+      ];
       // Promote a matching Indian directory city using the richer geographic
       // row when available, so a long list of similarly named towns cannot hide it.
       const promotedCities = cityMatches.map((item) => {
