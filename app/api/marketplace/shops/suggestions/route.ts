@@ -264,7 +264,11 @@ export async function GET(request: Request) {
         bangalore: 'bengaluru', bombay: 'mumbai', calcutta: 'kolkata',
       };
       const canonicalQuery = aliases[nameQuery] || nameQuery;
-      const fuzzySearchTerms = romanizedLocationVariants(canonicalQuery);
+      const compactQuery = canonicalQuery.replace(/[^a-z0-9]/g, '');
+      const fuzzySearchTerms = Array.from(new Set([
+        ...romanizedLocationVariants(canonicalQuery),
+        ...romanizedLocationVariants(compactQuery),
+      ])).slice(0, 16);
       const cityMatches = (countryCode === 'IN' ? INDIAN_CITIES : [])
         .filter((item) => item.value.toLocaleLowerCase('en-IN').includes(canonicalQuery)
           || item.value.toLocaleLowerCase('en-IN').startsWith(canonicalQuery))
@@ -427,26 +431,47 @@ export async function GET(request: Request) {
               `WITH place_candidates AS (
                  SELECT village_name AS value, village_name_normalized AS normalized,
                         district_name AS district, subdistrict_name AS town,
-                        village_name AS village, 'Village'::text AS kind
+                        village_name AS village, 'Village'::text AS kind,
+                        NULL::text AS postal_code, NULL::text AS post_office_name,
+                        ARRAY[]::text[] AS aliases
                  FROM location_test.tamilnadu_official_villages
                  UNION
                  SELECT DISTINCT subdistrict_name AS value,
                         lower(regexp_replace(subdistrict_name, '[^a-zA-Z0-9]+', ' ', 'g')) AS normalized,
                         district_name AS district, subdistrict_name AS town,
-                        NULL::text AS village, 'Town / subdistrict'::text AS kind
+                        NULL::text AS village, 'Taluk / subdistrict'::text AS kind,
+                        NULL::text AS postal_code, NULL::text AS post_office_name,
+                        ARRAY[]::text[] AS aliases
                  FROM location_test.tamilnadu_official_villages
+                 UNION ALL
+                 SELECT locality_name AS value, normalized_name AS normalized,
+                        district_name AS district, NULL::text AS town,
+                        NULL::text AS village, locality_type AS kind,
+                        pincode AS postal_code, post_office_name,
+                        aliases
+                 FROM location_test.tamilnadu_postal_localities
+                 WHERE state_name = 'Tamil Nadu'
                ),
                scored AS (
                  SELECT p.*,
                         CASE
-                          WHEN p.normalized = ANY($1::text[]) THEN 0
-                          WHEN EXISTS (SELECT 1 FROM unnest($1::text[]) t WHERE p.normalized LIKE t || '%') THEN 1
+                          WHEN p.normalized = ANY($1::text[])
+                            OR EXISTS (SELECT 1 FROM unnest(p.aliases) a WHERE a = ANY($1::text[])) THEN 0
+                          WHEN EXISTS (
+                            SELECT 1 FROM unnest($1::text[]) t
+                            WHERE p.normalized LIKE t || '%'
+                               OR EXISTS (SELECT 1 FROM unnest(p.aliases) a WHERE a LIKE t || '%')
+                          ) THEN 1
                           ELSE 2
                         END AS match_rank,
                         GREATEST(
                           (SELECT MAX(GREATEST(similarity(p.normalized, term), word_similarity(term, p.normalized)))
                            FROM unnest($1::text[]) AS term),
-                          0
+                          COALESCE((
+                            SELECT MAX(GREATEST(similarity(alias, term), word_similarity(term, alias)))
+                            FROM unnest(p.aliases) AS alias
+                            CROSS JOIN unnest($1::text[]) AS term
+                          ), 0)
                         ) AS match_score
                  FROM place_candidates p
                  WHERE EXISTS (
@@ -455,11 +480,20 @@ export async function GET(request: Request) {
                       OR p.normalized LIKE term || '%'
                       OR similarity(p.normalized, term) >= 0.32
                       OR word_similarity(term, p.normalized) >= 0.50
+                      OR EXISTS (
+                        SELECT 1 FROM unnest(p.aliases) AS alias
+                        WHERE alias = term
+                           OR alias LIKE term || '%'
+                           OR alias ILIKE '%' || term || '%'
+                           OR similarity(alias, term) >= 0.32
+                           OR word_similarity(term, alias) >= 0.50
+                      )
                  )
                )
                SELECT value, kind, NULL::text AS city, town, village, district,
                       'Tamil Nadu'::text AS state, 'India'::text AS country,
-                      'IN'::text AS country_code, NULL::text AS region
+                      'IN'::text AS country_code, NULL::text AS region,
+                      postal_code, post_office_name
                FROM scored
                WHERE match_rank < 2 OR match_score >= 0.50
                ORDER BY match_rank, match_score DESC, value
