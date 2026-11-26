@@ -349,18 +349,18 @@ export async function GET(request: Request) {
                scored AS (
                  SELECT p.*,
                         CASE
-                          WHEN p.normalized = ANY($2::text[]) THEN 0
-                          WHEN EXISTS (SELECT 1 FROM unnest($2::text[]) t WHERE p.normalized LIKE t || '%') THEN 1
+                          WHEN p.normalized = ANY($1::text[]) THEN 0
+                          WHEN EXISTS (SELECT 1 FROM unnest($1::text[]) t WHERE p.normalized LIKE t || '%') THEN 1
                           ELSE 2
                         END AS match_rank,
                         GREATEST(
                           (SELECT MAX(GREATEST(similarity(p.normalized, term), word_similarity(term, p.normalized)))
-                           FROM unnest($2::text[]) AS term),
+                           FROM unnest($1::text[]) AS term),
                           0
                         ) AS match_score
                  FROM place_candidates p
                  WHERE EXISTS (
-                   SELECT 1 FROM unnest($2::text[]) AS term
+                   SELECT 1 FROM unnest($1::text[]) AS term
                    WHERE p.normalized = term
                       OR p.normalized LIKE term || '%'
                       OR similarity(p.normalized, term) >= 0.32
@@ -374,7 +374,7 @@ export async function GET(request: Request) {
                WHERE match_rank < 2 OR match_score >= 0.50
                ORDER BY match_rank, match_score DESC, value
                LIMIT 20`,
-              [canonicalQuery, fuzzySearchTerms]
+              [fuzzySearchTerms]
             )
           : Promise.resolve({ rows: [] }),
       ]);
