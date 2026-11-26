@@ -328,7 +328,29 @@ export async function GET(request: Request) {
         ),
         countryCode === 'IN'
           ? db.query(
-              `SELECT village_name AS value,
+              `WITH scored AS (
+                 SELECT village_name, village_name_normalized,
+                        district_name, subdistrict_name, state_name,
+                        CASE
+                          WHEN village_name_normalized = $1 THEN 0
+                          WHEN village_name_normalized LIKE $1 || '%' THEN 1
+                          ELSE 2
+                        END AS match_rank,
+                        GREATEST(
+                          (SELECT MAX(similarity(village_name_normalized, term))
+                           FROM unnest($2::text[]) AS term),
+                          similarity(village_name_normalized, $1)
+                        ) AS match_score
+                 FROM location_test.tamilnadu_official_villages
+                 WHERE village_name_normalized = $1
+                    OR village_name_normalized LIKE $1 || '%'
+                    OR EXISTS (
+                      SELECT 1
+                      FROM unnest($2::text[]) AS term
+                      WHERE village_name_normalized % term
+                    )
+               )
+               SELECT village_name AS value,
                       'Village · TN test' AS kind,
                       NULL::text AS city,
                       subdistrict_name AS town,
@@ -338,13 +360,11 @@ export async function GET(request: Request) {
                       'India'::text AS country,
                       'IN'::text AS country_code,
                       NULL::text AS region
-               FROM location_test.tamilnadu_official_villages
-               WHERE village_name_normalized = $1
-                  OR village_name_normalized LIKE $1 || '%'
-               ORDER BY CASE WHEN village_name_normalized = $1 THEN 0 ELSE 1 END,
-                        village_name
+               FROM scored
+               WHERE match_rank < 2 OR match_score >= 0.42
+               ORDER BY match_rank, match_score DESC, village_name
                LIMIT 12`,
-              [canonicalQuery]
+              [canonicalQuery, fuzzySearchTerms]
             )
           : Promise.resolve({ rows: [] }),
       ]);
