@@ -140,7 +140,7 @@ export async function GET(request: Request) {
           district: null,
           region: item.region,
         }));
-      const [shopLocationResult, geographicResult] = await Promise.all([
+      const [shopLocationResult, geographicResult, tamilNaduTestResult] = await Promise.all([
         db.query(
           `WITH location_values AS (
              SELECT city AS value, 'City / town' AS kind, city, district, region FROM marketplace_businesses WHERE business_type='shop' AND listing_status='published'
@@ -301,6 +301,31 @@ export async function GET(request: Request) {
           [canonicalQuery, countryCode, contextQuery]
         )
       ]);
+      // Temporary test-only source: surface the imported official Tamil Nadu
+      // village hierarchy in the live autocomplete without modifying production
+      // marketplace location tables. The label makes test-source results visible.
+      const tamilNaduTestRows = countryCode === 'IN'
+        ? (await db.query(
+            `SELECT village_name AS value,
+                    'Village · TN test' AS kind,
+                    NULL::text AS city,
+                    subdistrict_name AS town,
+                    village_name AS village,
+                    district_name AS district,
+                    state_name AS state,
+                    'India'::text AS country,
+                    'IN'::text AS country_code,
+                    NULL::text AS region
+             FROM location_test.tamilnadu_official_villages
+             WHERE village_name_normalized = $1
+                OR village_name_normalized LIKE $1 || '%'
+             ORDER BY CASE WHEN village_name_normalized = $1 THEN 0 ELSE 1 END,
+                      village_name
+             LIMIT 12`,
+            [canonicalQuery]
+          )).rows
+        : [];
+
       // Promote a matching Indian directory city using the richer geographic
       // row when available, so a long list of similarly named towns cannot hide it.
       const promotedCities = cityMatches.map((item) => {
@@ -317,6 +342,7 @@ export async function GET(request: Request) {
       );
       const orderedGeography = [
         ...promotedCities,
+        ...tamilNaduTestRows,
         ...geographicResult.rows.filter((item) => !promotedGeographyRows.has(item)),
       ];
       const result = { rows: [...orderedGeography, ...shopLocationResult.rows] };
