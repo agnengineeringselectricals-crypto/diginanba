@@ -500,7 +500,11 @@ export async function GET(request: Request) {
                      AND (
                        $2 = ''
                        OR lower(COALESCE(p.district, '')) LIKE '%' || lower($2) || '%'
-                       OR ($2 ~ '^[0-9]{5,6}
+                       OR (
+                         $2 ~ '^[0-9]{5,6}$'
+                         AND COALESCE(p.postal_code, '') LIKE $2 || '%'
+                       )
+                     )
                    )
                    OR (
                      $2 = ''
