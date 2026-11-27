@@ -180,6 +180,8 @@ function buildRecord(feature) {
 
 async function insertBatch(batchId, rows) {
   if (!rows.length) return 0;
+  // Osmium can emit both a line and an area for one OSM object; keep one row per source ID per SQL batch.
+  rows = Array.from(new Map(rows.map((row) => [row.sourceRef, row])).values());
   const values = [];
   const tuples = rows.map((row, index) => {
     const offset = index * 18;
