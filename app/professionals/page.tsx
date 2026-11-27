@@ -2,11 +2,16 @@ import CustomerDiscoveryPage from '@/components/CustomerDiscoveryPage';
 
 export const metadata = { title: 'My Professionals' };
 
-export default function Page() {
+export default async function Page({ searchParams }: { searchParams: Promise<{ q?: string; city?: string }> }) {
+  const params = await searchParams;
+  const initialQuery = typeof params.q === 'string' ? params.q.slice(0, 100) : '';
+  const initialCity = typeof params.city === 'string' ? params.city.slice(0, 120) : '';
   return <CustomerDiscoveryPage
     kind="professionals"
     title="My Professionals"
     intro="Find qualified people for the work you need done: engineers, architects, accountants, lawyers, consultants and other specialists. You are here to find expertise, not to register as a professional."
     categories={['Electrical Engineers','Civil Engineers','Mechanical Engineers','Architects','Structural Consultants','Chartered Accountants','Tax Consultants','Lawyers','Business Consultants','IT Professionals','Designers','Safety Consultants','Surveyors','Project Managers']}
+    initialQuery={initialQuery}
+    initialCity={initialCity}
   />;
 }
