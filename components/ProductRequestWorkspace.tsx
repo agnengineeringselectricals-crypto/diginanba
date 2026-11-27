@@ -162,6 +162,16 @@ const productKinds: { value: ProductKind; label: string }[] = [
   { value: "Personal productivity tool", label: "Personal productivity tool" },
 ];
 
+function isProductToolIntent(value: string) {
+  const query = value.trim().toLocaleLowerCase();
+  if (!query) return false;
+  // Questions, explanations, current facts and local discovery are not creation requests.
+  if (/^(what|who|where|when|why|how)\\b/.test(query) ||
+      /\\b(explain|meaning|definition|news|weather|today|latest|current|exchange rate|population|history of)\\b/.test(query) ||
+      /\\b(near me|nearby|in my area|around me|electrician|plumber|mechanic|doctor|hospital|clinic|restaurant|hotel|lawyer|shop|store|pharmacy|dentist|accountant)\\b/.test(query)) return false;
+  return /\\b(calculator|generator|template|tool|app|software|dashboard|spreadsheet|ebook|e-book|guide|planner|tracker|converter|checker|builder|maker|plugin|extension|script|automation|bot|chatbot|saas|worksheet|form)\\b/.test(query);
+}
+
 export default function ProductRequestWorkspace({ market }: { market: Market }) {
   const [expanded] = useState(true);
   const descriptionInputRef = useRef<HTMLTextAreaElement | null>(null);
@@ -287,14 +297,15 @@ export default function ProductRequestWorkspace({ market }: { market: Market }) 
       <div className="dn-pw-orbit" aria-hidden="true"><span>✦</span><i>✧</i><b>↗</b></div>
     </div>
     <div className="dn-pw-builder dn-pw-search-first">
-      <div className="dn-pw-search-toolbar">
+      <form className="dn-pw-search-toolbar" role="search" onSubmit={(event) => { event.preventDefault(); const term = productSearch.trim(); if (term) window.location.href = '/search?q=' + encodeURIComponent(term) + '&market=' + market; }}>
         <label className="dn-pw-field-full dn-pw-product-search-label">
-          <input type="search" list="dn-pw-product-search-types" value={productSearch} onChange={(event) => { setProductSearch(event.target.value); setCreateMode(false); }} placeholder="Search by product name, description or creator…" autoComplete="off" />
+          <input type="search" list="dn-pw-product-search-types" value={productSearch} onChange={(event) => { setProductSearch(event.target.value); setCreateMode(false); }} placeholder="Search anything — products, shops, services or information…" autoComplete="off" aria-label="Search all of DigiNanba" />
           <datalist id="dn-pw-product-search-types">{productKinds.map((item) => <option key={item.value} value={item.label} />)}</datalist>
         </label>
-      </div>
+        <button type="submit" className="dn-pw-start" disabled={!productSearch.trim()}>Search</button>
+      </form>
       {searchingProducts && <p className="dn-pw-search-status" role="status">Checking the marketplace…</p>}
-      {!searchingProducts && hasSearchedProducts && existingProducts.length === 0 && <div className="dn-pw-no-match-card" aria-live="polite">
+      {!searchingProducts && hasSearchedProducts && existingProducts.length === 0 && isProductToolIntent(productSearch) && <div className="dn-pw-no-match-card" aria-live="polite">
         <div><p><strong>“{productSearch.trim()}” isn’t available yet.</strong></p></div>
         <button type="button" className="dn-pw-start dn-pw-create-earn" onClick={() => { setIdea(productSearch.trim()); setCreateMode(true); setError(''); setSuccess(''); }}>✨ Create it &amp; earn</button>
       </div>}
