@@ -97,11 +97,15 @@ export default function SearchResultsClient({ initialQuery, market }: Props) {
   return <main style={{ maxWidth: 1160, margin: '0 auto', padding: '34px 20px 80px', color: '#172033' }}>
     <Link href="/" style={{ display: 'inline-flex', marginBottom: 22, color: '#344c9a', fontWeight: 700 }}>← Home</Link>
     <h1 style={{ margin: '0 0 8px', fontSize: 'clamp(30px,5vw,44px)' }}>Search DigiNanba</h1>
-    <p style={{ margin: '0 0 22px', color: '#667085' }}>Search across shops, services, products, professionals, healthcare and careers.</p>
+    <p style={{ margin: '0 0 22px', color: '#667085' }}>Search across DigiNanba listings and find general information on the wider web.</p>
     <form onSubmit={submit} role="search" style={{ display: 'flex', gap: 10, padding: 8, background: '#fff', border: '1px solid #d0d5dd', borderRadius: 16, boxShadow: '0 8px 24px rgba(16,24,40,.06)' }}>
       <input autoFocus type="search" value={query} onChange={e => setQuery(e.target.value)} placeholder="What are you looking for?" aria-label="Search all of DigiNanba" style={{ flex: 1, minWidth: 0, border: 0, outline: 0, padding: '12px 14px', font: 'inherit', fontSize: 16 }} />
       <button type="submit" disabled={!query.trim()} style={{ border: 0, borderRadius: 11, padding: '0 22px', background: '#344c9a', color: '#fff', fontWeight: 800, cursor: 'pointer' }}>Search</button>
     </form>
+    {initialQuery.trim() && <section aria-label="General web search" style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:12,flexWrap:'wrap',marginTop:14,padding:'13px 16px',border:'1px solid #e4e7ec',borderRadius:12,background:'#fff'}}>
+      <span style={{color:'#667085',fontSize:13}}>Need general information beyond DigiNanba listings?</span>
+      <a href={'https://www.google.com/search?q='+encodeURIComponent(initialQuery)} target="_blank" rel="noopener noreferrer" style={{color:'#344c9a',fontWeight:800,textDecoration:'none'}}>Search Google for “{initialQuery}” ↗</a>
+    </section>}
     {loading && <p role="status" style={{ color: '#667085', marginTop: 22 }}>Searching all DigiNanba categories…</p>}
     {error && <p role="alert" style={{ color: '#b42318', marginTop: 18 }}>{error}</p>}
     {searched && !loading && !error && <p style={{ color: '#667085', margin: '22px 0 8px' }}>{total} matching results for <strong>“{initialQuery}”</strong></p>}
