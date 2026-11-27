@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getProducts } from '@/lib/catalog';
+import HomeLink from '@/components/HomeLink';
 import { getRequestMarket } from '@/lib/request-market';
 
 const categoryMap: Record<string, { name: string; description: string; query: string }> = {
@@ -55,6 +56,7 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
 
   return (
     <main className="wrap catalog-page">
+      <HomeLink />
       <div className="sectionhead">
         <div>
           <div className="eyebrow">DigiNanba category</div>
