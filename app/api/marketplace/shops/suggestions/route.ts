@@ -580,8 +580,6 @@ export async function GET(request: Request) {
                      OR EXISTS (
                        SELECT 1 FROM unnest($1::text[]) t
                        WHERE v.village_name_normalized LIKE t || '%'
-                          OR similarity(v.village_name_normalized, t) >= 0.32
-                          OR word_similarity(t, v.village_name_normalized) >= 0.50
                      )
                    )
 
