@@ -572,7 +572,10 @@ export async function GET(request: Request) {
                         NULL::text AS postal_code, v.village_lgd_code AS source_id,
                         CASE WHEN v.village_name_normalized = ANY($1::text[]) THEN 0
                              WHEN EXISTS (SELECT 1 FROM unnest($1::text[]) t WHERE v.village_name_normalized LIKE t || '%') THEN 1
-                             ELSE 2 END AS match_rank
+                             ELSE 2 END AS match_rank,
+                        CASE WHEN $2 = '' THEN 0
+                             WHEN lower(concat_ws(' ', v.subdistrict_name, v.district_name, v.state_name)) LIKE '%' || lower($2) || '%' THEN 0
+                             ELSE 1 END AS context_rank
                  FROM location_test.india_other_states_official_villages v
                  WHERE lower(v.state_name) <> 'tamil nadu'
                    AND (
@@ -589,7 +592,10 @@ export async function GET(request: Request) {
                         'India', 'IN', NULL, s.subdistrict_lgd_code,
                         CASE WHEN lower(regexp_replace(s.subdistrict_name_en,'[^a-zA-Z0-9]+',' ','g')) = ANY($1::text[]) THEN 0
                              WHEN EXISTS (SELECT 1 FROM unnest($1::text[]) t WHERE lower(regexp_replace(s.subdistrict_name_en,'[^a-zA-Z0-9]+',' ','g')) LIKE t || '%') THEN 1
-                             ELSE 2 END
+                             ELSE 2 END,
+                        CASE WHEN $2 = '' THEN 0
+                             WHEN lower(concat_ws(' ', s.subdistrict_name_en, d.district_name_en, st.state_name_en)) LIKE '%' || lower($2) || '%' THEN 0
+                             ELSE 1 END
                  FROM location_test.india_lgd_subdistricts s
                  JOIN location_test.india_lgd_districts d ON d.district_lgd_code=s.district_lgd_code
                  JOIN location_test.india_lgd_states st ON st.state_lgd_code=s.state_lgd_code
@@ -603,7 +609,10 @@ export async function GET(request: Request) {
                         'India', 'IN', NULL, d.district_lgd_code,
                         CASE WHEN lower(regexp_replace(d.district_name_en,'[^a-zA-Z0-9]+',' ','g')) = ANY($1::text[]) THEN 0
                              WHEN EXISTS (SELECT 1 FROM unnest($1::text[]) t WHERE lower(regexp_replace(d.district_name_en,'[^a-zA-Z0-9]+',' ','g')) LIKE t || '%') THEN 1
-                             ELSE 2 END
+                             ELSE 2 END,
+                        CASE WHEN $2 = '' THEN 0
+                             WHEN lower(concat_ws(' ', d.district_name_en, st.state_name_en)) LIKE '%' || lower($2) || '%' THEN 0
+                             ELSE 1 END
                  FROM location_test.india_lgd_districts d
                  JOIN location_test.india_lgd_states st ON st.state_lgd_code=d.state_lgd_code
                  WHERE st.state_name_en <> 'Tamil Nadu'
@@ -613,9 +622,9 @@ export async function GET(request: Request) {
                SELECT value, kind, city, town, village, district, state, region,
                       country, country_code, postal_code
                FROM candidates
-               ORDER BY match_rank, value, district NULLS LAST
+               ORDER BY context_rank, match_rank, value, district NULLS LAST
                LIMIT 30`,
-              [fuzzySearchTerms]
+              [fuzzySearchTerms, contextQuery]
             )
           : Promise.resolve({ rows: [] }),
       ]);
@@ -796,6 +805,9 @@ export async function GET(request: Request) {
           const ratio = distance / Math.max(target.length, value.length, 1);
           return ratio <= 0.35 ? 2 + ratio : 3 + ratio;
         };
+        const leftContext = Number((a as Record<string, unknown>).context_rank ?? 1);
+        const rightContext = Number((b as Record<string, unknown>).context_rank ?? 1);
+        if (leftContext !== rightContext) return leftContext - rightContext;
         const left = score(a as Record<string, unknown>);
         const right = score(b as Record<string, unknown>);
         if (left !== right) return left - right;
