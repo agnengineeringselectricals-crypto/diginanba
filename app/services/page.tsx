@@ -2,7 +2,10 @@ import CustomerDiscoveryPage from '@/components/CustomerDiscoveryPage';
 
 export const metadata = { title: 'My Services' };
 
-export default function Page() {
+export default async function Page({ searchParams }: { searchParams: Promise<{ q?: string; city?: string }> }) {
+  const params = await searchParams;
+  const initialQuery = typeof params.q === 'string' ? params.q.slice(0, 100) : '';
+  const initialCity = typeof params.city === 'string' ? params.city.slice(0, 120) : '';
   return <CustomerDiscoveryPage
     kind="services"
     title="My Services"
@@ -27,5 +30,7 @@ export default function Page() {
       'Catering & Event Services',
       'Gardening & Landscaping',
     ]}
+    initialQuery={initialQuery}
+    initialCity={initialCity}
   />;
 }
