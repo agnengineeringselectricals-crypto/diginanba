@@ -620,7 +620,7 @@ export async function GET(request: Request) {
                      OR EXISTS (SELECT 1 FROM unnest($1::text[]) t WHERE lower(regexp_replace(d.district_name_en,'[^a-zA-Z0-9]+',' ','g')) LIKE t || '%'))
                )
                SELECT value, kind, city, town, village, district, state, region,
-                      country, country_code, postal_code
+                      country, country_code, postal_code, context_rank
                FROM candidates
                ORDER BY context_rank, match_rank, value, district NULLS LAST
                LIMIT 30`,
