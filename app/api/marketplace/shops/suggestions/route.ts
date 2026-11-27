@@ -612,7 +612,7 @@ export async function GET(request: Request) {
                FROM candidates
                ORDER BY match_rank, value, district NULLS LAST
                LIMIT 30`,
-              [fuzzySearchTerms, contextQuery]
+              [fuzzySearchTerms]
             )
           : Promise.resolve({ rows: [] }),
       ]);
