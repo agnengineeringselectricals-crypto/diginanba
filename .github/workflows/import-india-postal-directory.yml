@@ -1,0 +1,40 @@
+name: Import India Post national PIN directory
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: diginanba-india-postal-directory
+  cancel-in-progress: false
+
+jobs:
+  import:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - name: Check out DigiNanba
+        uses: actions/checkout@v5
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+      - name: Download India Post directory snapshot
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 --retry-delay 3 \
+            https://raw.githubusercontent.com/dropdevrahul/pincodes-india/main/pincode.csv \
+            --output "$RUNNER_TEMP/india-pincode.csv"
+          test "$(wc -l < "$RUNNER_TEMP/india-pincode.csv")" -gt 100000
+          head -n 1 "$RUNNER_TEMP/india-pincode.csv" | grep -Eiq 'CircleName.*RegionName.*DivisionName.*OfficeName.*Pincode.*OfficeType.*Delivery.*District.*StateName'
+      - name: Install isolated importer dependencies
+        run: npm install --prefix "$RUNNER_TEMP/postal-import" --no-save --package-lock=false pg@8.16.3 csv-parse@6.1.0
+      - name: Import into isolated India postal staging table
+        env:
+          NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          test -n "${NEON_DATABASE_URL:-}"
+          NODE_PATH="$RUNNER_TEMP/postal-import/node_modules" node scripts/import-india-postal-directory.mjs "$RUNNER_TEMP/india-pincode.csv"
