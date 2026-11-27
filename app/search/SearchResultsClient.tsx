@@ -47,12 +47,12 @@ export default function SearchResultsClient({ initialQuery, market }: Props) {
   const [searched, setSearched] = useState(false);
   const [categoryErrors, setCategoryErrors] = useState<Record<string, string>>({});
   const [organizationSignInRequired, setOrganizationSignInRequired] = useState(false);
+  const term = initialQuery.trim();
+  const locationMatch = term.match(/^(.+?)\s+(?:in|near|around)\s+(.+)$/i);
+  const searchTerm = locationMatch ? locationMatch[1].trim() : term;
+  const searchCity = locationMatch ? locationMatch[2].trim() : '';
 
   useEffect(() => {
-    const term = initialQuery.trim();
-    const locationMatch = term.match(/^(.+?)\s+(?:in|near|around)\s+(.+)$/i);
-    const searchTerm = locationMatch ? locationMatch[1].trim() : term;
-    const searchCity = locationMatch ? locationMatch[2].trim() : '';
     setQuery(term);
     if (term.length < 2) { setResults({}); setSearched(false); return; }
     let active = true;
