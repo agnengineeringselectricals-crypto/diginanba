@@ -265,8 +265,7 @@ export default function ProductRequestWorkspace({ market }: { market: Market }) 
         </label>
         <button type="submit" className="dn-pw-start dn-pw-create-cta" disabled={!productSearch.trim()}>Search</button>
       </form>
-      <p className="dn-pw-search-status">One search for the whole DigiNanba marketplace — shops, services, digital products, professionals, healthcare, careers and more.</p>
-      <button type="button" className="dn-pw-marketplace-link" onClick={() => { setIdea((current) => current.trim() ? current : productSearch.trim()); setCreateMode(true); setError(''); setSuccess(''); }}>Can’t find what you need? Create a digital product →</button>
+
     </div>
     {expanded && createMode && <div className="dn-pw-builder">
       <div className="dn-pw-assistant">
