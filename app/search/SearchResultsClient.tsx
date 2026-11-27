@@ -13,23 +13,27 @@ const areas = [
   { key: 'professionals', label: 'Professionals', endpoint: 'professionals' },
   { key: 'healthcare', label: 'Doctors & healthcare', endpoint: 'healthcare' },
   { key: 'career', label: 'Jobs & careers', endpoint: 'career' },
+  { key: 'organizations', label: 'Your organization workspaces', endpoint: 'organizations' },
 ] as const;
 
 function titleOf(item: Result, key: string) {
   if (key === 'products') return item.title || 'Digital product';
   if (key === 'healthcare') return item.display_name || 'Healthcare provider';
+  if (key === 'organizations') return item.name || 'Organization workspace';
   if (key === 'career') return item.title || 'Job opportunity';
   return item.business_name || item.display_name || item.title || 'Listing';
 }
 function detailOf(item: Result, key: string) {
   if (key === 'products') return [item.category, item.creatorName ? 'by ' + item.creatorName : ''].filter(Boolean).join(' · ');
   if (key === 'healthcare') return [item.specialty, item.provider_type, item.locality, item.city, item.district].filter(Boolean).join(' · ');
+  if (key === 'organizations') return [item.role, item.status, item.billing_country_code].filter(Boolean).join(' · ');
   if (key === 'career') return [item.company_name, item.city, item.region].filter(Boolean).join(' · ');
   return [item.specialty || item.provider_type, item.locality, item.city, item.district, item.region].filter(Boolean).join(' · ');
 }
 function hrefOf(item: Result, key: string, market: string) {
   if (key === 'products' && item.slug) return '/products/' + encodeURIComponent(item.slug) + '?market=' + market;
   if (key === 'shops' && item.public_id) return '/s/' + encodeURIComponent(item.public_id);
+  if (key === 'organizations' && item.id) return '/organizations/modules?organizationId=' + encodeURIComponent(item.id);
   if (key === 'shops') return '/shops?q=' + encodeURIComponent(item.business_name || '');
   return '/' + key + '?q=' + encodeURIComponent(item.business_name || item.display_name || item.title || '');
 }
@@ -50,19 +54,30 @@ export default function SearchResultsClient({ initialQuery, market }: Props) {
     setLoading(true);
     setError('');
     const requests = areas.map(async area => {
-      const url = area.key === 'products'
-        ? '/api/products?market=' + market + '&q=' + encodeURIComponent(term)
-        : '/api/marketplace/' + area.endpoint + '?q=' + encodeURIComponent(term);
-      const response = await fetch(url, { signal: controller.signal, cache: 'no-store' });
-      if (!response.ok) throw new Error('Some search results are temporarily unavailable.');
-      const data = await response.json();
-      const rows = area.key === 'products' ? data.products : area.key === 'healthcare' ? data.providers : area.key === 'career' ? data.jobs : data.items;
-      return [area.key, Array.isArray(rows) ? rows : []] as const;
+      try {
+        const url = area.key === 'products'
+          ? '/api/products?market=' + market + '&q=' + encodeURIComponent(term)
+          : area.key === 'organizations'
+            ? '/api/organizations'
+            : '/api/marketplace/' + area.endpoint + '?q=' + encodeURIComponent(term);
+        const response = await fetch(url, { signal: controller.signal, cache: 'no-store' });
+        if (!response.ok) return [area.key, []] as const;
+        const data = await response.json();
+        let rows = area.key === 'products' ? data.products
+          : area.key === 'healthcare' ? data.providers
+          : area.key === 'career' ? data.jobs
+          : area.key === 'organizations' ? data.organizations
+          : data.items;
+        if (area.key === 'organizations' && Array.isArray(rows)) {
+          rows = rows.filter((item: Result) => String(item.name || '').toLocaleLowerCase().includes(term.toLocaleLowerCase()));
+        }
+        return [area.key, Array.isArray(rows) ? rows : []] as const;
+      } catch {
+        return [area.key, []] as const;
+      }
     });
     Promise.all(requests).then(entries => {
       if (active) setResults(Object.fromEntries(entries));
-    }).catch(err => {
-      if (active && err?.name !== 'AbortError') setError(err instanceof Error ? err.message : 'Search is temporarily unavailable.');
     }).finally(() => {
       if (active) { setLoading(false); setSearched(true); }
     });
