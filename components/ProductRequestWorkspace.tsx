@@ -292,7 +292,6 @@ export default function ProductRequestWorkspace({ market }: { market: Market }) 
           <input type="search" list="dn-pw-product-search-types" value={productSearch} onChange={(event) => { setProductSearch(event.target.value); setCreateMode(false); }} placeholder="Search by product name, description or creator…" autoComplete="off" />
           <datalist id="dn-pw-product-search-types">{productKinds.map((item) => <option key={item.value} value={item.label} />)}</datalist>
         </label>
-        <button type="button" className="dn-pw-start dn-pw-create-cta" onClick={() => { setIdea((current) => current.trim() ? current : productSearch.trim()); setCreateMode(true); setError(''); setSuccess(''); }}>Find or Create</button>
       </div>
       {searchingProducts && <p className="dn-pw-search-status" role="status">Checking the marketplace…</p>}
       {!searchingProducts && hasSearchedProducts && existingProducts.length === 0 && <div className="dn-pw-no-match-card" aria-live="polite">
