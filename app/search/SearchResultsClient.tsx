@@ -47,7 +47,7 @@ export default function SearchResultsClient({ initialQuery, market }: Props) {
 
   useEffect(() => {
     const term = initialQuery.trim();
-    const locationMatch = term.match(/^(.+?)\\s+(?:in|near|around)\\s+(.+)$/i);
+    const locationMatch = term.match(/^(.+?)\s+(?:in|near|around)\s+(.+)$/i);
     const searchTerm = locationMatch ? locationMatch[1].trim() : term;
     const searchCity = locationMatch ? locationMatch[2].trim() : '';
     setQuery(term);
