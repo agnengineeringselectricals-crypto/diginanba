@@ -169,6 +169,11 @@ export default function MyShopsDiscovery() {
   }
 
   return <main style={{maxWidth:1160,margin:'0 auto',padding:'34px 20px 76px',color:'#172033'}}>
+    <div style={{marginBottom:18}}>
+      <a href="/" aria-label="Go to DigiNanba home page" style={{display:'inline-flex',alignItems:'center',gap:7,padding:'9px 14px',border:'1px solid #d0d5dd',borderRadius:999,background:'#fff',color:'#344054',fontSize:13,fontWeight:700,textDecoration:'none'}}>
+        <span aria-hidden="true">←</span> Home
+      </a>
+    </div>
     <p style={{margin:'0 0 8px',color:'#5264b5',fontSize:12,fontWeight:800,letterSpacing:'.09em',textTransform:'uppercase'}}>DigiNanba local marketplace</p>
     <h1 style={{fontSize:'clamp(32px,5vw,46px)',lineHeight:1.1,margin:'0 0 10px'}}>My Shops</h1>
     <p style={{maxWidth:760,color:'#667085',lineHeight:1.6,margin:'0 0 24px'}}>Find the shops you regularly visit, discover nearby stores and connect with shop owners.</p>
