@@ -296,8 +296,8 @@ export default function ProductRequestWorkspace({ market }: { market: Market }) 
       </div>
       {searchingProducts && <p className="dn-pw-search-status" role="status">Checking the marketplace…</p>}
       {!searchingProducts && hasSearchedProducts && existingProducts.length === 0 && <div className="dn-pw-no-match-card" aria-live="polite">
-        <div><p><strong>✨ “{productSearch.trim()}” isn’t available yet.</strong></p><p>Be the first to bring this idea to life. Create it with DigiNanba and explore the opportunity to earn.</p></div>
-        <button type="button" className="dn-pw-start dn-pw-create-earn" onClick={() => { setIdea((current) => current.trim() ? current : productSearch.trim()); setCreateMode(true); setError(''); setSuccess(''); }}>Create it &amp; earn →</button>
+        <div><p><strong>✨ Wow! “{productSearch.trim()}” isn’t here yet. Create it and earn with DigiNanba.</strong></p></div>
+        <button type="button" className="dn-pw-start dn-pw-create-earn" onClick={() => { setIdea(productSearch.trim()); setCreateMode(true); setError(''); setSuccess(''); }}>✨ Create it &amp; earn</button>
       </div>}
     </div>
     {expanded && createMode && <div className="dn-pw-builder">
