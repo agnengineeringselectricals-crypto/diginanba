@@ -1,0 +1,63 @@
+name: Stage India LGD national directory in Neon
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "GitHub Release tag containing india_lgd_import_ready.zip"
+        required: true
+        type: string
+        default: "lgd-staging-2026-11-27"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: diginanba-india-lgd-neon-staging
+  cancel-in-progress: false
+
+jobs:
+  stage:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Check out DigiNanba
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+
+      - name: Download and verify the prepared LGD package
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/lgd-package"
+          gh release download "$RELEASE_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern "india_lgd_import_ready.zip" \
+            --dir "$RUNNER_TEMP/lgd-package"
+          echo "7d8b9f1699bb7b4e0d3460939f0be95e8abb6a4c38859fa210518077a499cb7d  $RUNNER_TEMP/lgd-package/india_lgd_import_ready.zip" | sha256sum --check -
+          unzip -q "$RUNNER_TEMP/lgd-package/india_lgd_import_ready.zip" -d "$RUNNER_TEMP/lgd-package"
+          test -s "$RUNNER_TEMP/lgd-package/india_lgd_national_staging/import_india_lgd_staging.mjs"
+          test -s "$RUNNER_TEMP/lgd-package/india_lgd_national_staging/lgd_villages_all_states.csv"
+
+      - name: Install isolated importer dependency
+        run: |
+          npm install --prefix "$RUNNER_TEMP/lgd-package/india_lgd_national_staging" \
+            --no-save --package-lock=false pg@8.16.3
+
+      - name: Import verified LGD rows into location_test only
+        env:
+          NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          if [ -z "${NEON_DATABASE_URL:-}" ]; then
+            echo "::error::NEON_DATABASE_URL repository secret is missing."
+            exit 1
+          fi
+          node "$RUNNER_TEMP/lgd-package/india_lgd_national_staging/import_india_lgd_staging.mjs" \
+            "$RUNNER_TEMP/lgd-package/india_lgd_national_staging"
