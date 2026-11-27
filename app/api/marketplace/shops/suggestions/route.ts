@@ -757,8 +757,52 @@ export async function GET(request: Request) {
         const key = locationKey(item as Record<string, unknown>);
         if (!merged.has(key)) merged.set(key, item);
       }
+      // Rank the combined India-wide result set by locality-name relevance.
+      // This prevents a fuzzy Tamil Nadu hit from appearing above a much
+      // closer national LGD match, and prefers a village whose own subdistrict
+      // has the same name when several states contain the same village name.
+      const rankedSuggestions = Array.from(merged.values()).sort((a, b) => {
+        const normalize = (value: unknown) => String(value || '')
+          .toLocaleLowerCase('en-IN')
+          .normalize('NFD')
+          .replace(/[\\u0300-\\u036f]/g, '')
+          .replace(/[^a-z0-9]+/g, ' ')
+          .trim();
+        const target = normalize(canonicalQuery);
+        const score = (item: Record<string, unknown>) => {
+          const value = normalize(item.value);
+          if (value === target) return 0;
+          if (value.startsWith(target)) return 1;
+          // Bounded Levenshtein distance handles common one-character
+          // omissions/insertions such as "goranta" -> "gorantla".
+          const previous = Array.from({ length: value.length + 1 }, (_, i) => i);
+          for (let i = 1; i <= target.length; i++) {
+            let diagonal = previous[0];
+            previous[0] = i;
+            for (let j = 1; j <= value.length; j++) {
+              const above = previous[j];
+              previous[j] = Math.min(
+                previous[j] + 1,
+                previous[j - 1] + 1,
+                diagonal + (target[i - 1] === value[j - 1] ? 0 : 1)
+              );
+              diagonal = above;
+            }
+          }
+          const distance = previous[value.length];
+          const ratio = distance / Math.max(target.length, value.length, 1);
+          return ratio <= 0.35 ? 2 + ratio : 3 + ratio;
+        };
+        const left = score(a as Record<string, unknown>);
+        const right = score(b as Record<string, unknown>);
+        if (left !== right) return left - right;
+        const leftParentMatch = normalize(a.town) === normalize(a.value) ? 0 : 1;
+        const rightParentMatch = normalize(b.town) === normalize(b.value) ? 0 : 1;
+        if (leftParentMatch !== rightParentMatch) return leftParentMatch - rightParentMatch;
+        return String(a.value || '').localeCompare(String(b.value || ''), 'en-IN');
+      });
       return NextResponse.json({
-        suggestions: Array.from(merged.values()).slice(0, 20),
+        suggestions: rankedSuggestions.slice(0, 20),
       });
     }
     return NextResponse.json({ error: 'Unknown suggestion type.' }, { status: 400 });
