@@ -7,7 +7,6 @@ on:
       - main
     paths:
       - "scripts/import_global_geonames.py"
-      - ".github/workflows/import-global-geonames.yml"
 
 permissions:
   contents: read
