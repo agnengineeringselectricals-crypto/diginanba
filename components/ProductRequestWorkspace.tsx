@@ -166,10 +166,10 @@ function isProductToolIntent(value: string) {
   const query = value.trim().toLocaleLowerCase();
   if (!query) return false;
   // Questions, explanations, current facts and local discovery are not creation requests.
-  if (/^(what|who|where|when|why|how)\\b/.test(query) ||
-      /\\b(explain|meaning|definition|news|weather|today|latest|current|exchange rate|population|history of)\\b/.test(query) ||
-      /\\b(near me|nearby|in my area|around me|electrician|plumber|mechanic|doctor|hospital|clinic|restaurant|hotel|lawyer|shop|store|pharmacy|dentist|accountant)\\b/.test(query)) return false;
-  return /\\b(calculator|generator|template|tool|app|software|dashboard|spreadsheet|ebook|e-book|guide|planner|tracker|converter|checker|builder|maker|plugin|extension|script|automation|bot|chatbot|saas|worksheet|form)\\b/.test(query);
+  if (/^(what|who|where|when|why|how)\b/.test(query) ||
+      /\b(explain|meaning|definition|news|weather|today|latest|current|exchange rate|population|history of)\b/.test(query) ||
+      /\b(near me|nearby|in my area|around me|electrician|plumber|mechanic|doctor|hospital|clinic|restaurant|hotel|lawyer|shop|store|pharmacy|dentist|accountant)\b/.test(query)) return false;
+  return /\b(calculator|generator|template|tool|app|software|dashboard|spreadsheet|ebook|e-book|guide|planner|tracker|converter|checker|builder|maker|plugin|extension|script|automation|bot|chatbot|saas|worksheet|form)\b/.test(query);
 }
 
 export default function ProductRequestWorkspace({ market }: { market: Market }) {
