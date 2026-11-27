@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import './product-request-workspace.css';
 import type { Market } from '@/lib/market';
@@ -166,6 +167,9 @@ export default function ProductRequestWorkspace({ market }: { market: Market }) 
   const [expanded] = useState(true);
   const descriptionInputRef = useRef<HTMLTextAreaElement | null>(null);
   const [productSearch, setProductSearch] = useState('');
+  const [existingProducts, setExistingProducts] = useState<{id:string;publicId?:string;slug:string;title:string;description:string;category:string;creatorName?:string;creatorId?:string;price?:string}[]>([]);
+  const [searchingProducts, setSearchingProducts] = useState(false);
+  const [hasSearchedProducts, setHasSearchedProducts] = useState(false);
   const [createMode, setCreateMode] = useState(false);
   const [idea, setIdea] = useState('');
   const [kind, setKind] = useState<string>('Interactive web tool or dashboard');
@@ -179,12 +183,29 @@ export default function ProductRequestWorkspace({ market }: { market: Market }) 
     return () => window.clearTimeout(timer);
   }, [createMode]);
 
-  function submitUniversalSearch(event: FormEvent) {
-    event.preventDefault();
-    const term = productSearch.trim();
-    if (!term) return;
-    window.location.href = '/search?q=' + encodeURIComponent(term) + '&market=' + encodeURIComponent(market);
-  }
+  useEffect(() => {
+    const query = productSearch.trim();
+    let active = true;
+    const controller = new AbortController();
+    const timer = setTimeout(async () => {
+      setSearchingProducts(true);
+      try {
+        const params = new URLSearchParams({ market });
+        if (query.length >= 2) params.set('q', query);
+        const response = await fetch('/api/products?' + params.toString(), { signal: controller.signal });
+        const data = await response.json();
+        if (active) {
+          setExistingProducts(Array.isArray(data.products) ? data.products : []);
+          setHasSearchedProducts(query.length >= 2);
+        }
+      } catch {
+        if (active) { setExistingProducts([]); setHasSearchedProducts(query.length >= 2); }
+      } finally {
+        if (active) setSearchingProducts(false);
+      }
+    }, query.length >= 2 ? 250 : 0);
+    return () => { active = false; clearTimeout(timer); controller.abort(); };
+  }, [productSearch]);
 
   const [previewOpen, setPreviewOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -259,13 +280,20 @@ export default function ProductRequestWorkspace({ market }: { market: Market }) 
       <div className="dn-pw-orbit" aria-hidden="true"><span>✦</span><i>✧</i><b>↗</b></div>
     </div>
     <div className="dn-pw-builder dn-pw-search-first">
-      <form className="dn-pw-search-toolbar" onSubmit={submitUniversalSearch} role="search" aria-label="Search all of DigiNanba">
+      <div className="dn-pw-search-toolbar">
         <label className="dn-pw-field-full dn-pw-product-search-label">
-          <input type="search" value={productSearch} onChange={(event) => { setProductSearch(event.target.value); setCreateMode(false); }} placeholder="Search anything — shops, services, products, people, projects…" autoComplete="off" aria-label="Search anything on DigiNanba" />
+          <input type="search" list="dn-pw-product-search-types" value={productSearch} onChange={(event) => { setProductSearch(event.target.value); setCreateMode(false); }} placeholder="Search by product name, description or creator…" autoComplete="off" />
+          <datalist id="dn-pw-product-search-types">{productKinds.map((item) => <option key={item.value} value={item.label} />)}</datalist>
         </label>
-        <button type="submit" className="dn-pw-start dn-pw-create-cta" disabled={!productSearch.trim()}>Search</button>
-      </form>
-      <button type="button" className="dn-pw-marketplace-link" onClick={() => { setIdea((current) => current.trim() ? current : productSearch.trim()); setCreateMode(true); setError(''); setSuccess(''); }}>Can’t find what you need? Create a digital product →</button>
+        <button type="button" className="dn-pw-start dn-pw-create-cta" onClick={() => { setIdea((current) => current.trim() ? current : productSearch.trim()); setCreateMode(true); setError(''); setSuccess(''); }}>Find or Create</button>
+      </div>
+      <div className="dn-pw-existing-results" aria-live="polite">
+        {searchingProducts && <p className="dn-pw-search-status" role="status">Finding relevant products…</p>}
+        {!searchingProducts && existingProducts.length > 0 ? <div className="dn-pw-existing-roller">{existingProducts.slice(0,12).map((product) => <Link className="dn-pw-existing-card" key={product.id} href={`/products/${product.slug}?market=${market}`}>
+          <strong>{product.title}</strong>{product.creatorName && product.creatorName.trim().toLowerCase() !== "diginanba" && <small className="dn-pw-result-creator">by {product.creatorName.trim().split(/\s+/).slice(0,2).join(" ")}</small>}{product.price && <small className="dn-pw-result-price">{product.price}</small>}<span className="dn-pw-existing-open">View product →</span>
+        </Link>)}</div> : !searchingProducts && hasSearchedProducts ? <div className="dn-pw-no-match-card"><p><strong>Wow! “{productSearch.trim()}” isn’t here yet.</strong></p><p>Create it and earn with DigiNanba.</p><button type="button" className="dn-pw-start dn-pw-create-earn" onClick={() => { setIdea((current) => current.trim() ? current : productSearch.trim()); setCreateMode(true); setError(''); setSuccess(''); }}>✨ Create it &amp; earn</button></div> : null}
+        {(!hasSearchedProducts || existingProducts.length > 0) && <a className="dn-pw-marketplace-link" href={productSearch.trim().length >= 2 ? `/explore?market=${market}&q=${encodeURIComponent(productSearch.trim())}` : `/explore?market=${market}`}>Browse all marketplace products →</a>}
+      </div>
     </div>
     {expanded && createMode && <div className="dn-pw-builder">
       <div className="dn-pw-assistant">
