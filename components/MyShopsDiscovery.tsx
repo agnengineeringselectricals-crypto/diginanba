@@ -5,9 +5,9 @@ import { useEffect, useState, type CSSProperties } from 'react';
 type Shop = { id:string; public_id:string|null; business_name:string; country_code:string; region_code:string|null; region?:string|null; city:string|null; locality:string|null; verification_status:string; average_rating:number|null; rating_count:number; listings?:{id:string;title:string;category:string;priceAmount:number|null;currency:string|null;priceUnit:string|null}[] };
 const categories=['Groceries & Daily Needs','Vegetables & Fruits','Medical Shops & Pharmacy','Food, Bakery & Sweets','Clothing & Footwear','Mobile & Electronics','Electrical & Hardware','Home & Kitchen','Building Materials','Vehicle Spares','Stationery & Books','Beauty & Personal Care','Agriculture & Garden','Pet Supplies'];
 
-export default function MyShopsDiscovery() {
-  const [query,setQuery]=useState('');
-  const [city,setCity]=useState('');
+export default function MyShopsDiscovery({ initialQuery = '', initialCity = '' }: { initialQuery?: string; initialCity?: string }) {
+  const [query,setQuery]=useState(initialQuery);
+  const [city,setCity]=useState(initialCity);
   const [countryCode,setCountryCode]=useState('IN');
   const [category,setCategory]=useState('');
   const [productSuggestions,setProductSuggestions]=useState<{title:string;category:string}[]>([]);
