@@ -245,7 +245,7 @@ export async function GET(request: Request) {
       // A trailing 5- or 6-digit PIN is postal context, not part of the
       // locality name or district. This supports searches like
       // "Ariyamangalam 62001" and keeps the locality match intact.
-      const hasPostalContext = words.length >= 2 && /^\\d{5,6}$/.test(words[words.length - 1]);
+      const hasPostalContext = words.length >= 2 && /^\d{5,6}$/.test(words[words.length - 1]);
       // Preserve the complete multi-word locality name. Only split parent
       // context when the user explicitly separates it with a comma, or when
       // a PIN code is appended to the locality query.
