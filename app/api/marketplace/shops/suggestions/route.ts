@@ -247,12 +247,18 @@ export async function GET(request: Request) {
       // When there is no comma, use the final word as parent-place context
       // and search the preceding words as the locality name.
       const words = normalized.split(/\s+/).filter(Boolean);
+      // A trailing 5- or 6-digit PIN is postal context, not part of the
+      // locality name or district. This supports searches like
+      // "Ariyamangalam 62001" and keeps the locality match intact.
+      const hasPostalContext = words.length >= 2 && /^\\d{5,6}$/.test(words[words.length - 1]);
       const nameQuery = commaParts.length > 1
         ? commaParts[0]
+        : hasPostalContext ? words.slice(0, -1).join(' ')
         : words.length >= 2 ? words.slice(0, -1).join(' ') : normalized;
       const contextQuery = commaParts.length > 1
         ? commaParts.slice(1).join(' ')
         : words.length >= 2 ? words[words.length - 1] : '';
+      const postalContext = hasPostalContext ? words[words.length - 1] : '';
       // Common exonyms, historic names and regional nicknames. These map
       // search terms to canonical directory names without changing stored data.
       const aliases: Record<string, string> = {
@@ -494,6 +500,181 @@ export async function GET(request: Request) {
                      AND (
                        $2 = ''
                        OR lower(COALESCE(p.district, '')) LIKE '%' || lower($2) || '%'
+                       OR ($2 ~ '^\\d{5,6}
+                     )
+                   )
+                   OR (
+                     $2 = ''
+                     AND p.kind IN ('Village', 'Post Office', 'Postal locality')
+                     AND EXISTS (
+                       SELECT 1 FROM unnest($1::text[]) AS district_term
+                       WHERE lower(COALESCE(p.district, '')) LIKE '%' || lower(district_term) || '%'
+                     )
+                   )
+                 )
+               )
+               SELECT value, kind, NULL::text AS city, town, village, district,
+                      'Tamil Nadu'::text AS state, 'India'::text AS country,
+                      'IN'::text AS country_code, NULL::text AS region,
+                      postal_code, post_office_name
+               FROM scored
+               WHERE match_rank < 2 OR match_score >= 0.50
+               ORDER BY match_rank, match_score DESC, value
+               LIMIT 20`,
+              [fuzzySearchTerms, postalContext || contextQuery]
+            )
+          : Promise.resolve({ rows: [] }),
+      ]);
+      // TN test data is fetched in parallel with the production sources.
+      const tamilNaduTestRows = tamilNaduTestResult.rows;
+
+      // Run bounded typo-tolerant matching for every location query once it
+      // is long enough to be meaningful. This runs alongside prefix matching,
+      // because a partial prefix may return unrelated places and otherwise
+      // prevent the intended typo-tolerant result from ever being considered.
+      // pg_trgm similarity handles misspellings; word_similarity also handles
+      // a correctly typed beginning of a longer place name.
+      const fuzzyGeographyRows = countryCode !== 'IN' && canonicalQuery.length >= 5
+        ? (await db.query(
+            `WITH candidates AS (
+               SELECT location_id, name, location_type, normalized_name,
+                      normalized_aliases, city, town, village, district, state,
+                      country, postal_code, latitude, longitude,
+                      GREATEST(
+                        (SELECT MAX(GREATEST(
+                           similarity(normalized_name, term),
+                           word_similarity(term, normalized_name)
+                         )) FROM unnest($3::text[]) AS term),
+                        COALESCE((
+                          SELECT MAX(GREATEST(
+                            similarity(alias, term),
+                            word_similarity(term, alias)
+                          ))
+                          FROM unnest(normalized_aliases) AS alias
+                          CROSS JOIN unnest($3::text[]) AS term
+                        ), 0)
+                      ) AS match_score
+               FROM marketplace_location_search
+               WHERE country_code = $2
+                 AND location_type NOT IN ('road', 'street')
+                 AND (
+                   normalized_name % ANY($3::text[])
+                   OR EXISTS (
+                     SELECT 1 FROM unnest($3::text[]) AS term
+                     WHERE term <% normalized_name
+                   )
+                   OR EXISTS (
+                     SELECT 1
+                     FROM unnest(normalized_aliases) AS alias
+                     WHERE alias % ANY($3::text[])
+                        OR EXISTS (
+                          SELECT 1 FROM unnest($3::text[]) AS term
+                          WHERE term <% alias
+                        )
+                   )
+                 )
+             ),
+             ranked AS (
+               SELECT *,
+                      ROW_NUMBER() OVER (
+                        PARTITION BY normalized_name, COALESCE(district, ''), COALESCE(state, ''), COALESCE(country, '')
+                        ORDER BY
+                          (district IS NOT NULL OR state IS NOT NULL OR country IS NOT NULL) DESC,
+                          match_score DESC,
+                          CASE location_type
+                            WHEN 'city' THEN 0 WHEN 'town' THEN 1 WHEN 'village' THEN 2
+                            WHEN 'hamlet' THEN 3 WHEN 'locality' THEN 4 WHEN 'suburb' THEN 5 ELSE 9
+                          END
+                      ) AS duplicate_rank
+               FROM candidates
+               WHERE match_score >= 0.50
+             )
+             SELECT location_id AS location_id, name AS value, country_code,
+                    CASE location_type
+                      WHEN 'state' THEN 'State'
+                      WHEN 'district' THEN 'District'
+                      WHEN 'city' THEN 'City'
+                      WHEN 'town' THEN 'Town'
+                      WHEN 'village' THEN 'Village'
+                      WHEN 'hamlet' THEN 'Hamlet'
+                      WHEN 'locality' THEN 'Locality'
+                      WHEN 'neighbourhood' THEN 'Neighbourhood'
+                      WHEN 'suburb' THEN 'Suburb'
+                      ELSE 'Place' END AS kind,
+                    city, town, village, district, state, state AS region,
+                    country, postal_code, latitude, longitude, 1 AS context_rank
+             FROM ranked
+             WHERE duplicate_rank = 1
+             ORDER BY match_score DESC, name
+             LIMIT 20`,
+            [canonicalQuery, countryCode, fuzzySearchTerms]
+          )).rows
+        : [];
+      // Keep exact matches first, then introduce fuzzy matches before the
+      // potentially noisy tail of prefix results. Existing location identity
+      // de-duplication below still preserves same-name places in different areas.
+      const exactGeographyRows = geographicResult.rows.filter((place) =>
+        String(place.value).toLocaleLowerCase('en-IN') === canonicalQuery
+      );
+      const fuzzyKeys = new Set(fuzzyGeographyRows.map((place) =>
+        [place.value, place.state || place.region, place.district, place.country_code]
+          .map((part) => String(part || '').trim().toLocaleLowerCase('en-IN')).join('|')
+      ));
+      const geographyRows = [
+        ...exactGeographyRows,
+        ...fuzzyGeographyRows,
+        ...geographicResult.rows.filter((place) =>
+          !exactGeographyRows.includes(place)
+          && !fuzzyKeys.has([place.value, place.state || place.region, place.district, place.country_code]
+            .map((part) => String(part || '').trim().toLocaleLowerCase('en-IN')).join('|'))
+        ),
+      ];
+      // Promote a matching Indian directory city using the richer geographic
+      // row when available, so a long list of similarly named towns cannot hide it.
+      const promotedCities = cityMatches.map((item) => {
+        const matchingPlace = geographyRows.find((place) =>
+          String(place.value).toLocaleLowerCase('en-IN') === item.value.toLocaleLowerCase('en-IN')
+        );
+        // The built-in directory is the canonical city classification. A
+        // same-name geographic Town row may provide the verified hierarchy,
+        // but must not downgrade the city suggestion back to "Town".
+        return matchingPlace ? { ...matchingPlace, kind: item.kind } : item;
+      });
+      const promotedGeographyRows = new Set(
+        promotedCities.filter((item) => geographyRows.includes(item))
+      );
+      const orderedGeography = [
+        ...promotedCities,
+        ...tamilNaduTestRows,
+        ...geographyRows.filter((item) => !promotedGeographyRows.has(item)),
+      ];
+      const result = { rows: [...orderedGeography, ...shopLocationResult.rows] };
+      const merged = new Map<string, (typeof cityMatches)[number] | (typeof result.rows)[number]>();
+      // Preserve distinct places that share a name. A locality's full ancestry
+      // is part of its identity; name + type alone incorrectly collapsed every
+      // "Sai Nagar" into a single suggestion.
+      const locationKey = (item: Record<string, unknown>) => [
+        item.value, item.state || item.region, item.district, item.country_code || countryCode,
+      ].map((part) => String(part || '').trim().toLocaleLowerCase('en-IN')).join('|');
+      for (const item of orderedGeography) {
+        const key = locationKey(item as Record<string, unknown>);
+        if (!merged.has(key)) merged.set(key, item);
+      }
+      for (const item of shopLocationResult.rows) {
+        const key = locationKey(item as Record<string, unknown>);
+        if (!merged.has(key)) merged.set(key, item);
+      }
+      return NextResponse.json({
+        suggestions: Array.from(merged.values()).slice(0, 20),
+      });
+    }
+    return NextResponse.json({ error: 'Unknown suggestion type.' }, { status: 400 });
+  } catch (error) {
+    console.error('Shop discovery suggestions failed', error);
+    return NextResponse.json({ error: 'Suggestions are temporarily unavailable.', suggestions: [] }, { status: 503 });
+  }
+}
+ AND COALESCE(p.postal_code, '') LIKE $2 || '%')
                      )
                    )
                    OR (
