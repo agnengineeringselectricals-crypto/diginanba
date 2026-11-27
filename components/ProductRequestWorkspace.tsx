@@ -261,7 +261,7 @@ export default function ProductRequestWorkspace({ market }: { market: Market }) 
         </label>
         <button type="button" className="dn-pw-start dn-pw-create-cta" onClick={() => { setIdea((current) => current.trim() ? current : productSearch.trim()); setCreateMode(true); setError(''); setSuccess(''); }}>Find or Create</button>
       </div>
-
+    </div>
     {expanded && createMode && <div className="dn-pw-builder">
       <div className="dn-pw-assistant">
         <div className="dn-pw-assistant-avatar">DN</div>
