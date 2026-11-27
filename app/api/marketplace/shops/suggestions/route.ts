@@ -249,14 +249,48 @@ export async function GET(request: Request) {
       // Preserve the complete multi-word locality name. Only split parent
       // context when the user explicitly separates it with a comma, or when
       // a PIN code is appended to the locality query.
-      const nameQuery = commaParts.length > 1
+      let nameQuery = commaParts.length > 1
         ? commaParts[0]
         : hasPostalContext ? words.slice(0, -1).join(' ')
         : normalized;
-      const contextQuery = commaParts.length > 1
+      let contextQuery = commaParts.length > 1
         ? commaParts.slice(1).join(' ')
         : '';
       const postalContext = hasPostalContext ? words[words.length - 1] : '';
+
+      // For natural typing without commas (for example, "Alathur Tiru"),
+      // detect whether the final token is a prefix of a known parent place.
+      // Only split it when it matches a real district/taluk in the directory;
+      // otherwise preserve the complete multi-word locality name.
+      if (!hasPostalContext && commaParts.length <= 1 && words.length >= 2) {
+        const trailingToken = words[words.length - 1];
+        try {
+          const parentHint = await db.query(
+            `SELECT 1
+             FROM (
+               SELECT district_name AS parent_name FROM location_test.tamilnadu_official_villages
+               UNION
+               SELECT subdistrict_name AS parent_name FROM location_test.tamilnadu_official_villages
+               UNION
+               SELECT district_name_en AS parent_name FROM location_test.india_lgd_districts
+               UNION
+               SELECT subdistrict_name_en AS parent_name FROM location_test.india_lgd_subdistricts
+             ) parents
+             WHERE lower(regexp_replace(COALESCE(parent_name,''),'[^a-zA-Z0-9]+',' ','g'))
+                   LIKE lower($1) || '%'
+             LIMIT 1`,
+            [trailingToken]
+          );
+          if (parentHint.rows.length > 0) {
+            nameQuery = words.slice(0, -1).join(' ');
+            contextQuery = trailingToken;
+          }
+        } catch (parentLookupError) {
+          // Parent-context inference is an enhancement; normal locality
+          // search remains available if one optional directory is unavailable.
+          console.warn('Location parent-context inference skipped', parentLookupError);
+        }
+      }
       // Common exonyms, historic names and regional nicknames. These map
       // search terms to canonical directory names without changing stored data.
       const aliases: Record<string, string> = {
@@ -476,7 +510,13 @@ export async function GET(request: Request) {
                             FROM unnest(p.aliases) AS alias
                             CROSS JOIN unnest($1::text[]) AS term
                           ), 0)
-                        ) AS match_score
+                        ) AS match_score,
+                        CASE
+                          WHEN $2 = '' THEN 0
+                          WHEN lower(COALESCE(p.district,'')) LIKE '%' || lower($2) || '%'
+                            OR lower(COALESCE(p.town,'')) LIKE '%' || lower($2) || '%' THEN 0
+                          ELSE 1
+                        END AS context_rank
                  FROM place_candidates p
                  WHERE (
                    (
@@ -495,14 +535,7 @@ export async function GET(request: Request) {
                                OR word_similarity(term, alias) >= 0.50
                           )
                      )
-                     AND (
-                       $2 = ''
-                       OR lower(COALESCE(p.district, '')) LIKE '%' || lower($2) || '%'
-                       OR (
-                         $2 ~ '^[0-9]{5,6}$'
-                         AND COALESCE(p.postal_code, '') LIKE $2 || '%'
-                       )
-                     )
+
                    )
                    OR (
                      $2 = ''
@@ -520,7 +553,7 @@ export async function GET(request: Request) {
                       postal_code, post_office_name
                FROM scored
                WHERE match_rank < 2 OR match_score >= 0.50
-               ORDER BY match_rank, match_score DESC, value
+               ORDER BY context_rank, match_rank, match_score DESC, value
                LIMIT 20`,
               [fuzzySearchTerms, postalContext || contextQuery]
             )
@@ -546,8 +579,7 @@ export async function GET(request: Request) {
                      v.village_name_normalized = ANY($1::text[])
                      OR EXISTS (SELECT 1 FROM unnest($1::text[]) t WHERE v.village_name_normalized LIKE t || '%')
                    )
-                   AND ($2 = '' OR lower(v.district_name) LIKE '%' || lower($2) || '%'
-                        OR lower(v.subdistrict_name) LIKE '%' || lower($2) || '%')
+
                  UNION ALL
                  SELECT s.subdistrict_name_en, 'Taluk / subdistrict', NULL, s.subdistrict_name_en,
                         NULL, d.district_name_en, st.state_name_en, st.state_name_en,
@@ -561,7 +593,7 @@ export async function GET(request: Request) {
                  WHERE st.state_name_en <> 'Tamil Nadu'
                    AND (lower(regexp_replace(s.subdistrict_name_en,'[^a-zA-Z0-9]+',' ','g')) = ANY($1::text[])
                      OR EXISTS (SELECT 1 FROM unnest($1::text[]) t WHERE lower(regexp_replace(s.subdistrict_name_en,'[^a-zA-Z0-9]+',' ','g')) LIKE t || '%'))
-                   AND ($2 = '' OR lower(d.district_name_en) LIKE '%' || lower($2) || '%')
+
                  UNION ALL
                  SELECT d.district_name_en, 'District', NULL, NULL, NULL,
                         d.district_name_en, st.state_name_en, st.state_name_en,
