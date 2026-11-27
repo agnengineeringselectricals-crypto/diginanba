@@ -50,4 +50,5 @@ jobs:
         run: |
           set -euo pipefail
           test -n "${NEON_DATABASE_URL:-}"
-          node scripts/stage_tamilnadu_lgd_reconciliation.mjs "$RUNNER_TEMP/lgd-package/india_lgd_national_staging"
+          cp scripts/stage_tamilnadu_lgd_reconciliation.mjs "$RUNNER_TEMP/lgd-package/india_lgd_national_staging/stage_tamilnadu_lgd_reconciliation.mjs"
+          node "$RUNNER_TEMP/lgd-package/india_lgd_national_staging/stage_tamilnadu_lgd_reconciliation.mjs" "$RUNNER_TEMP/lgd-package/india_lgd_national_staging"
