@@ -13,12 +13,12 @@ if (!connectionString) throw new Error('NEON_DATABASE_URL is required.');
 
 const pool = new Pool({ connectionString, max: 2, connectionTimeoutMillis: 20000, application_name: 'diginanba-tn-lgd-reconciliation-stage' });
 const client = await pool.connect();
-const insertBatch = async (batch, startRow) => {
+const insertBatch = async (batch) => {
   if (!batch.length) return;
   const values = [];
   const tuples = batch.map((r, i) => {
     const n = i * 16;
-    values.push(r.village_code,r.state_code,r.state_name,r.district_code,r.district_name_en,r.subdistrict_code,r.subdistrict_name_en,r.village_version,r.village_name_en,r.village_name_local || null,r.village_status || null,r.census_2001_code || null,r.census_2011_code || null,r.remark || null,r.source_zip || null,'lgd_villages_all_states.csv',startRow+i);
+    values.push(r.village_code,r.state_code,r.state_name,r.district_code,r.district_name_en,r.subdistrict_code,r.subdistrict_name_en,r.village_version,r.village_name_en,r.village_name_local || null,r.village_status || null,r.census_2001_code || null,r.census_2011_code || null,r.remark || null,r.source_zip || null,'lgd_villages_all_states.csv',r.__sourceRow);
     return `($${n+1},$${n+2},$${n+3},$${n+4},$${n+5},$${n+6},$${n+7},$${n+8},$${n+9},$${n+10},$${n+11},$${n+12},$${n+13},$${n+14},$${n+15},$${n+16})`;
   });
   await client.query(`
@@ -75,14 +75,14 @@ try {
     if (!r.village_code || seen.has(r.village_code)) throw new Error('Missing or duplicate Tamil Nadu village LGD code: ' + r.village_code);
     seen.add(r.village_code);
     if (!r.district_code || !r.subdistrict_code || !r.village_name_en) throw new Error('Missing required hierarchy/name fields for village code ' + r.village_code);
-    batch.push(r);
+    batch.push({ ...r, __sourceRow: sourceRow });
     tnCount++;
     if (batch.length >= 500) {
-      await insertBatch(batch, sourceRow - batch.length + 1);
+      await insertBatch(batch);
       batch = [];
     }
   }
-  if (batch.length) await insertBatch(batch, sourceRow - batch.length + 1);
+  if (batch.length) await insertBatch(batch);
   if (tnCount !== 18681) throw new Error(`Expected 18,681 Tamil Nadu rows; found ${tnCount}. Refusing to commit.`);
   await client.query('COMMIT');
   const result = await client.query('SELECT count(*)::int AS rows, count(DISTINCT village_lgd_code)::int AS distinct_codes FROM location_test.india_lgd_tamilnadu_villages_reconciliation');
