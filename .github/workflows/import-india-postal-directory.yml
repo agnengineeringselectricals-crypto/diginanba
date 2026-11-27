@@ -37,4 +37,5 @@ jobs:
         run: |
           set -euo pipefail
           test -n "${NEON_DATABASE_URL:-}"
-          NODE_PATH="$RUNNER_TEMP/postal-import/node_modules" node scripts/import-india-postal-directory.mjs "$RUNNER_TEMP/india-pincode.csv"
+          cp scripts/import-india-postal-directory.mjs "$RUNNER_TEMP/postal-import/import-india-postal-directory.mjs"
+          node "$RUNNER_TEMP/postal-import/import-india-postal-directory.mjs" "$RUNNER_TEMP/india-pincode.csv"
