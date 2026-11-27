@@ -30,12 +30,14 @@ function detailOf(item: Result, key: string) {
   if (key === 'career') return [item.company_name, item.city, item.region].filter(Boolean).join(' · ');
   return [item.specialty || item.provider_type, item.locality, item.city, item.district, item.region].filter(Boolean).join(' · ');
 }
-function hrefOf(item: Result, key: string, market: string) {
+function hrefOf(item: Result, key: string, market: string, searchTerm: string, searchCity: string) {
   if (key === 'products' && item.slug) return '/products/' + encodeURIComponent(item.slug) + '?market=' + market;
   if (key === 'shops' && item.public_id) return '/s/' + encodeURIComponent(item.public_id);
   if (key === 'organizations' && item.id) return '/organizations/modules?organizationId=' + encodeURIComponent(item.id);
-  if (key === 'shops') return '/shops?q=' + encodeURIComponent(item.business_name || '');
-  return '/' + key + '?q=' + encodeURIComponent(item.business_name || item.display_name || item.title || '');
+  const params = new URLSearchParams();
+  if (searchTerm) params.set('q', searchTerm);
+  if (searchCity) params.set('city', searchCity);
+  return '/' + key + (params.size ? '?' + params.toString() : '');
 }
 
 export default function SearchResultsClient({ initialQuery, market }: Props) {
@@ -43,7 +45,8 @@ export default function SearchResultsClient({ initialQuery, market }: Props) {
   const [results, setResults] = useState<Record<string, Result[]>>({});
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
-  const [error, setError] = useState('');
+  const [categoryErrors, setCategoryErrors] = useState<Record<string, string>>({});
+  const [organizationSignInRequired, setOrganizationSignInRequired] = useState(false);
 
   useEffect(() => {
     const term = initialQuery.trim();
@@ -55,7 +58,8 @@ export default function SearchResultsClient({ initialQuery, market }: Props) {
     let active = true;
     const controller = new AbortController();
     setLoading(true);
-    setError('');
+    const failures: Record<string, string> = {};
+    let needsOrganizationSignIn = false;
     const requests = areas.map(async area => {
       try {
         const url = area.key === 'products'
@@ -64,7 +68,14 @@ export default function SearchResultsClient({ initialQuery, market }: Props) {
             ? '/api/organizations'
             : '/api/marketplace/' + area.endpoint + '?q=' + encodeURIComponent(searchTerm) + (searchCity && area.key !== 'career' ? '&city=' + encodeURIComponent(searchCity) : searchCity ? '&city=' + encodeURIComponent(searchCity) : '');
         const response = await fetch(url, { signal: controller.signal, cache: 'no-store' });
-        if (!response.ok) return [area.key, []] as const;
+        if (!response.ok) {
+          if (area.key === 'organizations' && response.status === 401) {
+            needsOrganizationSignIn = true;
+            return [area.key, []] as const;
+          }
+          failures[area.key] = response.status === 503 ? 'Temporarily unavailable' : 'Could not load';
+          return [area.key, []] as const;
+        }
         const data = await response.json();
         let rows = area.key === 'products' ? data.products
           : area.key === 'healthcare' ? data.providers
@@ -80,7 +91,11 @@ export default function SearchResultsClient({ initialQuery, market }: Props) {
       }
     });
     Promise.all(requests).then(entries => {
-      if (active) setResults(Object.fromEntries(entries));
+      if (active) {
+        setResults(Object.fromEntries(entries));
+        setCategoryErrors(failures);
+        setOrganizationSignInRequired(needsOrganizationSignIn);
+      }
     }).finally(() => {
       if (active) { setLoading(false); setSearched(true); }
     });
@@ -107,9 +122,10 @@ export default function SearchResultsClient({ initialQuery, market }: Props) {
       <a href={'https://www.google.com/search?q='+encodeURIComponent(initialQuery)} target="_blank" rel="noopener noreferrer" style={{color:'#344c9a',fontWeight:800,textDecoration:'none'}}>Search Google for “{initialQuery}” ↗</a>
     </section>}
     {loading && <p role="status" style={{ color: '#667085', marginTop: 22 }}>Searching all DigiNanba categories…</p>}
-    {error && <p role="alert" style={{ color: '#b42318', marginTop: 18 }}>{error}</p>}
-    {searched && !loading && !error && <p style={{ color: '#667085', margin: '22px 0 8px' }}>{total} matching results for <strong>“{initialQuery}”</strong></p>}
-    {searched && !loading && !error && total === 0 && <section style={{ marginTop: 18, padding: 22, border: '1px dashed #cbd5e1', borderRadius: 16, background: '#f8fafc' }}>
+    {searched && !loading && Object.keys(categoryErrors).length > 0 && <p role="status" style={{ color: '#9a6700', marginTop: 16 }}>Some DigiNanba categories could not be searched: {Object.entries(categoryErrors).map(([key, value]) => areas.find(area => area.key === key)?.label + ' (' + value + ')').join(', ')}. Other results are shown below.</p>}
+    {searched && !loading && <p style={{ color: '#667085', margin: '22px 0 8px' }}>{total} matching results for <strong>“{initialQuery}”</strong></p>}
+    {organizationSignInRequired && <section style={{ marginTop: 14, padding: 16, border: '1px solid #d0d5dd', borderRadius: 12, background: '#f8fafc' }}><strong>Your organization workspaces are private.</strong><p style={{ margin: '6px 0 10px', color: '#667085' }}>Sign in to include workspaces where you are an active member.</p><a href="/api/auth/signin" style={{ color: '#344c9a', fontWeight: 800 }}>Sign in to search your workspaces →</a></section>}
+    {searched && !loading && total === 0 && <section style={{ marginTop: 18, padding: 22, border: '1px dashed #cbd5e1', borderRadius: 16, background: '#f8fafc' }}>
       <strong>No matching public listings found yet.</strong>
       <p style={{ color: '#667085', lineHeight: 1.6 }}>Try a different phrase or search by a product, shop name, service, profession, doctor, job title or location.</p>
     </section>}
@@ -123,7 +139,7 @@ export default function SearchResultsClient({ initialQuery, market }: Props) {
             <span style={{ color: '#667085', fontSize: 12 }}>{rows.length} results</span>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,260px),1fr))', gap: 12 }}>
-            {rows.slice(0, 12).map((item, index) => <Link key={String(item.id || item.slug || index)} href={hrefOf(item, area.key, market)} style={{ display: 'block', padding: 16, border: '1px solid #e4e7ec', borderRadius: 14, background: '#fff', color: '#172033' }}>
+            {rows.slice(0, 12).map((item, index) => <Link key={String(item.id || item.slug || index)} href={hrefOf(item, area.key, market, searchTerm, searchCity)} style={{ display: 'block', padding: 16, border: '1px solid #e4e7ec', borderRadius: 14, background: '#fff', color: '#172033' }}>
               <strong style={{ display: 'block', marginBottom: 6 }}>{titleOf(item, area.key)}</strong>
               <span style={{ display: 'block', color: '#667085', fontSize: 13, lineHeight: 1.5 }}>{detailOf(item, area.key) || item.description?.slice(0, 150) || 'View details'}</span>
               {area.key === 'products' && item.price ? <span style={{ display: 'block', marginTop: 9, color: '#344c9a', fontWeight: 800 }}>{item.price}</span> : null}
