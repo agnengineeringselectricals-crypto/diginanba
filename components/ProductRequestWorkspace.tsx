@@ -166,6 +166,9 @@ export default function ProductRequestWorkspace({ market }: { market: Market }) 
   const [expanded] = useState(true);
   const descriptionInputRef = useRef<HTMLTextAreaElement | null>(null);
   const [productSearch, setProductSearch] = useState('');
+  const [existingProducts, setExistingProducts] = useState<{id:string;slug:string;title:string}[]>([]);
+  const [searchingProducts, setSearchingProducts] = useState(false);
+  const [hasSearchedProducts, setHasSearchedProducts] = useState(false);
   const [createMode, setCreateMode] = useState(false);
   const [idea, setIdea] = useState('');
   const [kind, setKind] = useState<string>('Interactive web tool or dashboard');
@@ -179,7 +182,37 @@ export default function ProductRequestWorkspace({ market }: { market: Market }) 
     return () => window.clearTimeout(timer);
   }, [createMode]);
 
-
+  useEffect(() => {
+    const query = productSearch.trim();
+    if (query.length < 2) {
+      setExistingProducts([]);
+      setHasSearchedProducts(false);
+      setSearchingProducts(false);
+      return;
+    }
+    let active = true;
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      setSearchingProducts(true);
+      try {
+        const params = new URLSearchParams({ market, q: query });
+        const response = await fetch('/api/products?' + params.toString(), { signal: controller.signal });
+        const data = await response.json();
+        if (active) {
+          setExistingProducts(Array.isArray(data.products) ? data.products : []);
+          setHasSearchedProducts(true);
+        }
+      } catch {
+        if (active && !controller.signal.aborted) {
+          setExistingProducts([]);
+          setHasSearchedProducts(false);
+        }
+      } finally {
+        if (active) setSearchingProducts(false);
+      }
+    }, 250);
+    return () => { active = false; window.clearTimeout(timer); controller.abort(); };
+  }, [productSearch, market]);
 
   const [previewOpen, setPreviewOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -261,6 +294,11 @@ export default function ProductRequestWorkspace({ market }: { market: Market }) 
         </label>
         <button type="button" className="dn-pw-start dn-pw-create-cta" onClick={() => { setIdea((current) => current.trim() ? current : productSearch.trim()); setCreateMode(true); setError(''); setSuccess(''); }}>Find or Create</button>
       </div>
+      {searchingProducts && <p className="dn-pw-search-status" role="status">Checking the marketplace…</p>}
+      {!searchingProducts && hasSearchedProducts && existingProducts.length === 0 && <div className="dn-pw-no-match-card" aria-live="polite">
+        <div><p><strong>✨ “{productSearch.trim()}” isn’t available yet.</strong></p><p>Be the first to bring this idea to life. Create it with DigiNanba and explore the opportunity to earn.</p></div>
+        <button type="button" className="dn-pw-start dn-pw-create-earn" onClick={() => { setIdea((current) => current.trim() ? current : productSearch.trim()); setCreateMode(true); setError(''); setSuccess(''); }}>Create it &amp; earn →</button>
+      </div>}
     </div>
     {expanded && createMode && <div className="dn-pw-builder">
       <div className="dn-pw-assistant">
