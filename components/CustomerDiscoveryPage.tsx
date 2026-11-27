@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import HomeLink from '@/components/HomeLink';
 
 type Listing = { id: string; title: string; description?: string; category: string; priceAmount?: number | null; currency?: string | null; priceUnit?: string | null };
 type ShopOrProvider = { id: string; business_name?: string; display_name?: string; title?: string; company_name?: string; description?: string; specialty?: string; provider_type?: string; city?: string; district?: string; region?: string; locality?: string; salary_min?: number; salary_max?: number; salary_currency?: string; employment_type?: string; listings?: Listing[] };
@@ -49,6 +50,7 @@ export default function CustomerDiscoveryPage({ kind, title, intro, categories }
 
   return (
     <main style={{ maxWidth: 1160, margin: '0 auto', padding: '38px 20px 76px', color: '#172033' }}>
+      <HomeLink />
       <p style={{ margin: '0 0 9px', color: '#5264b5', fontSize: 12, fontWeight: 800, letterSpacing: '.09em', textTransform: 'uppercase' }}>DigiNanba local discovery</p>
       <h1 style={{ margin: '0 0 12px', fontSize: 'clamp(32px,5vw,48px)', lineHeight: 1.08, letterSpacing: '-.04em' }}>{title}</h1>
       <p style={{ maxWidth: 780, margin: 0, color: '#475467', fontSize: 17, lineHeight: 1.65 }}>{intro}</p>
