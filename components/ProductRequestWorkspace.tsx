@@ -300,25 +300,18 @@ export default function ProductRequestWorkspace({ market }: { market: Market }) 
       </div>}
     </div>
     {expanded && createMode && <div className="dn-pw-builder">
-      <div className="dn-pw-assistant">
-        <div className="dn-pw-assistant-avatar">DN</div>
-        <div><strong>DigiNanba Product Guide</strong><p>Tell us what you want to create. You do not need to specify every feature or decide on a price now. You can review this brief before submitting it.</p></div>
-      </div>
       <form onSubmit={(event) => { event.preventDefault(); if (canPreview) setPreviewOpen(true); }}>
         <div className="dn-pw-fields">
           <label className="dn-pw-field-full">Describe the product or tool you want
             <textarea ref={descriptionInputRef} required minLength={5} maxLength={4500} rows={6} value={idea} onChange={(event) => setIdea(event.target.value)} placeholder="Describe the product or tool, how you imagine it working, the design you prefer, and anything important. You can write naturally—DigiNanba can help refine the brief." />
-            <small>Only the description and product type are required. You can request new features or improvements later.</small>
           </label>
           <label className="dn-pw-field-full">What kind of product is it?
             <input list="dn-pw-product-types" value={kindQuery} maxLength={120} onChange={(event) => { const value = event.target.value; setKindQuery(value); setKind(value); }} placeholder="Start typing a product type…" autoComplete="off" required />
             <datalist id="dn-pw-product-types">
               {productKinds.map((item) => <option key={item.value} value={item.label} />)}
             </datalist>
-            <small>Start typing—for example, “invoice”, “keyboard”, “AI”, “tracker” or “planner”—to see matching suggestions. If your type is missing, enter it in your own words.</small>
           </label>
         </div>
-        <div className="dn-pw-global-note"><span className="dn-pw-global-icon">◎</span><div><strong>What happens after you submit?</strong><p>DigiNanba reviews the request first. If it can be taken forward, the available format, language, price and delivery details will be shared before you commit.</p></div></div>
         <div className="dn-pw-form-footer"><p>Review your product brief in the preview before submitting it.</p><button type="submit" className="dn-pw-start" disabled={!canPreview}>Preview &amp; finalize brief →</button></div>
       </form>
     </div>}
