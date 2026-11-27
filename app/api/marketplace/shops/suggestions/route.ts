@@ -577,7 +577,12 @@ export async function GET(request: Request) {
                  WHERE lower(v.state_name) <> 'tamil nadu'
                    AND (
                      v.village_name_normalized = ANY($1::text[])
-                     OR EXISTS (SELECT 1 FROM unnest($1::text[]) t WHERE v.village_name_normalized LIKE t || '%')
+                     OR EXISTS (
+                       SELECT 1 FROM unnest($1::text[]) t
+                       WHERE v.village_name_normalized LIKE t || '%'
+                          OR similarity(v.village_name_normalized, t) >= 0.32
+                          OR word_similarity(t, v.village_name_normalized) >= 0.50
+                     )
                    )
 
                  UNION ALL
