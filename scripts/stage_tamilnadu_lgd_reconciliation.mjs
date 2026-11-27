@@ -19,7 +19,7 @@ const insertBatch = async (batch) => {
   const tuples = batch.map((r, i) => {
     const n = i * 17;
     values.push(r.village_code,r.state_code,r.state_name,r.district_code,r.district_name_en,r.subdistrict_code,r.subdistrict_name_en,r.village_version,r.village_name_en,r.village_name_local || null,r.village_status || null,r.census_2001_code || null,r.census_2011_code || null,r.remark || null,r.source_zip || null,'lgd_villages_all_states.csv',r.__sourceRow);
-    return `(${n+1},${n+2},${n+3},${n+4},${n+5},${n+6},${n+7},${n+8},${n+9},${n+10},${n+11},${n+12},${n+13},${n+14},${n+15},${n+16},${n+17})`;
+    return `($${n+1},$${n+2},$${n+3},$${n+4},$${n+5},$${n+6},$${n+7},$${n+8},$${n+9},$${n+10},$${n+11},$${n+12},$${n+13},$${n+14},$${n+15},$${n+16},$${n+17})`;
   });
   await client.query(`
     INSERT INTO location_test.india_lgd_tamilnadu_villages_reconciliation (
