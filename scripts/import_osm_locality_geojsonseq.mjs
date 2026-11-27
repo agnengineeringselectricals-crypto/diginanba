@@ -182,14 +182,14 @@ async function insertBatch(batchId, rows) {
   if (!rows.length) return 0;
   const values = [];
   const tuples = rows.map((row, index) => {
-    const offset = index * 17;
+    const offset = index * 18;
     values.push(
       batchId, row.sourceRef, row.osmType, row.osmId, row.name, row.normalizedName,
       row.aliases, row.locationType, row.placeType, row.highwayClass, row.stateHint,
       row.districtHint, row.subdistrictHint, row.parentHint, row.postalCode,
       row.latitude, row.longitude, JSON.stringify(row.tags)
     );
-    return `($${offset + 1}::uuid,$${offset + 2},$${offset + 3},$${offset + 4},$${offset + 5},$${offset + 6},$${offset + 7}::text[],$${offset + 8},$${offset + 9},$${offset + 10},$${offset + 11},$${offset + 12},$${offset + 13},$${offset + 14},$${offset + 15},$${offset + 16},$${offset + 17},$${offset + 18}::jsonb)`;
+    return `($${offset + 1}::uuid,$${offset + 2},$${offset + 3},$${offset + 4},$${offset + 5},$${offset + 6},$${offset + 7}::text[],$${offset + 8},$${offset + 9},$${offset + 10},$${offset + 11},$${offset + 12},$${offset + 13},$${offset + 14},$${offset + 15},$${offset + 16},$${offset + 17},$${offset + 18}::jsonb,ST_SetSRID(ST_MakePoint($${offset + 17},$${offset + 16}),4326)::geography,'ODbL 1.0','pending',now())`;
   });
   const result = await pool.query(`
     INSERT INTO marketplace_locality_import_stage (
@@ -198,7 +198,7 @@ async function insertBatch(batchId, rows) {
       subdistrict_hint,parent_hint,postal_code,latitude,longitude,raw_tags,
       geom,source_license,review_status,imported_at
     )
-    VALUES ${tuples.map((tuple) => tuple.replace(/\)$/, ',ST_SetSRID(ST_MakePoint($' + (rows.indexOf(rows[tuples.indexOf(tuple)]) * 17 + 17) + ',$' + (rows.indexOf(rows[tuples.indexOf(tuple)]) * 17 + 16) + '),4326)::geography,\'ODbL 1.0\',\'pending\',now())')).join(',')}
+    VALUES ${tuples.join(',')}
     ON CONFLICT (source_ref) DO UPDATE SET
       import_batch_id=EXCLUDED.import_batch_id,
       name=EXCLUDED.name,
