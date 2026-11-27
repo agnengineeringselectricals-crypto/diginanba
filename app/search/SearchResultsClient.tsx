@@ -47,6 +47,9 @@ export default function SearchResultsClient({ initialQuery, market }: Props) {
 
   useEffect(() => {
     const term = initialQuery.trim();
+    const locationMatch = term.match(/^(.+?)\\s+(?:in|near|around)\\s+(.+)$/i);
+    const searchTerm = locationMatch ? locationMatch[1].trim() : term;
+    const searchCity = locationMatch ? locationMatch[2].trim() : '';
     setQuery(term);
     if (term.length < 2) { setResults({}); setSearched(false); return; }
     let active = true;
@@ -56,10 +59,10 @@ export default function SearchResultsClient({ initialQuery, market }: Props) {
     const requests = areas.map(async area => {
       try {
         const url = area.key === 'products'
-          ? '/api/products?market=' + market + '&q=' + encodeURIComponent(term)
+          ? '/api/products?market=' + market + '&q=' + encodeURIComponent(searchTerm)
           : area.key === 'organizations'
             ? '/api/organizations'
-            : '/api/marketplace/' + area.endpoint + '?q=' + encodeURIComponent(term);
+            : '/api/marketplace/' + area.endpoint + '?q=' + encodeURIComponent(searchTerm) + (searchCity && area.key !== 'career' ? '&city=' + encodeURIComponent(searchCity) : searchCity ? '&city=' + encodeURIComponent(searchCity) : '');
         const response = await fetch(url, { signal: controller.signal, cache: 'no-store' });
         if (!response.ok) return [area.key, []] as const;
         const data = await response.json();
@@ -69,7 +72,7 @@ export default function SearchResultsClient({ initialQuery, market }: Props) {
           : area.key === 'organizations' ? data.organizations
           : data.items;
         if (area.key === 'organizations' && Array.isArray(rows)) {
-          rows = rows.filter((item: Result) => String(item.name || '').toLocaleLowerCase().includes(term.toLocaleLowerCase()));
+          rows = rows.filter((item: Result) => String(item.name || '').toLocaleLowerCase().includes(searchTerm.toLocaleLowerCase()));
         }
         return [area.key, Array.isArray(rows) ? rows : []] as const;
       } catch {
