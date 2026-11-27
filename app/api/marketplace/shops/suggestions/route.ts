@@ -9,6 +9,11 @@ export const runtime = 'nodejs';
 // still ranked and thresholded in PostgreSQL, never blindly substituted.
 function romanizedLocationVariants(value: string): string[] {
   const variants = new Set<string>([value]);
+  // South Indian place names are often romanized with a final -i or -e
+  // (for example, Brahmanapalli / Brahmanapalle). Keep this as an additional
+  // indexed prefix candidate rather than running a table-wide fuzzy scan.
+  const terminalIVariant = value.replace(/i$/, 'e');
+  if (terminalIVariant.length >= 3 && terminalIVariant !== value) variants.add(terminalIVariant);
   // Handle common Tamil romanisation where two adjacent vowel sounds are
   // represented differently by non-local users (e.g. tiruvarembur ->
   // tiruverumbur). Apply both substitutions in one pass so a newly-created
