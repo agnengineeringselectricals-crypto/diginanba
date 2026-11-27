@@ -163,18 +163,13 @@ export async function GET(request: Request) {
         const record = Array.isArray(result.value) ? result.value[0] : undefined;
         return record?.Status === 'Success' && Array.isArray(record.PostOffice) ? record.PostOffice : [];
       });
-      const tamilNaduOffices = allOffices.filter((office) =>
-        (office.State || '').trim().toLocaleLowerCase('en-IN') === 'tamil nadu'
-        && (office.Pincode || '').startsWith(q)
+      // India Post is country-wide. Keep every matching post office for a
+      // five- or six-digit query; a PIN may map to multiple offices/localities.
+      const matchingOffices = allOffices.filter((office) =>
+        (office.Pincode || '').startsWith(q)
       );
-      if (allOffices.length > 0 && tamilNaduOffices.length === 0) {
-        return NextResponse.json({
-          suggestions: [],
-          error: 'This PIN code is outside the Tamil Nadu staging dataset. Other Indian states will be enabled after Tamil Nadu validation.',
-        });
-      }
-      const uniqueOffices = new Map<string, (typeof tamilNaduOffices)[number]>();
-      for (const office of tamilNaduOffices) {
+      const uniqueOffices = new Map<string, (typeof matchingOffices)[number]>();
+      for (const office of matchingOffices) {
         const key = [
           office.Name, office.District, office.Block, office.Pincode,
         ].map((part) => (part || '').trim().toLocaleLowerCase('en-IN')).join('|');
@@ -187,8 +182,8 @@ export async function GET(request: Request) {
         town: office.Block || null,
         village: null,
         district: office.District || null,
-        state: 'Tamil Nadu',
-        region: 'Tamil Nadu',
+        state: office.State || null,
+        region: office.State || null,
         country: 'India',
         country_code: 'IN',
         postal_code: office.Pincode || q,
@@ -198,7 +193,7 @@ export async function GET(request: Request) {
         suggestions,
         postal_code: q.length === 6 ? q : undefined,
         postal_code_prefix: q.length === 5 ? q : undefined,
-        staging_state: 'Tamil Nadu',
+        country_code: 'IN',
       });
     } catch (postalError) {
       console.error('Tamil Nadu PIN-code lookup failed', postalError);
@@ -287,7 +282,7 @@ export async function GET(request: Request) {
           district: null,
           region: item.region,
         }));
-      const [shopLocationResult, geographicResult, tamilNaduTestResult] = await Promise.all([
+      const [shopLocationResult, geographicResult, tamilNaduTestResult, indiaLgdResult] = await Promise.all([
         db.query(
           `WITH location_values AS (
              SELECT city AS value, 'City / town' AS kind, city, district, region FROM marketplace_businesses WHERE business_type='shop' AND listing_status='published'
@@ -527,9 +522,68 @@ export async function GET(request: Request) {
               [fuzzySearchTerms, postalContext || contextQuery]
             )
           : Promise.resolve({ rows: [] }),
+        // National LGD village/subdistrict/district directory is enabled for
+        // non-Tamil-Nadu states only. Tamil Nadu continues using its established
+        // source until its separately reported code/name exceptions are resolved.
+        countryCode === 'IN'
+          ? db.query(
+              `WITH candidates AS (
+                 SELECT v.village_name AS value, 'Village'::text AS kind,
+                        NULL::text AS city, v.subdistrict_name AS town,
+                        v.village_name AS village, v.district_name AS district,
+                        v.state_name AS state, v.state_name AS region,
+                        'India'::text AS country, 'IN'::text AS country_code,
+                        NULL::text AS postal_code, v.village_lgd_code AS source_id,
+                        CASE WHEN v.village_name_normalized = ANY($1::text[]) THEN 0
+                             WHEN EXISTS (SELECT 1 FROM unnest($1::text[]) t WHERE v.village_name_normalized LIKE t || '%') THEN 1
+                             ELSE 2 END AS match_rank
+                 FROM location_test.india_other_states_official_villages v
+                 WHERE lower(v.state_name) <> 'tamil nadu'
+                   AND (
+                     v.village_name_normalized = ANY($1::text[])
+                     OR EXISTS (SELECT 1 FROM unnest($1::text[]) t WHERE v.village_name_normalized LIKE t || '%')
+                   )
+                   AND ($2 = '' OR lower(v.district_name) LIKE '%' || lower($2) || '%'
+                        OR lower(v.subdistrict_name) LIKE '%' || lower($2) || '%')
+                 UNION ALL
+                 SELECT s.subdistrict_name_en, 'Taluk / subdistrict', NULL, s.subdistrict_name_en,
+                        NULL, d.district_name_en, st.state_name_en, st.state_name_en,
+                        'India', 'IN', NULL, s.subdistrict_lgd_code,
+                        CASE WHEN lower(regexp_replace(s.subdistrict_name_en,'[^a-zA-Z0-9]+',' ','g')) = ANY($1::text[]) THEN 0
+                             WHEN EXISTS (SELECT 1 FROM unnest($1::text[]) t WHERE lower(regexp_replace(s.subdistrict_name_en,'[^a-zA-Z0-9]+',' ','g')) LIKE t || '%') THEN 1
+                             ELSE 2 END
+                 FROM location_test.india_lgd_subdistricts s
+                 JOIN location_test.india_lgd_districts d ON d.district_lgd_code=s.district_lgd_code
+                 JOIN location_test.india_lgd_states st ON st.state_lgd_code=s.state_lgd_code
+                 WHERE st.state_name_en <> 'Tamil Nadu'
+                   AND (lower(regexp_replace(s.subdistrict_name_en,'[^a-zA-Z0-9]+',' ','g')) = ANY($1::text[])
+                     OR EXISTS (SELECT 1 FROM unnest($1::text[]) t WHERE lower(regexp_replace(s.subdistrict_name_en,'[^a-zA-Z0-9]+',' ','g')) LIKE t || '%'))
+                   AND ($2 = '' OR lower(d.district_name_en) LIKE '%' || lower($2) || '%')
+                 UNION ALL
+                 SELECT d.district_name_en, 'District', NULL, NULL, NULL,
+                        d.district_name_en, st.state_name_en, st.state_name_en,
+                        'India', 'IN', NULL, d.district_lgd_code,
+                        CASE WHEN lower(regexp_replace(d.district_name_en,'[^a-zA-Z0-9]+',' ','g')) = ANY($1::text[]) THEN 0
+                             WHEN EXISTS (SELECT 1 FROM unnest($1::text[]) t WHERE lower(regexp_replace(d.district_name_en,'[^a-zA-Z0-9]+',' ','g')) LIKE t || '%') THEN 1
+                             ELSE 2 END
+                 FROM location_test.india_lgd_districts d
+                 JOIN location_test.india_lgd_states st ON st.state_lgd_code=d.state_lgd_code
+                 WHERE st.state_name_en <> 'Tamil Nadu'
+                   AND (lower(regexp_replace(d.district_name_en,'[^a-zA-Z0-9]+',' ','g')) = ANY($1::text[])
+                     OR EXISTS (SELECT 1 FROM unnest($1::text[]) t WHERE lower(regexp_replace(d.district_name_en,'[^a-zA-Z0-9]+',' ','g')) LIKE t || '%'))
+               )
+               SELECT value, kind, city, town, village, district, state, region,
+                      country, country_code, postal_code
+               FROM candidates
+               ORDER BY match_rank, value, district NULLS LAST
+               LIMIT 30`,
+              [fuzzySearchTerms, contextQuery]
+            )
+          : Promise.resolve({ rows: [] }),
       ]);
-      // TN test data is fetched in parallel with the production sources.
+      // TN test data and national LGD data are fetched separately in parallel.
       const tamilNaduTestRows = tamilNaduTestResult.rows;
+      const indiaLgdRows = indiaLgdResult.rows;
 
       // Run bounded typo-tolerant matching for every location query once it
       // is long enough to be meaningful. This runs alongside prefix matching,
@@ -649,6 +703,7 @@ export async function GET(request: Request) {
       const orderedGeography = [
         ...promotedCities,
         ...tamilNaduTestRows,
+        ...indiaLgdRows,
         ...geographyRows.filter((item) => !promotedGeographyRows.has(item)),
       ];
       const result = { rows: [...orderedGeography, ...shopLocationResult.rows] };
