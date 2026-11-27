@@ -5,7 +5,7 @@ import HomeLink from '@/components/HomeLink';
 
 type Listing = { id: string; title: string; description?: string; category: string; priceAmount?: number | null; currency?: string | null; priceUnit?: string | null };
 type ShopOrProvider = { id: string; business_name?: string; display_name?: string; title?: string; company_name?: string; description?: string; specialty?: string; provider_type?: string; city?: string; district?: string; region?: string; locality?: string; salary_min?: number; salary_max?: number; salary_currency?: string; employment_type?: string; listings?: Listing[] };
-type Props = { kind: 'shops' | 'services' | 'professionals' | 'healthcare' | 'career'; title: string; intro: string; categories: string[] };
+type Props = { kind: 'shops' | 'services' | 'professionals' | 'healthcare' | 'career'; title: string; intro: string; categories: string[]; initialQuery?: string; initialCity?: string };
 
 const inputStyle: React.CSSProperties = { width: '100%', minWidth: 0, padding: '13px 14px', border: '1px solid #d0d5dd', borderRadius: 12, background: '#fff', color: '#172033', font: 'inherit' };
 const chipStyle: React.CSSProperties = { border: '1px solid #d0d5dd', borderRadius: 999, padding: '9px 13px', background: '#fff', color: '#344054', cursor: 'pointer', font: 'inherit', fontSize: 13 };
